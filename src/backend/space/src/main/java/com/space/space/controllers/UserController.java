@@ -1,9 +1,6 @@
 package com.space.space.controllers;
 
-import com.space.space.dtos.UserLoginRequestDto;
-import com.space.space.dtos.UserLoginResponseDto;
-import com.space.space.dtos.UserRegistrationRequestDto;
-import com.space.space.dtos.UserRegistrationResponseDto;
+import com.space.space.dtos.*;
 import com.space.space.enums.ResponseError;
 import com.space.space.models.User;
 import com.space.space.services.UserService;
@@ -19,7 +16,6 @@ public class UserController {
 
     private UserService userService;
 
-    private Logger logger=Logger.getLogger(UserController.class.getName());
     @Autowired
     public UserController(UserService userService) {
         this.userService = userService;
@@ -50,6 +46,42 @@ public class UserController {
         userLoginResponseDto.setFirstName(user.getFirstName());
         userLoginResponseDto.setLastName(user.getLastName());
         return userLoginResponseDto;
+    }
+
+    @PostMapping("/addAccountPlan")
+    public UserAccountPlanResponseDto addUserAccountPlan(@RequestBody UserAccountPlanRequestDto userAccountPlanRequestDto){
+        UserAccountPlanResponseDto userAccountPlanResponseDto = new UserAccountPlanResponseDto();
+        User user=userService.addUserAccountPlan(userAccountPlanRequestDto.getUserId(),userAccountPlanRequestDto.getPlans());
+        if(user!=null){
+            userAccountPlanResponseDto.setUserId(user.getId());
+            userAccountPlanResponseDto.setMessage("Account plan successfully added");
+        }
+        else{
+            userAccountPlanResponseDto.setMessage("Account plan not added");
+        }
+        return userAccountPlanResponseDto;
+    }
+
+    @GetMapping("/{id}")
+    public UserResponseDetailsDto getUserAccountPlan(@PathVariable String id){
+        UserResponseDetailsDto userResponseDetailsDto = new UserResponseDetailsDto();
+        User user=userService.getUserById(id);
+        userResponseDetailsDto.setUser(user);
+        return userResponseDetailsDto;
+    }
+
+    @PostMapping("/ScaleUserAccountPlan")
+    public UserAccountPlanScalingResponseDto scaleUserAccountPlan(@RequestBody UserAccountPlanScalingRequestDto userAccountPlanScalingRequestDto){
+        UserAccountPlanScalingResponseDto userAccountPlanScalingResponseDto = new UserAccountPlanScalingResponseDto();
+        try{
+            User user =userService.scaleUserAccountPlan(userAccountPlanScalingRequestDto.getUserId(),userAccountPlanScalingRequestDto.getAccountPlan(),userAccountPlanScalingRequestDto.getScale());
+            userAccountPlanScalingResponseDto.setUserId(user.getId());
+            userAccountPlanScalingResponseDto.setMessage("Account plane upgrade/degrade successfully");
+        }catch (Exception e){
+            userAccountPlanScalingResponseDto.setMessage("Account plane upgrade/degrad failed");
+        }
+
+        return userAccountPlanScalingResponseDto;
     }
 
 }
