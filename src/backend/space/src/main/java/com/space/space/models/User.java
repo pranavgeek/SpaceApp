@@ -7,33 +7,37 @@ import com.space.space.enums.Role;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 
 @Entity
 @Getter
 @Setter
-public class User extends BaseModel{
+public class User extends BaseModel {
     private String firstName;
     private String lastName;
+
+    @Column(unique = true, nullable = false)
     private String email;
+
+    @JsonIgnore
     private String password;
 
-    @Enumerated(EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     private Role role;
 
     private Long followersCount;
 
-    @Enumerated(value = EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     @ElementCollection
     private List<AccountPlan> accountPlans;
 
     private String bio;
 
-    @Enumerated(value = EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     private Country country;
 
-    @Enumerated(value = EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     private Language language;
-
 }

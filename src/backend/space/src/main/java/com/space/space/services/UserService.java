@@ -1,17 +1,14 @@
 package com.space.space.services;
 
-import com.space.space.enums.Country;
-import com.space.space.enums.Language;
-import com.space.space.enums.Role;
+import com.space.space.enums.*;
 import com.space.space.models.User;
 import com.space.space.repositories.UserRepository;
-import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 
-@Log4j2
 @Service
 public class UserService {
 
@@ -48,11 +45,55 @@ public class UserService {
 
     public User loginUser(String email, String password) {
         User user=userRepository.findByEmail(email);
+
         BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder();
         if(!bCryptPasswordEncoder.matches(password, user.getPassword())){
             throw new RuntimeException("Incorrect password");
         }
         return user;
+    }
 
+    public User addUserAccountPlan(String userId,List<AccountPlan> accountPlans){
+        User upadateUser;
+        User user=userRepository.findUserById(userId);
+        if(user==null){
+            throw new RuntimeException("User already exists");
+        }
+        else{
+            user.setAccountPlans(accountPlans);
+            upadateUser=userRepository.save(user);
+        }
+        return upadateUser;
+    }
+
+    public User getUserById(String userId){
+        User user=userRepository.findUserById(userId);
+        if(user==null){
+            throw new RuntimeException("User does not exist");
+        }
+        return user;
+    }
+
+    public User scaleUserAccountPlan(String userId, AccountPlan accountPlan, Scale scale){
+        User user=userRepository.findUserById(userId);
+        if(user==null){
+            throw new RuntimeException("User does not exist");
+        }
+        if(scale.equals(Scale.UPGRADE)){
+            if(user.getAccountPlans().contains(accountPlan)){
+                throw new RuntimeException("Account Plan already exists");
+            }
+            else{
+                user.getAccountPlans().add(accountPlan);
+            }
+        }
+        else{
+            if(user.getAccountPlans().contains(accountPlan)){
+                user.getAccountPlans().remove(accountPlan);
+            }else{
+                throw new RuntimeException("Account Plan does not exist");
+            }
+        }
+        return userRepository.save(user);
     }
 }
