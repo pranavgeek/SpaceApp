@@ -17,14 +17,11 @@ import ButtonSettings from './components/ButtonSettings';
 import HomeStack from './navigation/HomeStack';
 import ProfileStackNavigator from './navigation/ProfileStack';
 
-import { ThemeProvider } from './theme/ThemeContext';
-
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
 
 const Tab = createBottomTabNavigator();
 
 // Placeholder screens
-const ExploreScreen = () => <Screen title="Explore" />;
-const SearchScreen = () => <Screen title="Search" />;
 const CreatePostScreen = () => <Screen tittle="Create" />
 
 // Reusable screen component
@@ -34,15 +31,23 @@ const Screen = ({ title }) => (
   </View>
 );
 
-const App = () => {
+
+const App = () => (
+  <ThemeProvider>
+    <AppContent />
+  </ThemeProvider>
+);
+
+const AppContent = () => {
 
   const modalizeRef = useRef(null);
   const openCreateView = () => modalizeRef.current?.open();
+  const {colors} = useTheme();
+  const styles = getDynamicStyles(colors);
 
   return (
-    <ThemeProvider>
-      
     
+      
     <GestureHandlerRootView>
       <NavigationContainer>
         <Tab.Navigator
@@ -67,15 +72,16 @@ const App = () => {
               }
               return <Ionicons name={iconName} size={size} color={color} />;
             },
-            tabBarActiveTintColor: 'white', 
-            tabBarInactiveTintColor: 'gray',
+            tabBarActiveTintColor: colors.text,
+            tabBarInactiveTintColor: colors.subtitle,
             tabBarStyle: {
-              backgroundColor: '#121212',
+              backgroundColor: colors.background,
               borderTopWidth: 0.5, 
-              height: 90, 
+              height: 95, 
+              padding: 5,
             },
             tabBarLabelStyle: {
-              fontSize: 13, // Font size of the tab labels
+              fontSize: 13,
               fontWeight: 'bold',
               paddingBottom: 10
             },
@@ -114,9 +120,9 @@ const App = () => {
         </Tab.Navigator>
       </NavigationContainer>
 
-      <Modalize ref={modalizeRef} snapPoint={600} modalStyle={styles.modal}>
+      <Modalize ref={modalizeRef} snapPoint={600} modalStyle={ {backgroundColor: colors.background} }>
         <View style={styles.modalContent}>
-          <Ionicons name={'push-outline'} size={30} color="#aaa" style={styles.modalIcon} />
+          <Ionicons name={'push-outline'} size={30} color={colors.text} style={styles.modalIcon} />
           <Text style={styles.modalTitle}>Create New Listing</Text>
           <Text style={styles.modalText}>Share your innovation with the world</Text>
 
@@ -153,20 +159,19 @@ const App = () => {
 
           <ButtonMain >Upgrade</ButtonMain>
           
-          
         </View>
       </Modalize>
     </GestureHandlerRootView>
-    </ThemeProvider>
   );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) =>
+  StyleSheet.create({
   screen: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#141414',
+    backgroundColor: colors.backgrground,
   },
   screenText: {
     fontSize: 24,
@@ -174,42 +179,42 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     height: 90,
-    backgroundColor: '#aaa',
+    backgroundColor: colors.backgrground,
     borderTopWidth: 0,
     elevation: 5,
   },
   middleButton: {
     width: 70,
     height: 70,
-    backgroundColor: '#141414',
+    backgroundColor: colors.backgrground,
     borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 70, 
-    color: '#fff'
+    color: colors.text,
   },
   middleButtonFocused: {
-    backgroundColor: '#676767', 
+    backgroundColor: colors.baseContainerFooter, 
   },
   postButton: {
     justifyContent: 'center',
     alignItems: 'center',
     top: 20,
-    color: '#141414',
+    color: colors.backgrground,
     marginBottom: 70, 
   },
   bellIcon: {
     marginRight: 15,
   },
-  modal: { padding: 20, backgroundColor: '#141414', paddingHorizontal: 10 },
-  modalContent: { alignItems: 'center', color: '#fff', },
-  modalTitle: { fontSize: 18, marginVertical: 5, color: '#fff' },
-  modalText: { fontSize: 14, color: '#aaa', marginBottom: 5},
+  modal: { padding: 20, backgroundColor: colors.backgrground, paddingHorizontal: 10 },
+  modalContent: { alignItems: 'center', color: colors.text, backgroundColor: colors.backgrground},
+  modalTitle: { fontSize: 18, marginVertical: 5, color: colors.text },
+  modalText: { fontSize: 14, color: colors.text, marginBottom: 5},
   modalIcon: {
     size: 25,
-    color: '#fff',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#777',
+    borderColor: colors.text,
     borderRadius: 10,
     padding: 10,
     margin: 5,

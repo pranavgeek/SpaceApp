@@ -1,44 +1,40 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useState, useContext } from 'react';
+import { Appearance } from 'react-native';
 
 const ThemeContext = createContext();
 
-const themes = {
-  light: {
-    colors: {
-      background: '#33aa33',
-      text: '#000000',
-    },
-    fonts: {
-      small: 14,
-      medium: 16,
-      large: 20,
-    },
-  },
-  dark: {
-    colors: {
-      background: '#343434',
-      text: '#ffffff',
-    },
-    fonts: {
-      small: 14,
-      medium: 16,
-      large: 20,
-    },
-  },
-};
-
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(themes.light);
+  const [isDarkMode, setIsDarkMode] = useState(Appearance.getColorScheme() === 'dark');
 
   const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === themes.light ? themes.dark : themes.light));
+    setIsDarkMode((prevMode) => !prevMode);
   };
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const theme = {
+    isDarkMode,
+    colors: isDarkMode
+      ? {
+          background: '#000',
+          text: '#FFF',
+          subtitle: "#CCC",
+          baseContainerHeader: '#222',
+          baseContainerBody: '#111',
+          baseContainerFooter: '#272727',
+          gradientColors: ['#111', '#222'],
+        }
+      : {
+          background: '#FFF',
+          text: '#000',
+          subtitle: "#333",
+          baseContainerHeader: '#EEEEEE',
+          baseContainerBody: '#F6F6F6',
+          baseContainerFooter: '#E7E7E7',
+          gradientColors: ['#F6F6F6', '#EEEEEE'],
+        },
+    toggleTheme,
+  };
+
+  return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = () => useContext(ThemeContext);

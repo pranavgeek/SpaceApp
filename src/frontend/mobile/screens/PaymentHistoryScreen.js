@@ -55,13 +55,13 @@ const PaymentHistoryScreen = () => {
   const getIconName = (type) => {
     switch (type) {
       case "subscription":
-        return "film-outline"; // Example: For subscriptions like Netflix
+        return "film-outline"; 
       case "shopping":
-        return "cart-outline"; // Example: For shopping orders
+        return "cart-outline"; 
       case "food":
-        return "restaurant-outline"; // Example: For food/restaurant bills
+        return "restaurant-outline"; 
       default:
-        return "help-circle-outline"; // Default icon for unknown types
+        return "help-circle-outline";
     }
   };
 

@@ -23,7 +23,7 @@ const ButtonSettings = ({
     return (
         <TouchableOpacity style={styles.button} onPress={onPress}>
             <View style={styles.buttonContent}>
-                <Ionicons name={iconName} color="#555" style={[styles.icon,{color: textColor}]} />
+                <Ionicons name={iconName} style={[styles.icon,{color: textColor}]} />
                 <View style={styles.container}>
                     <Text style={[styles.buttonText,{color: textColor}]}>{title}</Text>
                     {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
@@ -32,7 +32,7 @@ const ButtonSettings = ({
             </View>
             
             {rightIcon && (
-                <Ionicons name={rightIcon} size={20} color={textColor} />
+                <Ionicons name={rightIcon} size={22} color={textColor} />
             )}
         </TouchableOpacity>
     );
@@ -44,12 +44,10 @@ const getDynamicStyles = (colors) =>
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: colors.background,
-            borderWidth: 1,
-            borderColor: '#444',
-            borderRadius: 10,
-            padding: 12,
-            marginVertical: 5,
+            borderBottomWidth: 2,
+            borderColor: colors.baseContainerHeader,
+            padding: 8,
+            marginVertical: 4,
         },
         container: {
             flexDirection: 'column',
@@ -59,21 +57,20 @@ const getDynamicStyles = (colors) =>
         buttonContent: {
             flexDirection: 'row',
             alignItems: 'center',
-            marginHorizontal: 0,
         },
         icon: {
-            marginRight: 10,
+            marginRight: 8,
             color: colors.text,
-            fontSize: 20,
+            fontSize: 24,
         },
         buttonText: {
-            fontSize: 16,
+            fontSize: 18,
             color: colors.text,
             paddingVertical: 2,
         },
         subtitle: {
-            fontSize: 14,
-            color: '#aaa',
+            fontSize: 16,
+            color: colors.text,
         },
 });
 

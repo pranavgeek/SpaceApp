@@ -4,18 +4,24 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import { useTheme } from '../theme/ThemeContext.js';
 
 const ButtonMain = ({children, onPress}) =>  {
-    return (
-        <TouchableOpacity style={styles.submitButton} onPress={onPress}>
-            <Text style={styles.submitButtonText}>{children}</Text>
-        </TouchableOpacity>
-    );
+  const { colors } = useTheme();
+  const styles = getDynamicStyles(colors);
+  return (
+      <TouchableOpacity style={styles.submitButton} onPress={onPress}>
+          <Text style={styles.submitButtonText}>{children}</Text>
+      </TouchableOpacity>
+  );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) =>
+  StyleSheet.create({
     submitButton: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.baseContainerHeader,
+        borderColor: colors.subtitle,
+        borderWidth: 0.5,
         paddingVertical: 15,
         paddingHorizontal: 30,
         borderRadius: 20,
@@ -24,7 +30,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 20
       },
       submitButtonText: { 
-        color: '#555', 
+        color: colors.Text, 
         fontWeight: 'bold' 
       }
 });

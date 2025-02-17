@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useLayoutEffect} from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,23 @@ import {
   ScrollView,
 } from 'react-native';
 
-import ButtonSettings from '../components/ButtonSettings';
+
+import ButtonSetting from '../components/ButtonSetting';
+import BaseContainer from '../components/BaseContainer';
+import { useTheme } from '../theme/ThemeContext.js';
 
 export default function SettingsScreen({navigation}) {
+
+  const { colors } = useTheme();
+  const styles = getDynamicStyles(colors);
+
+  useLayoutEffect(() => {
+    // Dynamically set the header styles when the theme changes
+    navigation.setOptions({
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.text,
+    });
+  }, [navigation, colors]);
 
   return (
     <ScrollView style={styles.container}>
@@ -25,49 +39,55 @@ export default function SettingsScreen({navigation}) {
         <Text style={styles.profileSubtitle}>Software Engineer</Text>
       </View>
 
-      {/* Account Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <ButtonSettings iconName={'person-outline'} title={'Profile Information'} onPress={() => navigation.navigate('Edit Profile')} rightIcon={"chevron-forward"}/>
-        <ButtonSettings iconName={'lock-closed-outline'} title={'Security & Privacy'} onPress={() => navigation.navigate('Security & Privacy')} rightIcon={"chevron-forward"}/>
-        <ButtonSettings iconName={'card-outline'} title={'Payment Options'} onPress={() => navigation.navigate('Payment Methods')} rightIcon={"chevron-forward"}/>
-      </View>
+      <BaseContainer title={"Account"}>
+        <View>
+          <ButtonSetting iconName={'person-outline'} title={'Profile Information'} onPress={() => navigation.navigate('Edit Profile')} rightIcon={"chevron-forward"}/>
+          <ButtonSetting iconName={'lock-closed-outline'} title={'Security & Privacy'} onPress={() => navigation.navigate('Security & Privacy')} rightIcon={"chevron-forward"}/>
+          <ButtonSetting iconName={'card-outline'} title={'Payment Options'} onPress={() => navigation.navigate('Payment Methods')} rightIcon={"chevron-forward"}/>
+        </View>
+      </BaseContainer>
 
       {/* Preferences Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <ButtonSettings iconName={'notifications-outline'} title={'Notifications'} onPress={() => navigation.navigate('Notifications')} rightIcon={"chevron-forward"}/>
-        <ButtonSettings iconName={'globe-outline'} title={'Language & Region'} onPress={() => navigation.navigate('Language')} rightIcon={"chevron-forward"}/>
-        <ButtonSettings iconName={'moon'} title={'Appearance'} onPress={() => navigation.navigate('Appearance')} rightIcon={"chevron-forward"}/>
-      </View>
+      <BaseContainer title={"Preferences"}>
+        <View>
+        <ButtonSetting iconName={'notifications-outline'} title={'Notifications'} onPress={() => navigation.navigate('Notifications')} rightIcon={"chevron-forward"}/>
+        <ButtonSetting iconName={'globe-outline'} title={'Language & Region'} onPress={() => navigation.navigate('Language')} rightIcon={"chevron-forward"}/>
+        <ButtonSetting iconName={'moon'} title={'Appearance'} onPress={() => navigation.navigate('Appearance')} rightIcon={"chevron-forward"}/>
+        </View>
+      </BaseContainer>
 
-      {/* Help & Support Section */}
-      <View style={styles.section}>
-        <ButtonSettings iconName={'help-circle-outline'} title={'Help & Support'} onPress={() => navigation.navigate('Support')} rightIcon={"chevron-forward"}/>
-        <ButtonSettings 
+      {/* Support and Logout */}
+      <BaseContainer title={"Support & Logout"}>
+        <View>
+        <ButtonSetting iconName={'help-circle-outline'} title={'Help & Support'} onPress={() => navigation.navigate('Support')} rightIcon={"chevron-forward"}/>
+        <ButtonSetting 
           iconName={'log-out-outline'} 
           title={'Logout'} 
           onPress={() => {}} 
           rightIcon={"chevron-forward"}
-          style={{color: '#ff666'}}/>
-      </View>
+          isDanger={true}/>
+        </View>
+      </BaseContainer>
+
+      
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: colors.background,
     padding: 10,
-    color: '#ffffff',
+    color: colors.text,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     padding: 20,
     textAlign: 'center',
-    color: '#fff',
+    color: colors.text,
   },
   profileSection: {
     alignItems: 'center',
@@ -82,11 +102,11 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.text,
   },
   profileSubtitle: {
     fontSize: 14,
-    color: '#aaa',
+    color: colors.text,
   },
   section: {
     marginTop: 10,
