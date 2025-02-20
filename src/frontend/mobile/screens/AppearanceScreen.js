@@ -1,84 +1,74 @@
-import React, { useState, useEffect } from 'react';
+import React, {useLayoutEffect} from 'react';
 import {
   View,
   Text,
   Switch,
   StyleSheet,
-  useColorScheme,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../theme/ThemeContext.js';
+import BaseContainer from '../components/BaseContainer.js';
+import { ScrollView } from 'react-native-gesture-handler';
 
-const AppearanceModeScreen = () => {
-  //const systemColorScheme = useColorScheme(); 
-  //const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
-  const { theme, toggleTheme } = useTheme();
-  const styles = createDynamicStyles(theme);
+const AppearanceModeScreen = ({navigation}) => {
+  const { isDarkMode, colors, toggleTheme } = useTheme();
+  const styles = getDynamicStyles(colors);
 
-  /*useEffect(() => {
-    const loadThemePreference = async () => {
-      const storedTheme = await AsyncStorage.getItem('theme');
-      if (storedTheme) {
-        setIsDarkMode(storedTheme === 'dark');
-      }
-    };
-    loadThemePreference();
-  }, []);*/
-
-  /*const toggleTheme = async (value) => {
-    setIsDarkMode(value);
-    await AsyncStorage.setItem('theme', value ? 'dark' : 'light');
-  };*/
-
-  //const themeStyles = isDarkMode ? darkStyles : lightStyles;
+  useLayoutEffect(() => {
+      // Dynamically set the header styles when the theme changes
+      navigation.setOptions({
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
+      });
+    }, [navigation, colors]);
 
   return (
-    <View style={[styles.container]}>
-      <Text style={[styles.title]}>
-        {theme.isDarkMode ? 'Dark Mode' : 'Light Mode'}
-      </Text>
-      <Switch
-        value={theme.isDarkMode}
-        onValueChange={toggleTheme}
-        thumbColor={theme.isDarkMode ? '#f4f3f4' : '#f4f3f4'}
-        trackColor={{ false: '#ccc', true: '#444' }}
-      />
-    </View>
+    <ScrollView style={styles.container}>
+
+      <BaseContainer 
+          title="Appearance Mode" 
+          titleIcon={isDarkMode ? "moon" : "sunny"}
+          footer={
+            <View style={styles.footerElement}>
+              <Text style={styles.text}>
+                Current Theme: {isDarkMode ? 'Dark' : 'Light'}
+              </Text>
+              <Switch
+                value={isDarkMode}
+                onValueChange={toggleTheme}
+                thumbColor={isDarkMode ? '#AAA' : '#555'}
+                trackColor={{ false: '#FFF', true: '#000' }}
+              />
+            </View>
+          }>
+        <View>
+          <Text style={styles.text}>
+            Modify the appearance mode of the app by toggling the switch above.
+          </Text>
+        </View>
+        
+      </BaseContainer>
+
+      
+    </ScrollView>
   );
 };
 
-const createDynamicStyles = (theme) =>
+const getDynamicStyles = (colors) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.background,
-  },
-  title: {
-    fontSize: 24,
-    marginBottom: 20,
-  },
-});
-
-// Light theme styles
-/*const lightStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#fff',
-  },
-  text: {
-    color: '#000',
-  },
-});
-
-// Dark theme styles
-const darkStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#000',
-  },
-  text: {
-    color: '#fff',
-  },
-});*/
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    text: {
+      fontSize: 16,
+      marginVertical: 10,
+      color: colors.text,
+    },
+    footerElement: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+  });
 
 export default AppearanceModeScreen;

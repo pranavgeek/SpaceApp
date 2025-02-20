@@ -8,7 +8,11 @@ import {
   StyleSheet,
   Modal,
   Alert,
+  ScrollView,
 } from 'react-native';
+import BaseContainer from '../components/BaseContainer';
+import ButtonMain from '../components/ButtonMain.js';
+import { useTheme } from '../theme/ThemeContext.js';
 
 const SecurityPrivacyScreen = () => {
   const [isPasswordModalVisible, setPasswordModalVisible] = useState(false);
@@ -23,6 +27,9 @@ const SecurityPrivacyScreen = () => {
   const [isTwoFAEnabled, setTwoFAEnabled] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
+
+  const { colors, isDarkMode } = useTheme();
+  const styles = getDynamicStyles(colors);
 
   // Password Modal Handlers
   const handleSavePassword = () => {
@@ -59,60 +66,72 @@ const SecurityPrivacyScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Password Management */}
-      <Text style={styles.sectionTitle}>Password Management</Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setPasswordModalVisible(true)}
-      >
-        <Text style={styles.buttonText}>Modify Password</Text>
-      </TouchableOpacity>
+    <ScrollView style={styles.container}>
 
-      {/* Enable Two-Factor Authentication */}
-      <View style={styles.optionRow}>
-        <Text style={styles.optionText}>Enable Two-Factor Authentication</Text>
-        <Switch
-          value={isTwoFAEnabled}
-          onValueChange={(value) => {
-            setTwoFAEnabled(value);
-            if (value) {
-              setTwoFAModalVisible(true);
-            }
-          }}
-        />
-      </View>
+      <BaseContainer 
+        title={"Password and Security"} 
+        subtitle={"In this section you can change your password and enable 2FA to increase your account security"}
+        titleIcon={"lock-closed-outline"}
+        footer={
+          <>
+            <View style={styles.footerElement}>
+              <Text style={styles.text}>
+              Enable Two-Factor Authentication
+              </Text>
+              <Switch
+                value={isDarkMode}
+                onValueChange={(value) => {
+                  setTwoFAEnabled(value);
+                  if (value) {
+                    setTwoFAModalVisible(true);
+                  }
+                }}
+                thumbColor={isDarkMode ? '#AAA' : '#555'}
+                trackColor={{ false: '#FFF', true: '#000' }}
+              />
+            </View>
+            <View style={styles.footerElement}>
+              <Text style={styles.text}>
+              Set Account as Private
+              </Text>
+              <Switch
+                value={isDarkMode}
+                onValueChange={() => {}}
+                thumbColor={isDarkMode ? '#AAA' : '#555'}
+                trackColor={{ false: '#FFF', true: '#000' }}
+              />
+            </View>
+          </>
+        }>
+        
 
-      {/* Account Privacy */}
-      <View style={styles.optionRow}>
-        <Text style={styles.optionText}>Set Account as Private</Text>
-        <Switch value={false} onValueChange={() => {}} />
-      </View>
-
-      {/* Privacy Policy Access */}
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => Alert.alert('Privacy Policy', 'Redirecting to Privacy Policy...')}
-      >
-        <Text style={styles.buttonText}>View Privacy Policy</Text>
-      </TouchableOpacity>
-
-      {/* Delete Account */}
-      <TouchableOpacity
-        style={[styles.button, styles.deleteButton]}
-        onPress={() =>
-          Alert.alert(
-            'Delete Account',
-            'Are you sure you want to permanently delete your account?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete', style: 'destructive', onPress: () => {} },
-            ]
-          )
-        }
-      >
-        <Text style={styles.buttonText}>Delete Account</Text>
-      </TouchableOpacity>
+        {/* Password Management */}
+        <ButtonMain
+          onPress={() => setPasswordModalVisible(true)}
+        >
+          <Text style={styles.buttonText}>Modify Password</Text>
+        </ButtonMain>
+        <ButtonMain
+          onPress={() => Alert.alert('Privacy Policy', 'Redirecting to Privacy Policy...')}
+        >
+          <Text style={styles.buttonText}>View Privacy Policy</Text>
+        </ButtonMain>
+        <ButtonMain
+          style={styles.deleteButton}
+          onPress={() =>
+            Alert.alert(
+              'Delete Account',
+              'Are you sure you want to permanently delete your account?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => {} },
+              ]
+            )
+          }
+        >
+          <Text style={styles.buttonText}>Delete Account</Text>
+        </ButtonMain>
+      </BaseContainer>
 
       {/* Password Modal */}
       <Modal visible={isPasswordModalVisible} animationType="slide" transparent>
@@ -157,7 +176,7 @@ const SecurityPrivacyScreen = () => {
       <Modal visible={isTwoFAModalVisible} animationType="slide" transparent>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Enable Two-Factor Authentication</Text>
+            <Text style={styles.modalTitle}>Two-Factor Authentication</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter Phone Number"
@@ -203,15 +222,16 @@ const SecurityPrivacyScreen = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: 12,
+    backgroundColor: colors.background,
   },
   sectionTitle: {
     fontSize: 18,
@@ -220,7 +240,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.subtitle,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
@@ -245,7 +265,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'red',
   },
   buttonText: {
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
   },
   modalContainer: {
@@ -257,7 +277,7 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '80%',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -272,6 +292,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 10,
+  },
+  footerElement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 12,
   },
 });
 

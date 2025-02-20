@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Swipeable } from "react-native-gesture-handler";
 import ButtonSettings from "../components/ButtonSettings";
 import ButtonMain from "../components/ButtonMain";
+import { useTheme } from '../theme/ThemeContext.js';
 
 const PaymentMethodsScreen = () => {
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -27,7 +28,9 @@ const PaymentMethodsScreen = () => {
     cardName: "",
   });
   const [defaultCardId, setDefaultCardId] = useState(null);
-  const [errors, setErrors] = useState({}); // Track validation errors
+  const [errors, setErrors] = useState({}); 
+  const { colors } = useTheme();
+  const styles = getDynamicStyles(colors);
 
   useEffect(() => {
     const loadPaymentData = async () => {
@@ -239,10 +242,8 @@ const PaymentMethodsScreen = () => {
                   <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
               )}
-              {/*<ButtonSettings title={'Cancel'} onPress={() => setModalVisible(false)} />
-              <ButtonSettings title={'Save'} onPress={handleSave} />*/}
-              <Button title="Cancel" onPress={() => setModalVisible(false)} />
-              <Button title="Save" onPress={handleSave} />
+              <Button title="Cancel" style={styles.deleteButtonText} onPress={() => setModalVisible(false)} />
+              <Button title="Save" style={styles.deleteButtonText} onPress={handleSave} />
             </View>
           </View>
         </View>
@@ -251,22 +252,23 @@ const PaymentMethodsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#141414",
+    backgroundColor: colors.background,
     padding: 20,
   },
   cardContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#141414",
+    backgroundColor: colors.background,
     padding: 15,
     marginVertical: 10,
     borderRadius: 10,
     borderWidth: 0.5,
-    borderColor: '#aaa',
-    shadowColor: "#000",
+    borderColor: colors.text,
+    shadowColor: colors.subtitle,
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 2,
@@ -278,15 +280,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     flex: 1,
-    color: '#ccc',
+    color: colors.text,
   },
   editButton: {
-    backgroundColor: "#ccc",
+    backgroundColor: colors.subtitle,
     padding: 10,
     borderRadius: 5,
   },
   editButtonText: {
-    color: "#141414",
+    color: colors.background,
     fontWeight: "bold",
   },
   modalContainer: {
@@ -296,7 +298,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
     padding: 20,
     borderRadius: 10,
     width: "80%",
@@ -327,13 +329,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   defaultButton: {
-    backgroundColor: "#ccc",
+    backgroundColor: colors.text,
     padding: 10,
     borderRadius: 5,
     marginTop: 15,
   },
   defaultButtonText: {
-    color: "#141414",
+    color: colors.background,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -351,7 +353,7 @@ const styles = StyleSheet.create({
     width: 110,
   },
   deleteText: {
-    color: "#fff",
+    color: colors.text,
     fontWeight: "bold",
     alignContent: 'flex-end',
     alignItems: 'flex-end',
@@ -359,13 +361,14 @@ const styles = StyleSheet.create({
     paddingEnd: 10,
   },
   deleteButton: {
-    backgroundColor: "#f44336",
+    backgroundColor: colors.subtitle,
+    color: colors.background,
     padding: 10,
     borderRadius: 5,
     marginTop: 10,
   },
   deleteButtonText: {
-    color: "#fff",
+    color: colors.background,
     fontWeight: "bold",
     textAlign: "center",
   },
