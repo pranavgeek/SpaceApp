@@ -6,8 +6,11 @@ import {
     Image,
     TouchableOpacity,
 } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
 
 const Message = ({chatName, chatCategory, onPress, shortMessage, time}) =>  {
+    const { colors } = useTheme();
+    const styles = getDynamicStyles(colors);
     return (
         <TouchableOpacity style={styles.button} onPress={onPress}>
             <View style={styles.buttonContent}>
@@ -34,47 +37,49 @@ const Message = ({chatName, chatCategory, onPress, shortMessage, time}) =>  {
     );
 };
 
-const styles = StyleSheet.create({
-    button: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderWidth: 1,
-        borderColor: '#444',
-        borderRadius: 14,
-        padding: 12,
-        marginVertical: 5,
-    },
-    profilePicture: {
-        width: 40,
-        height: 40,
-        borderRadius: 60,
-        backgroundColor: '#ddd',
-        margin: 5,
-      },
-    container: {
-        flexDirection: 'column',
-        flex: 1,
-        paddingLeft: 5,
-    },
-    buttonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    icon: {
-        marginRight: 10,
-        color: '#fff',
-        fontSize: 20,
-    },
-    buttonText: {
-        fontSize: 16,
-        color: '#fff',
-        paddingVertical: 2,
-    },
-    subtitle: {
-        fontSize: 13,
-        color: '#aaa',
-    },
-});
+const getDynamicStyles = (colors) =>
+    StyleSheet.create({
+        button: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderWidth: 1,
+            borderColor: colors.primary,
+            borderRadius: 14,
+            padding: 12,
+            marginVertical: 5,
+            backgroundColor: colors.baseContainerBody,
+        },
+        profilePicture: {
+            width: 40,
+            height: 40,
+            borderRadius: 60,
+            backgroundColor: colors.subtitle,
+            margin: 5,
+        },
+        container: {
+            flexDirection: 'column',
+            flex: 1,
+            paddingLeft: 5,
+        },
+        buttonContent: {
+            flexDirection: 'row',
+            alignItems: 'center',
+        },
+        icon: {
+            marginRight: 10,
+            color: colors.text,
+            fontSize: 20,
+        },
+        buttonText: {
+            fontSize: 16,
+            color: colors.text,
+            paddingVertical: 2,
+        },
+        subtitle: {
+            fontSize: 13,
+            color: colors.subtitle,
+        },
+    });
 
 export default Message;
