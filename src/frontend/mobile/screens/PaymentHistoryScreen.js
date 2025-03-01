@@ -8,8 +8,12 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../theme/ThemeContext";
 
 const PaymentHistoryScreen = () => {
+  const { colors } = useTheme();
+  const styles = getDynamicStyles(colors);
+
   const [payments, setPayments] = useState([
     {
       id: "1",
@@ -74,7 +78,7 @@ const PaymentHistoryScreen = () => {
       <Ionicons
         name={getIconName(item.type)}
         size={24}
-        color="#fff"
+        color={colors.primary}
         style={styles.paymentIcon}
       />
 
@@ -149,14 +153,14 @@ const PaymentHistoryScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#141414",
+    backgroundColor: colors.background, // Use theme color for background
     padding: 20,
   },
   paymentCard: {
-    backgroundColor: "#141414",
+    backgroundColor: colors.cardBackground, // Use theme color for card background
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
@@ -166,7 +170,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 2,
-    borderColor: '#aaa',
+    borderColor: colors.subtitle, // Use theme color for border
     borderWidth: 0.5,
   },
   paymentIcon: {
@@ -175,11 +179,11 @@ const styles = StyleSheet.create({
   paymentName: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff",
+    color: colors.text, // Use theme color for text
   },
   paymentDate: {
     fontSize: 14,
-    color: "#ccc",
+    color: colors.subtitle, // Use theme color for subtitle
   },
   paymentInfo: {
     marginLeft: "auto",
@@ -188,7 +192,7 @@ const styles = StyleSheet.create({
   paymentAmount: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#aaa",
+    color: colors.text, // Use theme color for text
   },
   paymentStatus: {
     fontSize: 14,
@@ -200,21 +204,20 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   completedStatus: {
-    backgroundColor: "#343434",
-    color: "#fff",
+    backgroundColor: colors.success, // Use theme color for success status
+    color: colors.text, // Use theme color for text
   },
   pendingStatus: {
-    backgroundColor: "#343434",
-    color: "#fff",
+    backgroundColor: colors.warning, // Use theme color for pending status
+    color: colors.text, // Use theme color for text
   },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.baseContainerBody, // Use theme color for modal background
     borderRadius: 10,
     padding: 20,
     width: "80%",
@@ -228,27 +231,27 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
+    color: colors.text, // Use theme color for text
   },
   modalText: {
     fontSize: 16,
     marginBottom: 10,
-    color: "#333",
+    color: colors.text, // Use theme color for text
   },
   modalLabel: {
     fontWeight: "bold",
-    color: "#555",
+    color: colors.text, // Use theme color for text
   },
   closeButton: {
     marginTop: 20,
-    backgroundColor: "#141414",
+    backgroundColor: colors.primary, // Use theme color for button background
     padding: 10,
     borderRadius: 5,
   },
   closeButtonText: {
-    color: "#fff",
+    color: colors.text, // Use theme color for button text
     fontWeight: "bold",
     textAlign: "center",
   },
 });
-
 export default PaymentHistoryScreen;

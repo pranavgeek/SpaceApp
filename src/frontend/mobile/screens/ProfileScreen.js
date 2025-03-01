@@ -11,8 +11,12 @@ import ButtonSettings from "../components/ButtonSettings";
 import ButtonMain from "../components/ButtonMain";
 import ButtonIcon from "../components/ButtonIcon";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../theme/ThemeContext"; // Import useTheme hook
 
 export default function ProfileScreen({ navigation }) {
+  const { colors } = useTheme(); // Access theme colors
+  const styles = getDynamicStyles(colors); // Generate dynamic styles
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.profileWrapper}>
@@ -28,18 +32,22 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.profileSubtitle}>Software Engineer</Text>
 
           <View style={styles.buttonContainer}>
-            <ButtonMain style={styles.editBtnText} onPress={() => navigation.navigate("Edit Profile")}>
+            <ButtonMain
+              style={styles.editBtnText}
+              onPress={() => navigation.navigate("Edit Profile")}
+              buttonColor={colors.text}
+            >
               Edit Profile
             </ButtonMain>
-            <ButtonIcon iconName={"share-social"} />
+            <ButtonIcon iconName={"share-social"} iconColor={colors.text} />
           </View>
 
           {/* Social Media Icons */}
           <View style={styles.socialMediaContainer}>
-            <ButtonIcon iconName={"logo-twitter"} />
-            <ButtonIcon iconName={"logo-instagram"} />
-            <ButtonIcon iconName={"logo-tiktok"} />
-            <ButtonIcon iconName={"logo-linkedin"} />
+            <ButtonIcon iconName={"logo-twitter"} iconColor={colors.text} />
+            <ButtonIcon iconName={"logo-instagram"} iconColor={colors.text} />
+            <ButtonIcon iconName={"logo-tiktok"} iconColor={colors.text} />
+            <ButtonIcon iconName={"logo-linkedin"} iconColor={colors.text} />
           </View>
 
           {/* Location & Languages */}
@@ -48,7 +56,7 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons
                 name="globe-outline"
                 size={20}
-                color="#ccc"
+                color={colors.subtitle}
                 style={{ padding: 5 }}
               />
               <Text style={styles.profileText}>Toronto, Canada</Text>
@@ -57,7 +65,7 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons
                 name="language"
                 size={20}
-                color="#ccc"
+                color={colors.subtitle}
                 style={{ padding: 5 }}
               />
               <Text style={styles.profileText}>English, French</Text>
@@ -91,21 +99,29 @@ export default function ProfileScreen({ navigation }) {
               iconName={"grid-outline"}
               onPress={() => navigation.navigate("My Products")}
               title={"My Products"}
+              buttonColor={colors.primary}
+              iconColor={colors.text}
             />
             <ButtonSettings
               iconName={"card-outline"}
               onPress={() => navigation.navigate("Payment History")}
               title={"Payment"}
+              buttonColor={colors.primary}
+              iconColor={colors.text}
             />
             <ButtonSettings
               iconName={"cube-outline"}
               onPress={() => {}}
               title={"Orders"}
+              buttonColor={colors.primary}
+              iconColor={colors.text}
             />
             <ButtonSettings
               iconName={"heart-outline"}
               onPress={() => {}}
               title={"Favourites"}
+              buttonColor={colors.primary}
+              iconColor={colors.text}
             />
           </View>
         </View>
@@ -114,28 +130,28 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#141414",
     padding: 10,
+    backgroundColor: colors.background,
   },
   profileWrapper: {
-    flexDirection: Platform.OS === "web" ? "row" : "column", // Side-by-side on web, stacked on mobile
-    justifyContent: Platform.OS === "web" ? "space-between" : "center", // Center content on mobile
+    flexDirection: Platform.OS === "web" ? "row" : "column",
+    justifyContent: Platform.OS === "web" ? "space-between" : "center",
     alignItems: "flex-start",
-    alignSelf: "center", // Center on mobile
-    width: Platform.OS === "web" ? "auto" : "100%", // Full width on mobile
+    alignSelf: "center",
+    width: Platform.OS === "web" ? "auto" : "100%",
   },
   profileLeft: {
     flex: 1,
     alignItems: "center",
-    width: "100%", // Ensure it takes full width on mobile
+    width: "100%",
   },
   profileRight: {
     flex: 1,
     alignItems: "center",
-    width: "100%", // Ensure it takes full width on mobile
+    width: "100%",
   },
   profileImage: {
     width: 100,
@@ -146,11 +162,11 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#fff",
+    color: colors.text,
   },
   profileSubtitle: {
     fontSize: 14,
-    color: "#aaa",
+    color: colors.subtitle,
   },
   socialMediaContainer: {
     flexDirection: "row",
@@ -161,7 +177,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     width: 400,
-    height: 60
+    height: 60,
   },
   buttonContainerWeb: {
     flexDirection: "row",
@@ -180,7 +196,7 @@ const styles = StyleSheet.create({
   },
   profileText: {
     fontSize: 14,
-    color: "#ccc",
+    color: colors.subtitle,
   },
   profileColumn: {
     alignItems: "center",

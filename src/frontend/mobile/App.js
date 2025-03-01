@@ -13,21 +13,25 @@ import HomeStack from "./navigation/HomeStack"; // HomeStack
 import ProfileStackNavigator from "./navigation/ProfileStack";
 import SettingsStack from "./navigation/SettingsStack";
 import MessagesStackNavigator from "./navigation/MessagesStack";
-import { LikeProvider } from "./screens/LikeContext";
+import { LikeProvider } from "./theme/LikeContext";
 import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import CreatePostScreen from './screens/CreatePostScreen'; // Import CreatePostScreen
 import FormScreen from "./screens/FormScreen"; // Import FormScreen
+import { CartProvider } from "./context/CartContext"; // Correct import
 
 const Tab = createBottomTabNavigator();
 
 const App = () => (
+
   <LikeProvider>
-    <ThemeProvider>
+  <ThemeProvider>
+    <CartProvider> {/* Wrap with CartProvider */}
       <NavigationContainer>
         <AppContent />
       </NavigationContainer>
-    </ThemeProvider>
-  </LikeProvider>
+    </CartProvider>
+  </ThemeProvider>
+</LikeProvider>
 );
 
 const AppContent = () => {
@@ -175,27 +179,18 @@ const AppContent = () => {
               <ButtonSettings
                 iconName={"hardware-chip-outline"}
                 title={"Hardware Product"}
-                onPress={() =>
-                  navigateToFormScreen("Hardware")
-                }
                 subtitle={"List your hardware or IoT device"}
                 rightIcon={"lock-closed-outline"}
               />
               <ButtonSettings
                 iconName={"logo-reddit"}
                 title={"AI Solution"}
-                onPress={() =>
-                  navigateToFormScreen("AI Solution")
-                }
                 subtitle={"List your AI or machine learning solution"}
                 rightIcon={"chevron-forward"}
               />
               <ButtonSettings
                 iconName={"star-outline"}
                 title={"Influencer Campaign"}
-                onPress={() =>
-                  navigateToFormScreen("Influencer Campaign")
-                }
                 subtitle={"Create a new influencer campaign"}
                 rightIcon={"lock-closed-outline"}
               />
