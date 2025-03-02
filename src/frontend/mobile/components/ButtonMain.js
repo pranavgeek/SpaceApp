@@ -30,7 +30,7 @@ const getDynamicStyles = (colors) =>
         marginHorizontal: 20
       },
       submitButtonText: { 
-        color: colors.Text, 
+        color: colors.primary, 
         fontWeight: 'bold' 
       }
 });
