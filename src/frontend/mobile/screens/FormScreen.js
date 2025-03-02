@@ -9,31 +9,49 @@ import {
   StyleSheet,
   Button,
   Alert,
+  Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useTheme } from "../theme/ThemeContext";
+import { AntDesign } from "@expo/vector-icons";
 
 const FormScreen = () => {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
-  const [user, setUser] = useState("John Doe"); // Automatic value for User
+  const [user, setUser] = useState(""); // Automatic value for User
   const [summary, setSummary] = useState("");
   const [detailedDescription, setDetailedDescription] = useState("");
   const [images, setImages] = useState([]);
   const [link, setLink] = useState("");
   const [country, setCountry] = useState("");
 
+  const { colors } = useTheme(); // Access theme colors
+  const styles = getDynamicStyles(colors); // Generate dynamic styles
+
   // Handle image selection
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsMultipleSelection: true,
       quality: 1,
     });
 
     if (!result.canceled) {
-      setImages(result.assets); // Set images to the state
+      setImages([
+        ...images,
+        ...result.assets.map((asset) => ({
+          uri: asset.uri,
+          name: asset.fileName,
+        })),
+      ]);
     }
   };
+
+  // Handle image removal
+  const handleRemoveImage = (index) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
 
   // Handle form submission
   const handleSubmit = () => {
@@ -57,7 +75,7 @@ const FormScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create a New Project</Text>
+      <Text style={styles.title}>Create your Product</Text>
 
       {/* Title */}
       <TextInput
@@ -111,18 +129,20 @@ const FormScreen = () => {
         <Text style={styles.imageButtonText}>Upload Image</Text>
       </TouchableOpacity>
 
-      {/* Display selected images */}
-      {images.length > 0 && (
-        <View style={styles.imagePreview}>
-          {images.map((image, index) => (
-            <Image
-              key={index}
-              source={{ uri: image.uri }}
-              style={styles.image}
-            />
-          ))}
-        </View>
-      )}
+      {/* Display selected image names with removal buttons */}
+      <View style={styles.selectedImagesContainer}>
+        {images.map((image, index) => (
+          <View key={index} style={styles.selectedImageItem}>
+            <Text style={styles.selectedImageName}>{image.name}</Text>
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={() => handleRemoveImage(index)}
+            >
+              <AntDesign name="close" size={16} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
 
       {/* Link (optional) */}
       <TextInput
@@ -150,34 +170,36 @@ const FormScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#141414",
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 24,
-    color: "white",
+    color: colors.text,
     marginBottom: 20,
-    textAlign: "center",
+    textAlign: "left",
   },
   input: {
-    backgroundColor: "#242424",
-    color: "white",
+    backgroundColor: colors.baseContainerFooter,
+    color: colors.text,
     padding: 10,
     marginBottom: 15,
     borderRadius: 5,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
   },
   imageButton: {
-    backgroundColor: "#2e64e5",
+    backgroundColor: colors.buttonBackground,
     paddingVertical: 10,
     alignItems: "center",
     marginBottom: 15,
     borderRadius: 5,
   },
   imageButtonText: {
-    color: "white",
+    color: colors.text,
     fontSize: 16,
   },
   imagePreview: {
@@ -193,14 +215,35 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   button: {
-    backgroundColor: "#2e64e5",
+    backgroundColor: colors.buttonBackground,
     paddingVertical: 15,
     alignItems: "center",
     borderRadius: 5,
   },
   buttonText: {
-    color: "white",
+    color: colors.text,
     fontSize: 18,
+  },
+  selectedImagesContainer: {
+    marginTop: 10,
+  },
+  selectedImageItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 5,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.subtitle,
+    borderRadius: 10,
+  },
+  selectedImageName: {
+    flex: 1,
+    marginRight: 10,
+    color: colors.text,
+  },
+  removeImageButton: {
+    padding: 5,
   },
 });
 

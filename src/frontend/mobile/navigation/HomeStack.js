@@ -1,10 +1,13 @@
 import React from "react";
-import { TouchableOpacity, Image } from "react-native";
+import { TouchableOpacity, Image, StyleSheet, View, Text } from "react-native";
 import Icon from "react-native-vector-icons/AntDesign";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "../screens/HomeScreen";
 import ProjectScreen from "../screens/ProjectScreen";
-import FormScreen from '../screens/FormScreen'; // Import FormScreen
+import FormScreen from "../screens/FormScreen"; // Import FormScreen
+import CartScreen from "../screens/CartScreen";
+import { useCart } from "../context/CartContext"; // Import useCart
+import { useNavigation } from "@react-navigation/native";
 
 const HomeStack = createNativeStackNavigator();
 
@@ -27,11 +30,23 @@ const HomeStackNavigation = () => {
               />
             </TouchableOpacity>
           ),
-          headerRight: () => (
-            <TouchableOpacity style={{ marginRight: 15 }}>
-              <Icon name="shoppingcart" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
+          headerRight: () => {
+            const navigation = useNavigation();
+            const { totalItems } = useCart(); // Access totalItems from CartContext
+            return (
+              <TouchableOpacity
+                style={styles.cartIconContainer}
+                onPress={() => navigation.navigate("CartScreen")}
+              >
+                <Icon name="shoppingcart" size={24} color="#fff" />
+                {totalItems > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{totalItems}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          },
         }}
       />
       <HomeStack.Screen
@@ -57,8 +72,39 @@ const HomeStackNavigation = () => {
           headerTitleStyle: { fontWeight: "bold" },
         }}
       />
+      <HomeStack.Screen
+        name="CartScreen"
+        component={CartScreen} // Register CartScreen here
+        options={{
+          headerStyle: { backgroundColor: "#141414" },
+          headerTintColor: "#fff",
+          headerTitleStyle: { fontWeight: "bold" },
+        }}
+      />
     </HomeStack.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  cartIconContainer: {
+    marginRight: 15,
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+  },
+});
 
 export default HomeStackNavigation;

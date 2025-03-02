@@ -10,8 +10,9 @@ import {
   Platform,
   Dimensions,
 } from "react-native";
-import { useLikeContext } from "../screens/LikeContext";
+import {useLikeContext} from "../theme/LikeContext";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../theme/ThemeContext"; // Import useTheme hook
 
 const ProjectScreen = ({ route, navigation }) => {
   const { project, creator } = route.params;
@@ -20,6 +21,9 @@ const ProjectScreen = ({ route, navigation }) => {
   const [liked, setLiked] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollViewRef = useRef(null);
+
+  const { colors } = useTheme(); 
+  const styles = getDynamicStyles(colors);
 
   useEffect(() => {
     setLiked(getLikes(project.id));
@@ -55,7 +59,7 @@ const ProjectScreen = ({ route, navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={
           Platform.OS === "web"
@@ -68,14 +72,14 @@ const ProjectScreen = ({ route, navigation }) => {
           {Platform.OS === "web" && (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TouchableOpacity onPress={() => handleScroll("left")}>
-                <Ionicons name="chevron-back" size={30} color="white" />
+                <Ionicons name="chevron-back" size={30} color={colors.text} />
               </TouchableOpacity>
 
               <ScrollView
                 ref={scrollViewRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                scrollEnabled={false} // This disables manual scrolling
+                scrollEnabled={false}
               >
                 {[project.image, project.image, project.image].map(
                   (img, index) => (
@@ -92,7 +96,7 @@ const ProjectScreen = ({ route, navigation }) => {
               </ScrollView>
 
               <TouchableOpacity onPress={() => handleScroll("right")}>
-                <Ionicons name="chevron-forward" size={30} color="white" />
+                <Ionicons name="chevron-forward" size={30} color={colors.text} />
               </TouchableOpacity>
             </View>
           )}
@@ -101,7 +105,7 @@ const ProjectScreen = ({ route, navigation }) => {
           {Platform.OS !== "web" && (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TouchableOpacity onPress={() => handleScroll("left")}>
-                <Ionicons name="chevron-back" size={30} color="white" />
+                <Ionicons name="chevron-back" size={30} color={colors.text} />
               </TouchableOpacity>
 
               <ScrollView
@@ -122,7 +126,7 @@ const ProjectScreen = ({ route, navigation }) => {
               </ScrollView>
 
               <TouchableOpacity onPress={() => handleScroll("right")}>
-                <Ionicons name="chevron-forward" size={30} color="white" />
+                <Ionicons name="chevron-forward" size={30} color={colors.text} />
               </TouchableOpacity>
             </View>
           )}
@@ -138,21 +142,21 @@ const ProjectScreen = ({ route, navigation }) => {
         >
           <View style={styles.infoRow}>
             <View>
-              <Text style={styles.projectName}>{project.name}</Text>
-              <Text style={styles.projectPrice}>{project.price}</Text>
+              <Text style={[styles.projectName, { color: colors.text }]}>{project.name}</Text>
+              <Text style={[styles.projectPrice, { color: colors.success }]}>{project.price}</Text>
             </View>
             <View style={styles.creatorInfo}>
               <Image
                 source={{ uri: creator.image }}
                 style={styles.creatorImage}
               />
-              <Text style={styles.creatorName}>{"By " + creator.name}</Text>
+              <Text style={[styles.creatorName, { color: colors.text }]}>{"By " + creator.name}</Text>
             </View>
           </View>
-          <Text style={styles.projectDescription}>{project.description}</Text>
+          <Text style={[styles.projectDescription, { color: colors.subtitle }]}>{project.description}</Text>
 
-          <Text style={styles.sectionTitle}>Detailed Description</Text>
-          <Text style={styles.longDescription}>
+          <Text style={[styles.sectionTitle, { color: colors.subtitle }]}>Detailed Description</Text>
+          <Text style={[styles.longDescription, { color: colors.subtitle }]}>
             This is a longer description of the project. You can include any
             relevant details about the project here. For instance, you can talk
             about its features, functionality, and anything else that might be
@@ -163,10 +167,10 @@ const ProjectScreen = ({ route, navigation }) => {
             onPress={handleOpenLink}
             style={styles.linkContainer}
           >
-            <Text style={styles.projectLink}>Visit Project Website</Text>
+            <Text style={[styles.projectLink, { color: colors.text }]}>Visit Project Website</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.addToCartButton}>
+          <TouchableOpacity style={[styles.addToCartButton, { backgroundColor: colors.buttonBackground }]}>
             <Text style={styles.addToCartButtonText}>Add to Cart</Text>
           </TouchableOpacity>
         </View>
@@ -181,30 +185,30 @@ const ProjectScreen = ({ route, navigation }) => {
           <Ionicons
             name={liked ? "heart" : "heart-outline"}
             size={20}
-            color={liked ? "red" : "white"}
+            color={liked ? colors.error : colors.text}
           />
-          <Text style={styles.actionText}>{likes}</Text>
+          <Text style={[styles.actionText, { color: colors.text }]}>{likes}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => navigation.navigate("Messages")}
         >
-          <Ionicons name="chatbubble-outline" size={20} color="white" />
-          <Text style={styles.actionText}>Message</Text>
+          <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
+          <Text style={[styles.actionText, { color: colors.text }]}>Message</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="share-social-outline" size={20} color="white" />
-          <Text style={styles.actionText}>Share</Text>
+          <Ionicons name="share-social-outline" size={20} color={colors.text} />
+          <Text style={[styles.actionText, { color: colors.text }]}>Share</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#141414" },
+const getDynamicStyles = (colors) => StyleSheet.create({
+  container: { flex: 1 },
   imageGallery: {
     height: 200,
     marginVertical: 10,
@@ -239,13 +243,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 5,
-    color: "#fff",
   },
   projectPrice: {
     fontSize: 18,
-    color: "green",
     marginBottom: 10,
-    color: "#ccc",
   },
   creatorInfo: {
     alignItems: "center",
@@ -259,11 +260,9 @@ const styles = StyleSheet.create({
   creatorName: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#fff",
   },
   projectDescription: {
     fontSize: 16,
-    color: "#aaa",
     marginBottom: 10,
   },
   sectionTitle: {
@@ -271,11 +270,9 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 20,
     marginBottom: 10,
-    color: "#ccc",
   },
   longDescription: {
     fontSize: 16,
-    color: "#aaa",
     lineHeight: 22,
   },
   linkContainer: {
@@ -284,7 +281,6 @@ const styles = StyleSheet.create({
   },
   projectLink: {
     fontSize: 16,
-    color: "#fff",
     textDecorationLine: "underline",
   },
   actionsContainer: {
@@ -292,7 +288,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: "#ddd",
+    borderTopColor: colors.subtitle, // Use subtitle color for border
   },
   actionButton: {
     flexDirection: "row",
@@ -301,10 +297,8 @@ const styles = StyleSheet.create({
   actionText: {
     marginLeft: 5,
     fontSize: 16,
-    color: "#aaa",
   },
   addToCartButton: {
-    backgroundColor: "#2e64e5",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
