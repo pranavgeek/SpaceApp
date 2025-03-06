@@ -1,6 +1,6 @@
 [build]
   base = "src/frontend"  # This specifies the subfolder as the base directory
-  command = "npm run web"
+  command = "npm install && npm run web"
   publish = "src/frontend/mobile/web-build"  # Path to the build folder to deploy
   
   # Path to the directory to be published
