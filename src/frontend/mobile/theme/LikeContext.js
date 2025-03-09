@@ -1,20 +1,19 @@
+// LikeContext.js
 import React, { createContext, useState, useContext } from "react";
 
 const LikeContext = createContext();
 
 export const LikeProvider = ({ children }) => {
-  const [likedProducts, setLikedProducts] = useState({}); // Track likes individually by product ID
+  const [likedProducts, setLikedProducts] = useState({});
 
-  const toggleLike = (productId) => {
+  const toggleLike = (projectId) => {
     setLikedProducts((prevLikes) => ({
       ...prevLikes,
-      [productId]: !prevLikes[productId], // Toggle like for the specific product
+      [projectId]: !prevLikes[projectId],
     }));
   };
 
-  const getLikes = (productId) => {
-    return likedProducts[productId] || false; // Return false if no like for product
-  };
+  const getLikes = (projectId) => likedProducts[projectId] || false;
 
   return (
     <LikeContext.Provider value={{ toggleLike, getLikes }}>

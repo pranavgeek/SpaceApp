@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,60 +6,134 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Platform,
+  SafeAreaView,
+  Modal,
+  Animated,
+  TouchableWithoutFeedback,
+  Dimensions,
+  TextInput,
 } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import Icon from "react-native-vector-icons/AntDesign";
+import EvilIcons from "@expo/vector-icons/EvilIcons";
+import CheckBox from "expo-checkbox";
+import DropDownPicker from "react-native-dropdown-picker";
+
 import ProjectCard from "../components/ProjectCard";
-import { useTheme } from '../theme/ThemeContext.js';
+import { useTheme } from "../theme/ThemeContext.js";
+import { useCart } from "../context/CartContext";
 
-const HomeScreen = ({ navigation }) => {
-  const [searchText, setSearchText] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState(null);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+export default function HomeScreen({ navigation }) {
+  // New: search query state for search bar functionality
+  const [searchQuery, setSearchQuery] = useState("");
 
-   const { colors } = useTheme();
-   const styles = getDynamicStyles(colors);
+  // CATEGORY & COUNTRY
+  const [selectedFilter, setSelectedFilter] = useState("");
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState("");
 
-  const filters = [
-    "Software",
-    "Hardware",
-    "AI Tools",
-    "Cloud",
-    "Feature",
-    "Startups",
-    "Creators",
+  // Mobile Category Dropdown states
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categoryValue, setCategoryValue] = useState(selectedFilter);
+  const [categoryItems, setCategoryItems] = useState([
+    { label: "All Categories", value: "" },
+    { label: "Software", value: "Software" },
+    { label: "Hardware", value: "Hardware" },
+    { label: "AI Tools", value: "AI Tools" },
+    { label: "Cloud", value: "Cloud" },
+    { label: "Feature", value: "Feature" },
+    { label: "Startups", value: "Startups" },
+    { label: "Creators", value: "Creators" },
+  ]);
+
+  useEffect(() => {
+    setCategoryValue(selectedFilter);
+  }, [selectedFilter]);
+  useEffect(() => {
+    setSelectedFilter(categoryValue);
+  }, [categoryValue]);
+
+  // Mobile Country Dropdown states
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countryValue, setCountryValue] = useState(selectedCountry);
+  const [countryItems, setCountryItems] = useState([
+    { label: "All Countries", value: "" },
+    { label: "USA", value: "USA" },
+    { label: "Canada", value: "Canada" },
+    { label: "UK", value: "UK" },
+    { label: "Germany", value: "Germany" },
+    { label: "France", value: "France" },
+    { label: "Japan", value: "Japan" },
+  ]);
+
+  useEffect(() => {
+    setCountryValue(selectedCountry);
+  }, [selectedCountry]);
+  useEffect(() => {
+    setSelectedCountry(countryValue);
+  }, [countryValue]);
+
+  // Modal states for Price Ranges, etc.
+  const [modalPriceRanges, setModalPriceRanges] = useState([]);
+  const [showPanel, setShowPanel] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  const { colors } = useTheme();
+  const styles = getDynamicStyles(colors);
+
+  const { cartItems } = useCart();
+  const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const windowWidth = Dimensions.get("window").width;
+  const windowHeight = Dimensions.get("window").height;
+
+  // Device detection
+  const isMobileWeb = Platform.OS === "web" && windowWidth < 768;
+  const isDesktopWeb = Platform.OS === "web" && windowWidth >= 768;
+  const isNativeMobile = Platform.OS !== "web";
+
+  // Desktop filter panel animation
+  const FILTER_PANEL_WIDTH = 280;
+  const panelAnim = useRef(new Animated.Value(-FILTER_PANEL_WIDTH)).current;
+  const contentAnim = useRef(new Animated.Value(0)).current;
+
+  // Bottom sheet animation (mobile)
+  const BOTTOM_SHEET_HEIGHT = windowHeight * 0.8;
+  const slideUpAnim = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT)).current;
+
+  useEffect(() => {
+    if (isDesktopWeb) {
+      Animated.parallel([
+        Animated.timing(panelAnim, {
+          toValue: showPanel ? 0 : -FILTER_PANEL_WIDTH,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentAnim, {
+          toValue: showPanel ? FILTER_PANEL_WIDTH : 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    if (isMobileWeb || isNativeMobile) {
+      Animated.timing(slideUpAnim, {
+        toValue: showModal ? 0 : BOTTOM_SHEET_HEIGHT,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showPanel, showModal]);
+
+  // Price Ranges
+  const priceRanges = [
+    { min: 0, max: 100, display: "$0-$100" },
+    { min: 100, max: 500, display: "$100-$500" },
+    { min: 500, max: Infinity, display: "$500+" },
   ];
 
-  // const featuredProjects = [
-  //   {
-  //     id: "1",
-  //     title: "Project One",
-  //     image:
-  //       "https://res.cloudinary.com/onio/image/upload/v1693212924/medium_onio_the_internetofthings_fc2234d89a.jpg",
-  //   },
-  //   {
-  //     id: "2",
-  //     title: "Project Two",
-  //     image:
-  //       "https://timesproweb-static-backend-prod.s3.ap-south-1.amazonaws.com/Cloud_Computing_Project_Ideas_and_Topics_86a7d85325.webp",
-  //   },
-  //   {
-  //     id: "3",
-  //     title: "Project Three",
-  //     image:
-  //       "https://cdn.shopify.com/s/files/1/0560/4789/4710/t/20/assets/hardware_projects_for_computer_engineering_students-engdXX.True?v=1707824725",
-  //   },
-  //   {
-  //     id: "4",
-  //     title: "Project Four",
-  //     image:
-  //       "https://hillmancurtis.com/wp-content/uploads/2022/09/iot-devices.jpg",
-  //   },
-  // ];
-
+  // Example projects (sample data)
   const projects = [
     {
       id: "1",
@@ -74,9 +148,10 @@ const HomeScreen = ({ navigation }) => {
         description: "This is a sample project description.",
         image:
           "https://viso.ai/wp-content/smush-webp/2024/02/Computer-vision-for-robotics-1536x864.jpg.webp",
-        price: "$299",
+        price: 299,
         likes: 120,
         views: 400,
+        country: "USA",
       },
     },
     {
@@ -89,151 +164,271 @@ const HomeScreen = ({ navigation }) => {
       category: "Hardware",
       project: {
         name: "Cool Gadget",
-        description:
-          "This is another sample project using some new technologies.",
+        description: "Another sample project using some new technologies.",
         image:
           "https://cdn.prod.website-files.com/63f471ed5975db4280f5573f/65c9dcbacfce6029a3d241b2_what-is-deep-learning.jpg.webp",
-        price: "$499",
+        price: 499,
         likes: 340,
         views: 900,
+        country: "Canada",
+      },
+    },
+    {
+      id: "3",
+      creator: {
+        name: "Alex Jones",
+        image:
+          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+      },
+      category: "AI Tools",
+      project: {
+        name: "AI Assistant",
+        description: "An intelligent AI assistant for your daily tasks.",
+        image:
+          "https://viso.ai/wp-content/smush-webp/2024/02/Computer-vision-for-robotics-1536x864.jpg.webp",
+        price: 149,
+        likes: 210,
+        views: 550,
+        country: "UK",
+      },
+    },
+    {
+      id: "4",
+      creator: {
+        name: "Sarah Miller",
+        image:
+          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+      },
+      category: "Cloud",
+      project: {
+        name: "Cloud Storage",
+        description: "Secure and scalable cloud storage solution.",
+        image:
+          "https://cdn.prod.website-files.com/63f471ed5975db4280f5573f/65c9dcbacfce6029a3d241b2_what-is-deep-learning.jpg.webp",
+        price: 599,
+        likes: 175,
+        views: 420,
+        country: "Germany",
       },
     },
   ];
 
-  const toggleSearch = () => {
-    setIsSearchExpanded(!isSearchExpanded);
-    if (!isSearchExpanded) {
-      setShowFilters(true);
+  // Filtering logic: add search filtering on project name or description
+  function checkPriceRange(range, price) {
+    return price >= range.min && price <= range.max;
+  }
+  const filteredProjects = projects.filter((project) => {
+    const categoryMatch = !selectedFilter || project.category === selectedFilter;
+    const priceMatch =
+      selectedPriceRanges.length === 0 ||
+      selectedPriceRanges.some((range) => checkPriceRange(range, project.project.price));
+    const countryMatch = !selectedCountry || project.project.country === selectedCountry;
+    const searchMatch =
+      searchQuery === "" ||
+      project.project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.project.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return categoryMatch && priceMatch && countryMatch && searchMatch;
+  });
+
+  // Handle filter button press
+  const handleFilterPress = () => {
+    if (isDesktopWeb) {
+      setShowPanel(!showPanel);
     } else {
-      setSearchText("");
-      setSelectedFilter(null);
-      setShowFilters(false);
+      setModalPriceRanges([...selectedPriceRanges]);
+      setShowModal(true);
     }
   };
 
-  const toggleFilters = () => {
-    setShowFilters(!showFilters);
-  };
+  // Web-only checkboxes for the left panel (for price ranges)
+  const renderWebCheckboxes = (options, selectedValues, setSelectedValues) => (
+    <View style={styles.webCheckboxContainer}>
+      {options.map((option) => {
+        const displayValue = typeof option === "object" ? option.display : option;
+        const isSelected = selectedValues.some((value) => {
+          if (typeof option === "object" && typeof value === "object") {
+            return option.min === value.min && option.max === value.max;
+          }
+          return value === option;
+        });
+        return (
+          <View key={displayValue} style={styles.checkboxRow}>
+            <CheckBox
+              value={isSelected}
+              onValueChange={(isChecked) => {
+                if (isChecked) {
+                  setSelectedValues([...selectedValues, option]);
+                } else {
+                  setSelectedValues(
+                    selectedValues.filter((v) => {
+                      if (typeof option === "object" && typeof v === "object") {
+                        return !(v.min === option.min && v.max === option.max);
+                      }
+                      return v !== option;
+                    })
+                  );
+                }
+              }}
+            />
+            <Text style={styles.checkboxLabel}>{displayValue}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
 
-  const performSearch = () => {
-    console.log("Searching for:", searchText, "with filter:", selectedFilter);
-  };
-
-  const clearSearch = () => {
-    setSearchText("");
-  };
-
-  // Filter the projects based on both selectedFilter and searchText
-  const filteredProjects = projects.filter((project) => {
-    const matchesSearch = project.project.name
-      .toLowerCase()
-      .includes(searchText.toLowerCase());
-
-    // Apply selected filter (if any)
-    const matchesCategory =
-      selectedFilter === null || project.category === selectedFilter;
-
-    return matchesSearch && matchesCategory;
-  });
+  // Render mobile price range checkboxes
+  const renderMobilePriceCheckboxes = (priceOptions, selectedValues, setSelectedValues) => (
+    <View style={styles.mobileCheckboxContainer}>
+      {priceOptions.map((option) => {
+        const isSelected = selectedValues.some(
+          (item) => item.min === option.min && item.max === option.max
+        );
+        return (
+          <View key={option.display} style={styles.checkboxRow}>
+            <CheckBox
+              value={isSelected}
+              onValueChange={(isChecked) => {
+                if (isChecked) {
+                  setSelectedValues([...selectedValues, option]);
+                } else {
+                  setSelectedValues(
+                    selectedValues.filter((v) => !(v.min === option.min && v.max === option.max))
+                  );
+                }
+              }}
+            />
+            <Text style={styles.checkboxLabel}>{option.display}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      {/* Fixed Header with Search */}
-      <View style={styles.header}>
-        <View style={styles.topBar}>
-          <View style={[styles.searchBar, styles.searchBarExpanded]}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search projects..."
-              placeholderTextColor="#999"
-              value={searchText}
-              onChangeText={setSearchText}
-            />
-
-            <TouchableOpacity onPress={toggleSearch} style={styles.filterIcon}>
-              <Ionicons name="filter" size={24} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
+    <SafeAreaView style={styles.safeArea}>
+      {/* CUSTOM HEADER */}
+      <View style={styles.customHeader}>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require("../assets/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
-
-        {/* Expandable Filter Area */}
-        {isSearchExpanded && (
-          <View style={styles.searchControlsContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.filtersContainer}
-              contentContainerStyle={styles.filtersContent}
-            >
-              {filters.map((filter, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.filterPill,
-                    selectedFilter === filter && styles.selectedFilterPill,
-                  ]}
-                  onPress={() => {
-                    setSelectedFilter(
-                      filter === selectedFilter ? null : filter
-                    );
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.filterPillText,
-                      selectedFilter === filter &&
-                        styles.selectedFilterPillText,
-                    ]}
-                  >
-                    {filter}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+        <Text style={styles.headerTitle} />
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity
+            style={styles.cartIconContainer}
+            onPress={() => navigation.navigate("CartScreen")}
+          >
+            <Icon name="shoppingcart" size={26} color={colors.subtitle} />
+            {totalItems > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{totalItems}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Main Content */}
-      <ScrollView
-        style={[
-          styles.content,
-          isSearchExpanded && showFilters && styles.contentWithFilters,
-        ]}
-      >
-        {/* <ScrollView horizontal style={styles.carousel}>
-          {featuredProjects.map((project) => (
-            <Image
-              key={project.id}
-              source={{ uri: project.image }}
-              style={styles.carouselImage}
-            />
-          ))}
-        </ScrollView> */}
+      {/* NEW SEARCH BAR BELOW HEADER */}
+      <View style={styles.searchBarContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search..."
+          placeholderTextColor={colors.subtitle}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity style={styles.filterIcon} onPress={handleFilterPress}>
+          <Ionicons name="filter" size={20} color={colors.text} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Filtered Projects Display */}
-        {/* Projects List */}
-        {Platform.OS === "web" ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScroll}
-          >
-            {filteredProjects.map((item) => (
-              <View key={item.id} style={styles.projectContainer}>
-                <ProjectCard
-                  item={item}
-                  onPress={() =>
-                    navigation.navigate("Project", {
-                      project: item.project,
-                      creator: item.creator,
-                    })
-                  }
-                />
+      {/* DESKTOP WEB LAYOUT */}
+      {isDesktopWeb ? (
+        <View style={styles.webContainer}>
+          <Animated.View style={[styles.webFilterPanel, { transform: [{ translateX: panelAnim }] }]}>
+            <Text style={styles.webFilterTitle}>Filter Options</Text>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Category:</Text>
+              <select
+                value={selectedFilter}
+                onChange={(e) => setSelectedFilter(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  fontSize: 16,
+                  border: "1px solid #ccc",
+                  borderRadius: 4,
+                  marginBottom: 10,
+                }}
+              >
+                <option value="">All Categories</option>
+                <option value="Software">Software</option>
+                <option value="Hardware">Hardware</option>
+                <option value="AI Tools">AI Tools</option>
+                <option value="Cloud">Cloud</option>
+                <option value="Feature">Feature</option>
+                <option value="Startups">Startups</option>
+                <option value="Creators">Creators</option>
+              </select>
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Price Range:</Text>
+              {renderWebCheckboxes(priceRanges, selectedPriceRanges, setSelectedPriceRanges)}
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Country:</Text>
+              <select
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  fontSize: 16,
+                  border: "1px solid #ccc",
+                  borderRadius: 4,
+                }}
+              >
+                <option value="">All Countries</option>
+                <option value="USA">USA</option>
+                <option value="Canada">Canada</option>
+                <option value="UK">UK</option>
+                <option value="Germany">Germany</option>
+                <option value="France">France</option>
+                <option value="Japan">Japan</option>
+              </select>
+            </View>
+            <TouchableOpacity style={styles.applyButton} onPress={() => setShowPanel(false)}>
+              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View style={[styles.webContentContainer, { transform: [{ translateX: contentAnim }] }]}>
+            <ScrollView>
+              <View style={styles.horizontalCardContainer}>
+                {filteredProjects.map((item) => (
+                  <View key={item.id} style={styles.webCardWrapper}>
+                    <ProjectCard
+                      item={item}
+                      onPress={() =>
+                        navigation.navigate("Project", {
+                          project: item.project,
+                          creator: item.creator,
+                        })
+                      }
+                    />
+                  </View>
+                ))}
+                {filteredProjects.length === 0 && <Text style={{ margin: 16 }}>No items found.</Text>}
               </View>
-            ))}
-          </ScrollView>
-        ) : (
+            </ScrollView>
+          </Animated.View>
+        </View>
+      ) : (
+        // MOBILE LAYOUT (native or mobile web)
+        <ScrollView style={styles.content}>
           <FlatList
             data={filteredProjects}
             keyExtractor={(item) => item.id}
@@ -248,116 +443,268 @@ const HomeScreen = ({ navigation }) => {
                 }
               />
             )}
+            ListEmptyComponent={<Text style={{ margin: 16 }}>No items found.</Text>}
           />
-        )}
-      </ScrollView>
-    </View>
+        </ScrollView>
+      )}
+
+      {/* BOTTOM SHEET MODAL for mobile */}
+      {(isMobileWeb || isNativeMobile) && (
+        <Modal transparent={true} visible={showModal} animationType="none">
+          <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} />
+          </TouchableWithoutFeedback>
+          <Animated.View style={[styles.bottomSheetContainer, { transform: [{ translateY: slideUpAnim }] }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Options</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ flex: 1 }}>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Category:</Text>
+                <DropDownPicker
+                  open={categoryOpen}
+                  value={categoryValue}
+                  items={categoryItems}
+                  setOpen={setCategoryOpen}
+                  setValue={setCategoryValue}
+                  setItems={setCategoryItems}
+                  placeholder="Select a category"
+                  style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
+                  dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
+                  zIndex={3000}
+                  zIndexInverse={1000}
+                />
+              </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Price Range:</Text>
+                {renderMobilePriceCheckboxes(priceRanges, modalPriceRanges, setModalPriceRanges)}
+              </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Country:</Text>
+                <DropDownPicker
+                  open={countryOpen}
+                  value={countryValue}
+                  items={countryItems}
+                  setOpen={setCountryOpen}
+                  setValue={setCountryValue}
+                  setItems={setCountryItems}
+                  placeholder="All Countries"
+                  style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
+                  dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
+                  zIndex={2000}
+                  zIndexInverse={1500}
+                />
+              </View>
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => {
+                setSelectedPriceRanges([...modalPriceRanges]);
+                setShowModal(false);
+              }}
+            >
+              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Modal>
+      )}
+    </SafeAreaView>
   );
-};
+}
 
 const getDynamicStyles = (colors) =>
   StyleSheet.create({
-    container: {
+    safeArea: {
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
+    customHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 15,
+      height: 60,
       backgroundColor: colors.baseContainerHeader,
-      paddingTop: 20, // For status bar
-      paddingBottom: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.subtitle,
-      zIndex: 10,
     },
-    topBar: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 15,
-      height: 40,
+    headerLeft: {
+      marginRight: 10,
     },
-    searchBar: {
+    logo: {
+      width: 100,
+      height: 100,
+    },
+    headerTitle: {
       flex: 1,
+      textAlign: "left",
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    cartIconContainer: {
+      marginRight: 15,
+      position: "relative",
+    },
+    badge: {
+      position: "absolute",
+      top: -8,
+      right: -8,
+      backgroundColor: "red",
+      borderRadius: 10,
+      width: 20,
+      height: 20,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    badgeText: {
+      color: "white",
+      fontSize: 12,
+    },
+    // NEW: Search bar container below header
+    searchBarContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginLeft: 15,
-      justifyContent: "flex-end",
-      borderWidth: 2,
-      borderColor: colors.primary,
-    },
-    // searchButton: {
-    //   backgroundColor: colors.primary,
-    //   paddingVertical: 8,
-    //   paddingHorizontal: 15,
-    //   borderRadius: 50,
-    // },
-    // searchButtonText: {
-    //   color: colors.text,
-    //   fontWeight: "500",
-    // },
-    searchBarExpanded: {
-      backgroundColor: colors.baseContainerBody,
-      borderRadius: 20,
       paddingHorizontal: 15,
-      marginLeft: 15,
-      justifyContent: "space-between",
+      paddingVertical: 10,
+      backgroundColor: colors.baseContainerBody,
+      margin: 10,
+      borderRadius: 8,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
+      elevation: 3,
     },
     searchInput: {
       flex: 1,
-      height: 40,
-      color: colors.text,
-      backgroundColor: colors.baseContainerFooter,
-      backgroundColor: "transparent",
       fontSize: 16,
+      padding: 10,
+      color: colors.text,
     },
-    searchControlsContainer: {
-      paddingHorizontal: 15,
-      paddingTop: 10,
-    },
-    filtersContainer: {
-      marginTop: 10,
-      maxHeight: 50,
-    },
-    filtersContent: {
-      paddingBottom: 10,
-    },
-    filterPill: {
-      paddingVertical: 6,
+    filterIcon: {
+      paddingVertical: 8,
       paddingHorizontal: 12,
       backgroundColor: colors.baseContainerBody,
       borderRadius: 20,
-      marginRight: 10,
       borderWidth: 1,
       borderColor: colors.subtitle,
+      alignSelf: "flex-start",
     },
-    selectedFilterPill: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterPillText: {
-      color: colors.text,
-      fontWeight: "500",
-    },
-    selectedFilterPillText: {
-      color: colors.background,
-      fontWeight: "bold",
-    },
+    // Content and web filter styles
     content: {
       flex: 1,
       paddingTop: 10,
     },
-    contentWithFilters: {
-      paddingTop: 0,
+    webContainer: {
+      flex: 1,
+      flexDirection: "row",
     },
-  // carousel: {
-  //   height: 200,
-  //   marginBottom: 20,
-  // },
-  // carouselImage: {
-  //   width: 300,
-  //   height: 200,
-  //   marginHorizontal: 10,
-  //   borderRadius: 10,
-  // },
-});
-
-export default HomeScreen;
+    webFilterPanel: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: 280,
+      height: "100%",
+      backgroundColor: colors.baseContainerBody,
+      borderRightWidth: 1,
+      borderRightColor: colors.subtitle,
+      padding: 15,
+      paddingTop: 20,
+      zIndex: 5,
+    },
+    webContentContainer: {
+      flex: 1,
+      paddingLeft: 0,
+    },
+    webFilterTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 20,
+    },
+    horizontalCardContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "flex-start",
+      alignItems: "flex-start",
+      padding: 5,
+    },
+    webCardWrapper: {
+      flexGrow: 1,
+      flexShrink: 1,
+      flexBasis: 300,
+      minWidth: 250,
+      maxWidth: 400,
+      margin: 10,
+    },
+    webCheckboxContainer: {
+      marginTop: 10,
+    },
+    mobileCheckboxContainer: {
+      marginTop: 10,
+    },
+    checkboxRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    checkboxLabel: {
+      marginLeft: 8,
+      color: colors.text,
+    },
+    filterSection: {
+      marginBottom: 20,
+    },
+    filterLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      marginBottom: 10,
+      color: colors.text,
+    },
+    bottomSheetContainer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: "80%",
+      backgroundColor: colors.baseContainerBody,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -3 },
+      shadowOpacity: 0.1,
+      shadowRadius: 5,
+      elevation: 5,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    applyButton: {
+      backgroundColor: colors.primary,
+      padding: 14,
+      borderRadius: 8,
+      alignItems: "center",
+      marginTop: 10,
+    },
+    applyButtonText: {
+      color: colors.background,
+      fontWeight: "bold",
+      fontSize: 16,
+    },
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    // For mobile: pinned bottom button is not needed here since filter panel uses Modal.
+    // If you add additional bottom elements, define them here.
+  });

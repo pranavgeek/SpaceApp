@@ -65,12 +65,6 @@ const AppContent = () => {
     setIsDropdownVisible(!isDropdownVisible);
   };
 
-  const renderMobileTabs = () => (
-    <Tab.Navigator
-      // ... your Tab.Navigator code ...
-    />
-  );
-
 
 
   return (

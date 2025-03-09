@@ -28,7 +28,7 @@ export const ThemeProvider = ({ children }) => {
           success: '#32CD32',
         }
       : {
-          background: '#E8F1FF',
+          background: '#FFFFFF',
           text: '#1A1A2E',
           subtitle: '#5C677D',
           baseContainerHeader: '#EEEEEE',
@@ -37,7 +37,7 @@ export const ThemeProvider = ({ children }) => {
           gradientColors: ['#00A9FF', '#80D0FF'],
           primary: '#006AFF',
           secondary: '#FF6B00',
-          buttonBackground: '#00C9A7',
+          buttonBackground: '#000',
           error: '#D72638',
           success: '#19A974',
         },

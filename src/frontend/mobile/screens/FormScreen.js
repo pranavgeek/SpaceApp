@@ -1,21 +1,42 @@
-// FormScreen.js (Form for project creation)
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Button,
   Alert,
-  Image,
+  Dimensions,
+  ScrollView,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "../theme/ThemeContext";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, Feather } from "@expo/vector-icons"; // Added Feather icon
 
-const FormScreen = () => {
+/**
+ * Single entry point: decides which layout to show based on the platform.
+ */
+export default function FormScreen() {
+  if (Platform.OS === "web") {
+    // Show the original web layout
+    return <WebForm />;
+  } else {
+    // Show the single-step wizard for native mobile
+    return <MobileWizard />;
+  }
+}
+
+/* ------------------------------------------------------------------
+   1) WEB LAYOUT: EXACT COPY OF YOUR ORIGINAL FORM (with success message)
+   ------------------------------------------------------------------ */
+
+function WebForm() {
+  // Theme + Styles
+  const { colors } = useTheme();
+  const styles = getWebStyles(colors);
+
+  // State
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [user, setUser] = useState(""); // Automatic value for User
@@ -24,18 +45,15 @@ const FormScreen = () => {
   const [images, setImages] = useState([]);
   const [link, setLink] = useState("");
   const [country, setCountry] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
-  const { colors } = useTheme(); // Access theme colors
-  const styles = getDynamicStyles(colors); // Generate dynamic styles
-
-  // Handle image selection
+  // Handlers
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
       quality: 1,
     });
-
     if (!result.canceled) {
       setImages([
         ...images,
@@ -47,19 +65,14 @@ const FormScreen = () => {
     }
   };
 
-  // Handle image removal
   const handleRemoveImage = (index) => {
     setImages(images.filter((_, i) => i !== index));
   };
 
-
-  // Handle form submission
   const handleSubmit = () => {
     if (!title || !price || !summary || !detailedDescription || !country) {
       Alert.alert("Please fill in all required fields");
     } else {
-      // Handle form submission logic here
-      Alert.alert("Project Created", "Your project has been created!");
       console.log({
         title,
         price,
@@ -70,181 +83,596 @@ const FormScreen = () => {
         link,
         country,
       });
+      setSubmitted(true);
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create your Product</Text>
-
-      {/* Title */}
-      <TextInput
-        style={styles.input}
-        placeholder="Title"
-        placeholderTextColor="#8A8A8A" 
-        value={title}
-        onChangeText={setTitle}
-      />
-
-      {/* Price */}
-      <TextInput
-        style={styles.input}
-        placeholder="Price"
-        placeholderTextColor="#8A8A8A"
-        keyboardType="numeric"
-        value={price}
-        onChangeText={setPrice}
-      />
-
-      {/* User (automatic) */}
-      <TextInput
-        style={styles.input}
-        placeholder="User"
-        placeholderTextColor="#8A8A8A"
-        editable={false}
-        value={user}
-      />
-
-      {/* Summary */}
-      <TextInput
-        style={styles.input}
-        placeholder="Summary"
-        placeholderTextColor="#8A8A8A"
-        value={summary}
-        onChangeText={setSummary}
-      />
-
-      {/* Detailed Description */}
-      <TextInput
-        style={styles.input}
-        placeholder="Detailed Description"
-        placeholderTextColor="#8A8A8A"
-        value={detailedDescription}
-        onChangeText={setDetailedDescription}
-        multiline
-      />
-
-      {/* Images (Upload) */}
-      <TouchableOpacity onPress={pickImage} style={styles.imageButton}>
-        <Text style={styles.imageButtonText}>Upload Image</Text>
-      </TouchableOpacity>
-
-      {/* Display selected image names with removal buttons */}
-      <View style={styles.selectedImagesContainer}>
-        {images.map((image, index) => (
-          <View key={index} style={styles.selectedImageItem}>
-            <Text style={styles.selectedImageName}>{image.name}</Text>
-            <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={() => handleRemoveImage(index)}
-            >
-              <AntDesign name="close" size={16} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-        ))}
+  if (submitted) {
+    return (
+      <View
+        style={[
+          styles.scrollContainer,
+          { justifyContent: "center", alignItems: "center", paddingVertical: 40, paddingHorizontal: 20 },
+        ]}
+      >
+        <Feather name="check-circle" size={48} color="green" />
+        <Text
+          style={{
+            marginTop: 10,
+            fontSize: 24,
+            fontWeight: "bold",
+            color: colors.primary,
+            textAlign: "center",
+          }}
+        >
+          You have successfully submitted product
+        </Text>
       </View>
+    );
+  }
 
-      {/* Link (optional) */}
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.formWrapper}>
+        <Text style={styles.formHeading}>Create your Product</Text>
+
+        {/* Title */}
+        <FormField
+          label="TITLE"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Enter product title"
+          colors={colors}
+        />
+
+        {/* Price */}
+        <FormField
+          label="PRICE"
+          value={price}
+          onChangeText={setPrice}
+          placeholder="Enter price"
+          colors={colors}
+          keyboardType="numeric"
+        />
+
+        {/* User (automatic) */}
+        <FormField
+          label="USER"
+          value={user}
+          onChangeText={() => {}}
+          placeholder="User"
+          editable={false}
+          colors={colors}
+        />
+
+        {/* Summary */}
+        <FormField
+          label="SUMMARY"
+          value={summary}
+          onChangeText={setSummary}
+          placeholder="Short summary"
+          colors={colors}
+        />
+
+        {/* Detailed Description */}
+        <FormField
+          label="DETAILED DESCRIPTION"
+          value={detailedDescription}
+          onChangeText={setDetailedDescription}
+          placeholder="Describe your product"
+          multiline
+          colors={colors}
+        />
+
+        {/* Image Upload */}
+        <View style={styles.uploadWrapper}>
+          <Text style={styles.label}>IMAGES</Text>
+          <TouchableOpacity onPress={pickImage} style={styles.uploadButton}>
+            <Text style={styles.uploadButtonText}>Upload Image</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Display selected images */}
+        <View style={styles.selectedImagesContainer}>
+          {images.map((image, index) => (
+            <View key={index} style={styles.selectedImageItem}>
+              <Text style={styles.selectedImageName}>{image.name}</Text>
+              <TouchableOpacity
+                style={styles.removeImageButton}
+                onPress={() => handleRemoveImage(index)}
+              >
+                <AntDesign name="close" size={16} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        {/* Link (optional) */}
+        <FormField
+          label="LINK (OPTIONAL)"
+          value={link}
+          onChangeText={setLink}
+          placeholder="Any related link"
+          colors={colors}
+        />
+
+        {/* Country */}
+        <FormField
+          label="COUNTRY"
+          value={country}
+          onChangeText={setCountry}
+          placeholder="e.g. USA"
+          colors={colors}
+        />
+
+        {/* Submit Button */}
+        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+          <Text style={styles.submitButtonText}>SUBMIT</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+/**
+ * A reusable form field (for the Web layout).
+ */
+function FormField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  editable = true,
+  multiline = false,
+  keyboardType = "default",
+  colors,
+}) {
+  const styles = getWebStyles(colors);
+  return (
+    <View style={styles.fieldContainer}>
+      <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Link (optional)"
-        placeholderTextColor="#8A8A8A"
-        value={link}
-        onChangeText={setLink}
+        style={[styles.lineInput, multiline && styles.multiline]}
+        placeholder={placeholder}
+        placeholderTextColor="#888"
+        value={value}
+        onChangeText={onChangeText}
+        editable={editable}
+        multiline={multiline}
+        keyboardType={keyboardType}
       />
-
-      {/* Country */}
-      <TextInput
-        style={styles.input}
-        placeholder="Country"
-        placeholderTextColor="#8A8A8A"
-        value={country}
-        onChangeText={setCountry}
-      />
-
-      {/* Submit Button */}
-      <TouchableOpacity onPress={handleSubmit} style={styles.button}>
-        <Text style={styles.buttonText}>Submit</Text>
-      </TouchableOpacity>
     </View>
   );
-};
+}
 
-const getDynamicStyles = (colors) => StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    color: colors.text,
-    marginBottom: 20,
-    textAlign: "left",
-  },
-  input: {
-    backgroundColor: colors.baseContainerFooter,
-    color: colors.text,
-    padding: 10,
-    marginBottom: 15,
-    borderRadius: 5,
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
-  imageButton: {
-    backgroundColor: colors.buttonBackground,
-    paddingVertical: 10,
-    alignItems: "center",
-    marginBottom: 15,
-    borderRadius: 5,
-  },
-  imageButtonText: {
-    color: colors.text,
-    fontSize: 16,
-  },
-  imagePreview: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 15,
-  },
-  image: {
-    width: 100,
-    height: 100,
-    marginRight: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-  },
-  button: {
-    backgroundColor: colors.buttonBackground,
-    paddingVertical: 15,
-    alignItems: "center",
-    borderRadius: 5,
-  },
-  buttonText: {
-    color: colors.text,
-    fontSize: 18,
-  },
-  selectedImagesContainer: {
-    marginTop: 10,
-  },
-  selectedImageItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 5,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.subtitle,
-    borderRadius: 10,
-  },
-  selectedImageName: {
-    flex: 1,
-    marginRight: 10,
-    color: colors.text,
-  },
-  removeImageButton: {
-    padding: 5,
-  },
-});
+/**
+ * Original styles for Web
+ */
+function getWebStyles(colors) {
+  const { width, height } = Dimensions.get("window");
 
-export default FormScreen;
+  return StyleSheet.create({
+    scrollContainer: {
+      minHeight: height,
+      padding: 20,
+      backgroundColor: "#f0f0f0",
+    },
+    formWrapper: {
+      backgroundColor: "transparent",
+      width: "100%",
+      maxWidth: 600,
+      alignSelf: "center",
+    },
+    formHeading: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: "#333",
+      marginBottom: 30,
+      textAlign: "left",
+    },
+    fieldContainer: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      color: "#444",
+      marginBottom: 5,
+      letterSpacing: 1,
+    },
+    lineInput: {
+      borderBottomWidth: 1,
+      borderBottomColor: "#444",
+      paddingVertical: 6,
+      fontSize: 15,
+      color: colors.text,
+    },
+    multiline: {
+      minHeight: 60,
+      textAlignVertical: "top",
+    },
+    uploadWrapper: {
+      marginBottom: 10,
+    },
+    uploadButton: {
+      backgroundColor: "#fff",
+      borderColor: "#444",
+      borderWidth: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      borderRadius: 4,
+    },
+    uploadButtonText: {
+      color: "#444",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    selectedImagesContainer: {
+      marginTop: 10,
+    },
+    selectedImageItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 5,
+      padding: 8,
+      borderWidth: 1,
+      borderColor: "#aaa",
+      borderRadius: 8,
+    },
+    selectedImageName: {
+      flex: 1,
+      marginRight: 10,
+      color: "#333",
+    },
+    removeImageButton: {
+      padding: 5,
+    },
+    submitButton: {
+      backgroundColor: "#444",
+      paddingVertical: 12,
+      alignItems: "center",
+      borderRadius: 4,
+      marginTop: 10,
+    },
+    submitButtonText: {
+      color: "#fff",
+      fontSize: 16,
+      fontWeight: "600",
+      letterSpacing: 1,
+    },
+  });
+}
+
+/* ------------------------------------------------------------------
+   2) MOBILE LAYOUT: SINGLE-STEP WIZARD (one field at a time with pinned button)
+   ------------------------------------------------------------------ */
+
+function MobileWizard() {
+  // Initialize theme and styles at the top so they're available everywhere
+  const { colors } = useTheme();
+  const styles = getMobileStyles(colors);
+
+  // State
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [user, setUser] = useState("");
+  const [summary, setSummary] = useState("");
+  const [detailedDescription, setDetailedDescription] = useState("");
+  const [images, setImages] = useState([]);
+  const [link, setLink] = useState("");
+  const [country, setCountry] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  // For picking images
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setImages([
+        ...images,
+        ...result.assets.map((asset) => ({
+          uri: asset.uri,
+          name: asset.fileName,
+        })),
+      ]);
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
+  // We have 8 "steps" total: 7 text fields + 1 for images
+  const steps = [
+    {
+      key: "title",
+      label: "Title",
+      question: "What's your title?",
+      placeholder: "Enter product title",
+      value: title,
+      setValue: setTitle,
+      keyboardType: "default",
+      multiline: false,
+      required: true,
+    },
+    {
+      key: "price",
+      label: "Price",
+      question: "What's your price?",
+      placeholder: "Enter price",
+      value: price,
+      setValue: setPrice,
+      keyboardType: "numeric",
+      multiline: false,
+      required: true,
+    },
+    {
+      key: "user",
+      label: "User",
+      question: "Which user?",
+      placeholder: "User name",
+      value: user,
+      setValue: setUser,
+      keyboardType: "default",
+      multiline: false,
+      required: false,
+    },
+    {
+      key: "summary",
+      label: "Summary",
+      question: "Short summary?",
+      placeholder: "Short summary",
+      value: summary,
+      setValue: setSummary,
+      keyboardType: "default",
+      multiline: false,
+      required: true,
+    },
+    {
+      key: "detailedDescription",
+      label: "Description",
+      question: "Describe your product",
+      placeholder: "Detailed description",
+      value: detailedDescription,
+      setValue: setDetailedDescription,
+      keyboardType: "default",
+      multiline: true,
+      required: true,
+    },
+    {
+      key: "link",
+      label: "Link",
+      question: "Any related link?",
+      placeholder: "Optional link",
+      value: link,
+      setValue: setLink,
+      keyboardType: "default",
+      multiline: false,
+      required: false,
+    },
+    {
+      key: "country",
+      label: "Country",
+      question: "Which country?",
+      placeholder: "e.g. USA",
+      value: country,
+      setValue: setCountry,
+      keyboardType: "default",
+      multiline: false,
+      required: true,
+    },
+    {
+      key: "images",
+      label: "Images",
+      question: "Upload Images",
+      isImageStep: true, // no text input, just image picking
+    },
+  ];
+
+  // Current step (0..7)
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // If submitted, render success message with check icon
+  if (submitted) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center", paddingVertical: 40, paddingHorizontal: 20 }]}>
+        <Feather name="check-circle" size={48} color={colors.success} />
+        <Text style={{ marginTop: 10, fontSize: 24, fontWeight: "bold", color: colors.subtitle, textAlign: "center" }}>
+          You have successfully submitted product
+        </Text>
+      </View>
+    );
+  }
+
+  // Step forward or final submit
+  const handleNext = () => {
+    const step = steps[currentStep];
+    if (!step.isImageStep && step.required && !step.value) {
+      Alert.alert("Please fill in this field before continuing.");
+      return;
+    }
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!title || !price || !summary || !detailedDescription || !country) {
+      Alert.alert("Please fill in all required fields");
+    } else {
+      console.log({
+        title,
+        price,
+        user,
+        summary,
+        detailedDescription,
+        images,
+        link,
+        country,
+      });
+      setSubmitted(true);
+    }
+  };
+
+  const current = steps[currentStep];
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Step indicator in top-right: "Title — 1 of 8" */}
+        <View style={styles.stepIndicatorContainer}>
+          <Text style={styles.stepIndicatorText}>
+            <Text style={{ fontWeight: "bold" }}>{current.label}</Text> — {currentStep + 1} of {steps.length}
+          </Text>
+        </View>
+
+        {/* Big question text */}
+        <Text style={styles.questionText}>{current.question}</Text>
+
+        {/* If it's the image step, show image picker. Otherwise show a TextInput */}
+        {current.isImageStep ? (
+          <View style={styles.imageStepWrapper}>
+            <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+              <Text style={styles.uploadButtonText}>Pick Images</Text>
+            </TouchableOpacity>
+            {/* Display selected images */}
+            <View style={styles.selectedImagesContainer}>
+              {images.map((img, index) => (
+                <View key={index} style={styles.selectedImageItem}>
+                  <Text style={styles.selectedImageName}>{img.name}</Text>
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => handleRemoveImage(index)}
+                  >
+                    <AntDesign name="close" size={16} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <TextInput
+            style={[
+              styles.input,
+              current.multiline && { height: 80, textAlignVertical: "top" },
+            ]}
+            placeholder={current.placeholder}
+            placeholderTextColor="#999"
+            value={current.value}
+            onChangeText={current.setValue}
+            keyboardType={current.keyboardType}
+            multiline={current.multiline}
+          />
+        )}
+      </ScrollView>
+      {/* Next / Submit button pinned to bottom */}
+      <View style={styles.bottomButtonContainer}>
+        <TouchableOpacity style={styles.button} onPress={handleNext}>
+          <Text style={styles.buttonText}>
+            {currentStep < steps.length - 1 ? "Next" : "Submit"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Minimal styles for the single-step mobile wizard layout
+ */
+function getMobileStyles(colors) {
+  const { width } = Dimensions.get("window");
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 60,
+      paddingBottom: 120, // Extra padding so content isn't hidden behind the button
+    },
+    stepIndicatorContainer: {
+      alignItems: "flex-end",
+      marginBottom: 10,
+    },
+    stepIndicatorText: {
+      fontSize: 14,
+      color: colors.subtitle,
+    },
+    questionText: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 30,
+      maxWidth: width - 40,
+    },
+    input: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.secondary,
+      fontSize: 16,
+      paddingVertical: 6,
+      marginBottom: 40,
+      color: colors.text,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: 4,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    buttonText: {
+      color: "#fff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    bottomButtonContainer: {
+      position: "absolute",
+      bottom: 20,
+      left: 20,
+      right: 20,
+    },
+    // Image step
+    imageStepWrapper: {
+      marginBottom: 40,
+    },
+    uploadButton: {
+      backgroundColor: colors.primary,
+      padding: 10,
+      borderRadius: 4,
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    uploadButtonText: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    selectedImagesContainer: {
+      marginTop: 10,
+    },
+    selectedImageItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 5,
+      padding: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 8,
+    },
+    selectedImageName: {
+      flex: 1,
+      marginRight: 10,
+      color: colors.text,
+    },
+    removeImageButton: {
+      padding: 5,
+    },
+  });
+}

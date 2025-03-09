@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// ProjectCard.js
+import React from "react";
 import {
   View,
   Text,
@@ -8,32 +9,31 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {useLikeContext} from "../theme/LikeContext";
-import { useTheme } from '../theme/ThemeContext.js';
-import { useCart } from "../context/CartContext"; // Import useCart
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid'; // Import uuidv4
+import { useLikeContext } from "../theme/LikeContext";
+import { useTheme } from "../theme/ThemeContext";
+import { useCart } from "../context/CartContext";
+import { getProjectId } from "../context/projectIdHelper";
 
 export default function ProjectCard({ item, onPress }) {
   const { toggleLike, getLikes } = useLikeContext();
-  const [likes, setLikes] = useState(item.project.likes);
-  const [liked, setLiked] = useState(false);
-  const { colors } = useTheme(); // Access the colors object from the theme
-  const { addToCart } = useCart(); // Access the addToCart function from the CartContext
-  
-  useEffect(() => {
-    setLiked(getLikes(item.project.id));
-  }, [item.project.id, getLikes]);
+  const { colors } = useTheme();
+  const { addToCart } = useCart();
+
+  // Use the helper to get a stable project id.
+  const projectId = getProjectId(item.project);
+
+  // Read the global like state.
+  const isLiked = getLikes(projectId);
+  // Compute the displayed like count: base likes plus one if liked.
+  const displayedLikes = item.project.likes + (isLiked ? 1 : 0);
 
   const handleToggleLike = () => {
-    toggleLike(item.project.id);
-    setLiked((prev) => !prev);
-    setLikes((prev) => (liked ? prev - 1 : prev + 1));
+    toggleLike(projectId);
   };
 
-  const handleAddToCart = () => { // Implement handleAddToCart
-    const cartItem = { ...item.project, cartItemId: uuidv4() }; // Add a unique cartItemId
-    addToCart(cartItem); // Add the project to the cart
+  const handleAddToCart = () => {
+    const cartItem = { ...item.project, cartItemId: projectId };
+    addToCart(cartItem);
   };
 
   return (
@@ -44,10 +44,17 @@ export default function ProjectCard({ item, onPress }) {
       <View style={styles.cardHeader}>
         <Image source={{ uri: item.creator.image }} style={styles.profileImage} />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={[styles.creatorName, { color: colors.text }]}>{item.creator.name}</Text>
-          <Text style={[styles.category, { color: colors.subtitle }]}>{item.category}</Text>
+          <Text style={[styles.creatorName, { color: colors.text }]}>
+            {item.creator.name}
+          </Text>
+          <Text style={[styles.category, { color: colors.subtitle }]}>
+            {item.category}
+          </Text>
         </View>
-        <TouchableOpacity onPress={handleAddToCart} style={[styles.button, { backgroundColor: colors.buttonBackground }]}>
+        <TouchableOpacity
+          onPress={handleAddToCart}
+          style={[styles.button, { backgroundColor: colors.buttonBackground }]}
+        >
           <Text style={styles.buttonText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
@@ -55,20 +62,29 @@ export default function ProjectCard({ item, onPress }) {
       <Image source={{ uri: item.project.image }} style={styles.projectImage} />
 
       <View style={styles.cardFooter}>
-        <Text style={[styles.projectName, { color: colors.text }]}>{item.project.name}</Text>
-        <Text numberOfLines={1} style={[styles.projectDescription, { color: colors.subtitle }]}>
+        <Text style={[styles.projectName, { color: colors.text }]}>
+          {item.project.name}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={[styles.projectDescription, { color: colors.subtitle }]}
+        >
           {item.project.description}
         </Text>
-        <Text style={[styles.projectPrice, { color: colors.text }]}>{item.project.price}</Text>
+        <Text style={[styles.projectPrice, { color: colors.text }]}>
+          {item.project.price}
+        </Text>
 
         <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleToggleLike}>
+          <TouchableOpacity onPress={handleToggleLike} style={styles.actionButton}>
             <Ionicons
-              name={liked ? "heart" : "heart-outline"}
+              name={isLiked ? "heart" : "heart-outline"}
               size={20}
-              color={liked ? colors.error : colors.text}
+              color={isLiked ? colors.error : colors.text}
             />
-            <Text style={[styles.actionText, { color: colors.text }]}>{likes}</Text>
+            <Text style={[styles.actionText, { color: colors.text }]}>
+              {displayedLikes}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionButton}>
@@ -89,22 +105,22 @@ const styles = StyleSheet.create({
     margin: 10,
     borderRadius: 10,
     overflow: "hidden",
-    width: Platform.OS === "web" ? 300 : "",
+    width: Platform.OS === "web" ? 300 : undefined,
   },
   cardHeader: {
     flexDirection: "row",
     padding: 10,
   },
   button: {
-    height: Platform.OS === "web" ? 35 : "",
-    paddingVertical: Platform.OS === "web" ? 12 : "11",
+    height: Platform.OS === "web" ? 35 : undefined,
+    paddingVertical: Platform.OS === "web" ? 12 : 11,
     paddingHorizontal: 10,
     borderRadius: 30,
     alignItems: "center",
   },
   buttonText: {
     color: "white",
-    fontSize: Platform.OS === "web" ? 10 : "13",
+    fontSize: Platform.OS === "web" ? 10 : 13,
     fontWeight: "bold",
   },
   profileImage: { width: 40, height: 40, borderRadius: 20 },
