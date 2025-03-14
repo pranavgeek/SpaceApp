@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   Image,
   TouchableOpacity,
@@ -14,15 +13,18 @@ import {
   TouchableWithoutFeedback,
   Dimensions,
   TextInput,
+  StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/AntDesign";
 import CheckBox from "expo-checkbox";
 import DropDownPicker from "react-native-dropdown-picker";
-
 import ProjectCard from "../components/ProjectCard";
 import { useTheme } from "../theme/ThemeContext.js";
 import { useCart } from "../context/CartContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
+import { mockCities } from "../data/MockData.js";
 
 export default function HomeScreen({ navigation }) {
   // Search query state
@@ -31,9 +33,27 @@ export default function HomeScreen({ navigation }) {
   // Filtering states
   const [selectedFilter, setSelectedFilter] = useState("");
   const [selectedPriceRanges, setSelectedPriceRanges] = useState([]);
+
+  // Country and City filter states
   const [selectedCountry, setSelectedCountry] = useState("");
-  // modalCountry is used only in the modal; when Apply is pressed, it becomes selectedCountry.
   const [modalCountry, setModalCountry] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [modalCity, setModalCity] = useState("");
+
+  // Static country dropdown items (for modal)
+  const [countryItems, setCountryItems] = useState([
+    { label: "All Countries", value: "" },
+    { label: "USA", value: "USA" },
+    { label: "Canada", value: "Canada" },
+    { label: "UK", value: "UK" },
+    { label: "Germany", value: "Germany" },
+    { label: "France", value: "France" },
+    { label: "Japan", value: "Japan" },
+  ]);
+
+  // City dropdown states – will be updated dynamically based on the selected country
+  const [cityItems, setCityItems] = useState([{ label: "All Cities", value: "" }]);
+  const [cityOpen, setCityOpen] = useState(false);
 
   // Mobile Category Dropdown states (using DropDownPicker for category)
   const [categoryOpen, setCategoryOpen] = useState(false);
@@ -49,28 +69,18 @@ export default function HomeScreen({ navigation }) {
     { label: "Creators", value: "Creators" },
   ]);
 
-  // Mobile Country Dropdown states (for modal only)
-  const [countryOpen, setCountryOpen] = useState(false);
-  const [countryValue, setCountryValue] = useState("");
-  const [countryItems, setCountryItems] = useState([
-    { label: "All Countries", value: "" },
-    { label: "USA", value: "USA" },
-    { label: "Canada", value: "Canada" },
-    { label: "UK", value: "UK" },
-    { label: "Germany", value: "Germany" },
-    { label: "France", value: "France" },
-    { label: "Japan", value: "Japan" },
-  ]);
+  const isFocused = useIsFocused();
 
-  // When modal opens, initialize modalCountry from selectedCountry.
+  // Modal state for filters (for mobile)
   const [showModal, setShowModal] = useState(false);
   useEffect(() => {
     if (showModal) {
       setModalCountry(selectedCountry);
+      setModalCity(selectedCity);
     }
-  }, [showModal, selectedCountry]);
+  }, [showModal, selectedCountry, selectedCity]);
 
-  // Modal states for Price Ranges, etc.
+  // Modal state for Price Ranges, etc.
   const [modalPriceRanges, setModalPriceRanges] = useState([]);
   const [showPanel, setShowPanel] = useState(false);
 
@@ -78,10 +88,7 @@ export default function HomeScreen({ navigation }) {
   const styles = getDynamicStyles(colors);
 
   const { cartItems } = useCart();
-  const totalItems = cartItems.reduce(
-    (sum, item) => sum + (item.quantity || 1),
-    0
-  );
+  const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const windowWidth = Dimensions.get("window").width;
   const windowHeight = Dimensions.get("window").height;
 
@@ -99,6 +106,59 @@ export default function HomeScreen({ navigation }) {
   const BOTTOM_SHEET_HEIGHT = windowHeight * 0.8;
   const slideUpAnim = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT)).current;
 
+  // Use separate state for the modal country dropdown to avoid naming conflicts.
+  const [modalCountryOpen, setModalCountryOpen] = useState(false);
+
+  // Load the user's default country from AsyncStorage and update city dropdown accordingly.
+  useEffect(() => {
+    const loadUserCountry = async () => {
+      try {
+        const country = await AsyncStorage.getItem("userCountry");
+        console.log("Loaded userCountry:", country);
+        if (country) {
+          setSelectedCountry(country);
+          setModalCountry(country);
+          // Build city dropdown items by filtering mockCities based on the country.
+          const filteredCities = mockCities.filter((cityStr) => {
+            const parts = cityStr.split(",");
+            const cityCountry = parts[1]?.trim() || "";
+            return cityCountry === country;
+          });
+          const dropdownItems = filteredCities.map((cityStr) => {
+            const cityName = cityStr.split(",")[0].trim();
+            return { label: cityName, value: cityName };
+          });
+          setCityItems([{ label: "All Cities", value: "" }, ...dropdownItems]);
+        }
+      } catch (error) {
+        console.error("Error loading userCountry:", error);
+      }
+    };
+
+    if (isFocused) {
+      loadUserCountry();
+    }
+  }, [isFocused]);
+
+  // Also update cityItems whenever the applied country changes.
+  useEffect(() => {
+    if (selectedCountry) {
+      const filteredCities = mockCities.filter((cityStr) => {
+        const parts = cityStr.split(",");
+        const cityCountry = parts[1]?.trim() || "";
+        return cityCountry === selectedCountry;
+      });
+      const dropdownItems = filteredCities.map((cityStr) => {
+        const cityName = cityStr.split(",")[0].trim();
+        return { label: cityName, value: cityName };
+      });
+      setCityItems([{ label: "All Cities", value: "" }, ...dropdownItems]);
+    } else {
+      setCityItems([{ label: "All Cities", value: "" }]);
+    }
+  }, [selectedCountry]);
+
+  // Animations for desktop panel and mobile bottom sheet.
   useEffect(() => {
     if (isDesktopWeb) {
       Animated.parallel([
@@ -123,7 +183,7 @@ export default function HomeScreen({ navigation }) {
     }
   }, [showPanel, showModal]);
 
-  // Price Ranges
+  // Price ranges (example)
   const priceRanges = [
     { min: 0, max: 100, display: "$0-$100" },
     { min: 100, max: 250, display: "$100-$250" },
@@ -131,7 +191,7 @@ export default function HomeScreen({ navigation }) {
     { min: 500, max: Infinity, display: "$500+" },
   ];
 
-  // Example projects (sample data)
+  // Sample project data now includes city along with country.
   const projects = [
     {
       id: "1",
@@ -150,6 +210,7 @@ export default function HomeScreen({ navigation }) {
         likes: 120,
         views: 400,
         country: "USA",
+        city: "New York",
       },
     },
     {
@@ -169,6 +230,7 @@ export default function HomeScreen({ navigation }) {
         likes: 340,
         views: 900,
         country: "Canada",
+        city: "Toronto",
       },
     },
     {
@@ -188,6 +250,7 @@ export default function HomeScreen({ navigation }) {
         likes: 210,
         views: 550,
         country: "UK",
+        city: "London",
       },
     },
     {
@@ -207,31 +270,27 @@ export default function HomeScreen({ navigation }) {
         likes: 175,
         views: 420,
         country: "Germany",
+        city: "Berlin",
       },
     },
   ];
 
-  // Filtering logic
+  // Filtering logic now checks category, price, country, and city.
   function checkPriceRange(range, price) {
     return price >= range.min && price <= range.max;
   }
   const filteredProjects = projects.filter((project) => {
-    const categoryMatch =
-      !selectedFilter || project.category === selectedFilter;
+    const categoryMatch = !selectedFilter || project.category === selectedFilter;
     const priceMatch =
       selectedPriceRanges.length === 0 ||
-      selectedPriceRanges.some((range) =>
-        checkPriceRange(range, project.project.price)
-      );
-    const countryMatch =
-      selectedCountry === "" || project.project.country === selectedCountry;
+      selectedPriceRanges.some((range) => checkPriceRange(range, project.project.price));
+    const countryMatch = selectedCountry === "" || project.project.country === selectedCountry;
+    const cityMatch = selectedCity === "" || project.project.city === selectedCity;
     const searchMatch =
       searchQuery === "" ||
       project.project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.project.description
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-    return categoryMatch && priceMatch && countryMatch && searchMatch;
+      project.project.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return categoryMatch && priceMatch && countryMatch && cityMatch && searchMatch;
   });
 
   // Handle filter button press
@@ -241,6 +300,7 @@ export default function HomeScreen({ navigation }) {
     } else {
       setModalPriceRanges([...selectedPriceRanges]);
       setModalCountry(selectedCountry);
+      setModalCity(selectedCity);
       setShowModal(true);
     }
   };
@@ -249,8 +309,7 @@ export default function HomeScreen({ navigation }) {
   const renderWebCheckboxes = (options, selectedValues, setSelectedValues) => (
     <View style={styles.webCheckboxContainer}>
       {options.map((option) => {
-        const displayValue =
-          typeof option === "object" ? option.display : option;
+        const displayValue = typeof option === "object" ? option.display : option;
         const isSelected = selectedValues.some((value) => {
           if (typeof option === "object" && typeof value === "object") {
             return option.min === value.min && option.max === value.max;
@@ -267,10 +326,7 @@ export default function HomeScreen({ navigation }) {
                 } else {
                   setSelectedValues(
                     selectedValues.filter((v) => {
-                      if (
-                        typeof option === "object" &&
-                        typeof v === "object"
-                      ) {
+                      if (typeof option === "object" && typeof v === "object") {
                         return !(v.min === option.min && v.max === option.max);
                       }
                       return v !== option;
@@ -287,11 +343,7 @@ export default function HomeScreen({ navigation }) {
   );
 
   // Render mobile price range checkboxes
-  const renderMobilePriceCheckboxes = (
-    priceOptions,
-    selectedValues,
-    setSelectedValues
-  ) => (
+  const renderMobilePriceCheckboxes = (priceOptions, selectedValues, setSelectedValues) => (
     <View style={styles.mobileCheckboxContainer}>
       {priceOptions.map((option) => {
         const isSelected = selectedValues.some(
@@ -365,10 +417,7 @@ export default function HomeScreen({ navigation }) {
       {isDesktopWeb ? (
         <View style={styles.webContainer}>
           <Animated.View
-            style={[
-              styles.webFilterPanel,
-              { transform: [{ translateX: panelAnim }] },
-            ]}
+            style={[styles.webFilterPanel, { transform: [{ translateX: panelAnim }] }]}
           >
             <Text style={styles.webFilterTitle}>Filter Options</Text>
             <View style={styles.filterSection}>
@@ -397,11 +446,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Price Range:</Text>
-              {renderWebCheckboxes(
-                priceRanges,
-                selectedPriceRanges,
-                setSelectedPriceRanges
-              )}
+              {renderWebCheckboxes(priceRanges, selectedPriceRanges, setSelectedPriceRanges)}
             </View>
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Country:</Text>
@@ -416,13 +461,31 @@ export default function HomeScreen({ navigation }) {
                   borderRadius: 4,
                 }}
               >
-                <option value="">All Countries</option>
-                <option value="USA">USA</option>
-                <option value="Canada">Canada</option>
-                <option value="UK">UK</option>
-                <option value="Germany">Germany</option>
-                <option value="France">France</option>
-                <option value="Japan">Japan</option>
+                {countryItems.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>City:</Text>
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  fontSize: 16,
+                  border: "1px solid #ccc",
+                  borderRadius: 4,
+                }}
+              >
+                {cityItems.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
               </select>
             </View>
             <TouchableOpacity
@@ -433,10 +496,7 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </Animated.View>
           <Animated.View
-            style={[
-              styles.webContentContainer,
-              { transform: [{ translateX: contentAnim }] },
-            ]}
+            style={[styles.webContentContainer, { transform: [{ translateX: contentAnim }] }]}
           >
             <ScrollView>
               <View style={styles.horizontalCardContainer}>
@@ -477,9 +537,7 @@ export default function HomeScreen({ navigation }) {
                 }
               />
             )}
-            ListEmptyComponent={
-              <Text style={{ margin: 16 }}>No items found.</Text>
-            }
+            ListEmptyComponent={<Text style={{ margin: 16 }}>No items found.</Text>}
           />
         </ScrollView>
       )}
@@ -488,19 +546,9 @@ export default function HomeScreen({ navigation }) {
       {(isMobileWeb || isNativeMobile) && (
         <Modal transparent={true} visible={showModal} animationType="none">
           <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: "rgba(0,0,0,0.5)" },
-              ]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} />
           </TouchableWithoutFeedback>
-          <Animated.View
-            style={[
-              styles.bottomSheetContainer,
-              { transform: [{ translateY: slideUpAnim }] },
-            ]}
-          >
+          <Animated.View style={[styles.bottomSheetContainer, { transform: [{ translateY: slideUpAnim }] }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Options</Text>
               <TouchableOpacity onPress={() => setShowModal(false)}>
@@ -513,66 +561,60 @@ export default function HomeScreen({ navigation }) {
                 <DropDownPicker
                   open={categoryOpen}
                   value={categoryValue || ""}
-                  items={
-                    categoryItems && categoryItems.length > 0
-                      ? categoryItems
-                      : [{ label: "No Categories", value: "" }]
-                  }
+                  items={categoryItems && categoryItems.length > 0 ? categoryItems : [{ label: "No Categories", value: "" }]}
                   setOpen={setCategoryOpen}
                   setValue={setCategoryValue}
                   setItems={setCategoryItems}
                   placeholder="Select a category"
-                  style={{
-                    borderColor: "#ccc",
-                    borderWidth: 1,
-                    borderRadius: 4,
-                  }}
-                  dropDownContainerStyle={{
-                    borderColor: "#ccc",
-                    borderWidth: 1,
-                  }}
+                  style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
+                  dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
                   containerStyle={{ overflow: "visible" }}
                   zIndex={3000}
                   zIndexInverse={1000}
                 />
               </View>
 
-              <View style={[styles.filterSection, { zIndex: 2000 }]}>
-                <Text style={styles.filterLabel}>Country:</Text>
-                <DropDownPicker
-                  open={countryOpen}
-                  value={modalCountry || ""}
-                  items={
-                    countryItems && countryItems.length > 0
-                      ? countryItems
-                      : [{ label: "No Countries", value: "" }]
-                  }
-                  setOpen={setCountryOpen}
-                  setValue={setModalCountry}
-                  setItems={setCountryItems}
-                  placeholder="Select a country"
-                  style={{
-                    borderColor: "#ccc",
-                    borderWidth: 1,
-                    borderRadius: 4,
-                  }}
-                  dropDownContainerStyle={{
-                    borderColor: "#ccc",
-                    borderWidth: 1,
-                  }}
-                  containerStyle={{ overflow: "visible" }}
-                  zIndex={2000}
-                  zIndexInverse={900}
-                />
+              {/* Horizontal container for Country and City dropdowns */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
+                <View style={{ flex: 1, marginRight: 5 }}>
+                  <Text style={styles.filterLabel}>Country:</Text>
+                  <DropDownPicker
+                    open={modalCountryOpen}
+                    value={modalCountry || ""}
+                    items={countryItems && countryItems.length > 0 ? countryItems : [{ label: "No Countries", value: "" }]}
+                    setOpen={setModalCountryOpen}
+                    setValue={setModalCountry}
+                    setItems={setCountryItems}
+                    placeholder="Country"
+                    style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
+                    dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
+                    containerStyle={{ overflow: "visible" }}
+                    zIndex={2000}
+                    zIndexInverse={900}
+                  />
+                </View>
+                <View style={{ flex: 1, marginLeft: 5 }}>
+                  <Text style={styles.filterLabel}>City:</Text>
+                  <DropDownPicker
+                    open={cityOpen}
+                    value={modalCity || ""}
+                    items={cityItems && cityItems.length > 0 ? cityItems : [{ label: "No Cities", value: "" }]}
+                    setOpen={setCityOpen}
+                    setValue={setModalCity}
+                    setItems={setCityItems}
+                    placeholder="City"
+                    style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
+                    dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
+                    containerStyle={{ overflow: "visible" }}
+                    zIndex={1000}
+                    zIndexInverse={800}
+                  />
+                </View>
               </View>
 
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Price Range:</Text>
-                {renderMobilePriceCheckboxes(
-                  priceRanges,
-                  modalPriceRanges,
-                  setModalPriceRanges
-                )}
+                {renderMobilePriceCheckboxes(priceRanges, modalPriceRanges, setModalPriceRanges)}
               </View>
             </ScrollView>
             <TouchableOpacity
@@ -580,6 +622,7 @@ export default function HomeScreen({ navigation }) {
               onPress={() => {
                 setSelectedPriceRanges([...modalPriceRanges]);
                 setSelectedCountry(modalCountry);
+                setSelectedCity(modalCity);
                 setSelectedFilter(categoryValue);
                 setShowModal(false);
               }}
@@ -593,6 +636,7 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+// Example dynamic styles (adjust as needed)
 const getDynamicStyles = (colors) =>
   StyleSheet.create({
     safeArea: {
@@ -777,9 +821,5 @@ const getDynamicStyles = (colors) =>
       color: colors.background,
       fontWeight: "bold",
       fontSize: 16,
-    },
-    safeArea: {
-      flex: 1,
-      backgroundColor: colors.background,
     },
   });

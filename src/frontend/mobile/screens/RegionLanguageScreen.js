@@ -1,47 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
-import BaseContainer from '../components/BaseContainer';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme } from '../theme/ThemeContext.js';
-import { mockCities, mockLanguages } from '../data/MockData';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+} from "react-native";
+import BaseContainer from "../components/BaseContainer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../theme/ThemeContext.js";
+import { mockCities, mockLanguages } from "../data/MockData";
 
 const LocationAndLanguagesScreen = () => {
-  const [location, setLocation] = useState('');
-  
+  const [location, setLocation] = useState("");
+
   const [languages, setLanguages] = useState([]);
-  const [languageInput, setLanguageInput] = useState('');
+  const [languageInput, setLanguageInput] = useState("");
   const [autocompleteLocation, setAutocompleteLocation] = useState([]);
   const [autocompleteLanguages, setAutocompleteLanguages] = useState([]);
 
-  const {colors } = useTheme();
+  const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
 
   // Function to save location and languages to AsyncStorage asynchronously
   const saveData = async (location, languages) => {
     try {
-      await AsyncStorage.setItem('location', location);  // Save location
-      await AsyncStorage.setItem('languages', JSON.stringify(languages));  // Save languages
-      console.log('Data saved successfully');
+      await AsyncStorage.setItem("location", location); // Save location
+      await AsyncStorage.setItem("languages", JSON.stringify(languages)); // Save languages
+      console.log("Data saved successfully");
     } catch (error) {
-      console.error('Error saving data', error);
+      console.error("Error saving data", error);
     }
   };
 
   // Function to load saved location and languages from AsyncStorage
   const loadData = async () => {
     try {
-      const savedLocation = await AsyncStorage.getItem('location');
-      const savedLanguages = await AsyncStorage.getItem('languages');
-      
+      const savedLocation = await AsyncStorage.getItem("location");
+      const savedLanguages = await AsyncStorage.getItem("languages");
+
       if (savedLocation) {
         setLocation(savedLocation);
       }
-      
+
       if (savedLanguages) {
         setLanguages(JSON.parse(savedLanguages));
       }
     } catch (error) {
-      console.error('Error loading data', error);
+      console.error("Error loading data", error);
     }
   };
 
@@ -87,27 +94,27 @@ const LocationAndLanguagesScreen = () => {
     if (languageInput.trim() && !languages.includes(languageInput.trim())) {
       const newLanguages = [...languages, languageInput.trim()];
       setLanguages(newLanguages);
-      setLanguageInput('');
+      setLanguageInput("");
       setAutocompleteLanguages([]);
-      saveData(location, newLanguages);  
+      saveData(location, newLanguages);
     }
   };
 
   const removeLanguage = (language) => {
     const newLanguages = languages.filter((lang) => lang !== language);
     setLanguages(newLanguages);
-    saveData(location, newLanguages); 
+    saveData(location, newLanguages);
   };
 
   const handleLocationSelect = (selectedLocation) => {
     setLocation(selectedLocation);
     setAutocompleteLocation([]);
 
-    const parts = selectedLocation.split(',');
+    const parts = selectedLocation.split(",");
     const country = parts[1]?.trim() || "";
-
-    saveData(selectedLocation, languages);  
-    AsyncStorage.setItem('userCountry', country)
+    saveData(selectedLocation, languages);
+    // Save the country for later use in filtering
+    AsyncStorage.setItem("userCountry", country);
   };
 
   const handleLanguageSelect = (selectedLanguage) => {
@@ -119,7 +126,10 @@ const LocationAndLanguagesScreen = () => {
     <View style={styles.container}>
       {/* Change Location Section */}
 
-      <BaseContainer title={"Location"} subtitle={"Select your current location"}>
+      <BaseContainer
+        title={"Location"}
+        subtitle={"Select your current location"}
+      >
         <TextInput
           style={styles.input}
           placeholder="Type your location"
@@ -144,7 +154,10 @@ const LocationAndLanguagesScreen = () => {
       </BaseContainer>
 
       {/* Add Spoken Languages Section */}
-        <BaseContainer title={"Spoken Languages"} subtitle={"Select all the languages you are able to comunicate"}>
+      <BaseContainer
+        title={"Spoken Languages"}
+        subtitle={"Select all the languages you are able to comunicate"}
+      >
         <View style={styles.languageInputContainer}>
           <TextInput
             style={styles.inputLanguage}
@@ -156,7 +169,6 @@ const LocationAndLanguagesScreen = () => {
           <TouchableOpacity style={styles.addButton} onPress={addLanguage}>
             <Text style={styles.addButtonText}>Add</Text>
           </TouchableOpacity>
-          
         </View>
         {autocompleteLanguages.length > 0 && (
           <FlatList
@@ -183,87 +195,85 @@ const LocationAndLanguagesScreen = () => {
           ))}
         </View>
       </BaseContainer>
-      
-      
     </View>
   );
 };
 
 const getDynamicStyles = (colors) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#FFFFFF",
-    color: "#FFFFFF",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  inputLanguage: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#FFFFFF",
-    color: "#FFFFFF",
-    borderRadius: 8,
-    padding: 10,
-  },
-  autocompleteItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#FFFFFF",
-    color: "#FFFFFF",
-  },
-  languageInputContainer: {
-    flexDirection: 'row',
-    color: colors.text,
-  },
-  addButton: {
-    marginLeft: 10,
-    backgroundColor: colors.text,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: colors.background,
-    fontWeight: 'bold',
-  },
-  languageTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 10,
-  },
-  languageTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.text,
-    borderRadius: 10,
-    padding: 10,
-    margin: 5,
-  },
-  languageText: {
-    marginRight: 5,
-    color: colors.primary,
-    fontWeight: 700,
-  },
-  locationText: {
-    color: "#FFFFFF",
-  },
-  removeButton: {
-    color: 'red',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-});
+    container: {
+      flex: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      marginVertical: 10,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: "#FFFFFF",
+      color: "#FFFFFF",
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 10,
+    },
+    inputLanguage: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: "#FFFFFF",
+      color: "#FFFFFF",
+      borderRadius: 8,
+      padding: 10,
+    },
+    autocompleteItem: {
+      padding: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: "#FFFFFF",
+      color: "#FFFFFF",
+    },
+    languageInputContainer: {
+      flexDirection: "row",
+      color: colors.text,
+    },
+    addButton: {
+      marginLeft: 10,
+      backgroundColor: colors.text,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+    },
+    addButtonText: {
+      color: colors.background,
+      fontWeight: "bold",
+    },
+    languageTags: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginTop: 10,
+    },
+    languageTag: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.text,
+      borderRadius: 10,
+      padding: 10,
+      margin: 5,
+    },
+    languageText: {
+      marginRight: 5,
+      color: colors.primary,
+      fontWeight: 700,
+    },
+    locationText: {
+      color: "#FFFFFF",
+    },
+    removeButton: {
+      color: "red",
+      fontWeight: "bold",
+      fontSize: 16,
+    },
+  });
 
 export default LocationAndLanguagesScreen;
