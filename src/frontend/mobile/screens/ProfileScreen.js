@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,21 +13,46 @@ import ButtonMain from "../components/ButtonMain";
 import ButtonIcon from "../components/ButtonIcon";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function ProfileScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
 
+  const [location, setLocation] = useState("");
+  const [languages, setLanguages] = useState([]);
+
+  // Function to load location and languages from AsyncStorage
+  const loadData = async () => {
+    try {
+      const storedLocation = await AsyncStorage.getItem("location");
+      const storedLanguages = await AsyncStorage.getItem("languages");
+      if (storedLocation) {
+        setLocation(storedLocation);
+      }
+      if (storedLanguages) {
+        setLanguages(JSON.parse(storedLanguages));
+      }
+    } catch (error) {
+      console.error("Error loading data from AsyncStorage", error);
+    }
+  };
+
+  // Reload data each time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
   const windowWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
-  // Simple check for "desktop web" vs. "mobile" (native or small-screen web)
-  const isDesktopWeb = isWeb && windowWidth >= 992; // Adjust breakpoint as needed
+  const isDesktopWeb = isWeb && windowWidth >= 992;
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header background (visible on web; optional on mobile) */}
       {isDesktopWeb && <View style={styles.headerBackground} />}
-
       <View style={styles.profileCard}>
         {/* PROFILE IMAGE + NAME/SUBTITLE */}
         <View style={styles.profileTopSection}>
@@ -41,7 +66,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.profileName}>John Doe</Text>
             <Text style={styles.profileSubtitle}>Software Engineer</Text>
 
-            {/* Edit + Share (side by side) */}
+            {/* Edit + Share */}
             <View style={styles.editShareContainer}>
               <ButtonMain
                 style={styles.editBtn}
@@ -72,7 +97,9 @@ export default function ProfileScreen({ navigation }) {
               color={colors.subtitle}
               style={{ marginRight: 6 }}
             />
-            <Text style={styles.profileText}>Toronto, Canada</Text>
+            <Text style={styles.profileText}>
+              {location || "No location set"}
+            </Text>
           </View>
           <View style={styles.profileRow}>
             <Ionicons
@@ -81,7 +108,9 @@ export default function ProfileScreen({ navigation }) {
               color={colors.subtitle}
               style={{ marginRight: 6 }}
             />
-            <Text style={styles.profileText}>English, French</Text>
+            <Text style={styles.profileText}>
+              {languages.length > 0 ? languages.join(", ") : "No languages set"}
+            </Text>
           </View>
         </View>
 
@@ -101,7 +130,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* BIG BUTTON CONTAINER - BELOW STATS FOR ALL DEVICES */}
+        {/* BIG BUTTON CONTAINER */}
         <View style={styles.bigButtonContainer}>
           <ButtonSettings
             iconName="grid-outline"
@@ -159,7 +188,6 @@ function getDynamicStyles(colors) {
       zIndex: -1,
     },
     profileCard: {
-      // On desktop web, center it and give it a white background
       backgroundColor: isDesktopWeb ? colors.baseContainerHeader : colors.background,
       marginTop: isDesktopWeb ? 60 : 0,
       marginHorizontal: isDesktopWeb ? "auto" : 0,
@@ -247,7 +275,6 @@ function getDynamicStyles(colors) {
       color: colors.subtitle,
     },
     bigButtonContainer: {
-      // Now always below stats
       marginTop: 10,
       flexDirection: isDesktopWeb ? "row" : "column",
       flexWrap: "wrap",

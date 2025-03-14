@@ -18,7 +18,7 @@ const ButtonSettings = ({
 
     const { isDarkMode, colors, toggleTheme } = useTheme();
     const styles = getDynamicStyles(colors);
-    const textColor = isDanger ? '#FF4444' : colors.text;
+    const textColor = isDanger ? '#FF4444' : "#FFFFFF";
 
     return (
         <TouchableOpacity style={styles.button} onPress={onPress}>

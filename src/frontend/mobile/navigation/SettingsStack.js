@@ -58,12 +58,12 @@ const SettingsStackNavigator = () => {
       />
 
       <SettingsStack.Screen
-        name="InfluencerProgram"
+        name="Influencer Program"
         component={InfluencerProgramScreen}
         //   options={{headerShown: false}} // or your desired options
       />
       <SettingsStack.Screen
-        name="CreatorPlans"
+        name="Creator Plans"
         component={CreatorPlansScreen}
         //   options={{headerShown: false}}
       />

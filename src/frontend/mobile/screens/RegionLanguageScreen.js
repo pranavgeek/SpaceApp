@@ -102,7 +102,12 @@ const LocationAndLanguagesScreen = () => {
   const handleLocationSelect = (selectedLocation) => {
     setLocation(selectedLocation);
     setAutocompleteLocation([]);
+
+    const parts = selectedLocation.split(',');
+    const country = parts[1]?.trim() || "";
+
     saveData(selectedLocation, languages);  
+    AsyncStorage.setItem('userCountry', country)
   };
 
   const handleLanguageSelect = (selectedLanguage) => {
@@ -120,7 +125,7 @@ const LocationAndLanguagesScreen = () => {
           placeholder="Type your location"
           value={location}
           onChangeText={handleLocationChange}
-          placeholderTextColor={colors.subtitle}
+          placeholderTextColor={colors.BaseContainer}
         />
         {autocompleteLocation.length > 0 && (
           <FlatList
@@ -131,7 +136,7 @@ const LocationAndLanguagesScreen = () => {
                 style={styles.autocompleteItem}
                 onPress={() => handleLocationSelect(item)}
               >
-                <Text style={styles.languageText}>{item}</Text>
+                <Text style={styles.locationText}>{item}</Text>
               </TouchableOpacity>
             )}
           />
@@ -146,7 +151,7 @@ const LocationAndLanguagesScreen = () => {
             placeholder="Add a language"
             value={languageInput}
             onChangeText={handleLanguageChange}
-            placeholderTextColor={colors.subtitle}
+            placeholderTextColor={colors.text}
           />
           <TouchableOpacity style={styles.addButton} onPress={addLanguage}>
             <Text style={styles.addButtonText}>Add</Text>
@@ -198,8 +203,8 @@ const getDynamicStyles = (colors) =>
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.subtitle,
-    color: colors.text,
+    borderColor: "#FFFFFF",
+    color: "#FFFFFF",
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
@@ -207,16 +212,16 @@ const getDynamicStyles = (colors) =>
   inputLanguage: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.subtitle,
-    color: colors.text,
+    borderColor: "#FFFFFF",
+    color: "#FFFFFF",
     borderRadius: 8,
     padding: 10,
   },
   autocompleteItem: {
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.subtitle,
-    color: colors.text,
+    borderBottomColor: "#FFFFFF",
+    color: "#FFFFFF",
   },
   languageInputContainer: {
     flexDirection: 'row',
@@ -241,18 +246,23 @@ const getDynamicStyles = (colors) =>
   languageTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 20,
+    backgroundColor: colors.text,
+    borderRadius: 10,
     padding: 10,
     margin: 5,
   },
   languageText: {
     marginRight: 5,
-    color: colors.text,
+    color: colors.primary,
+    fontWeight: 700,
+  },
+  locationText: {
+    color: "#FFFFFF",
   },
   removeButton: {
     color: 'red',
     fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

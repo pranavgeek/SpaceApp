@@ -56,14 +56,14 @@ export default function SettingsScreen({ navigation }) {
           <ButtonSetting
             iconName={"star-outline"}
             title={"Influencer Program"}
-            onPress={() => navigation.navigate("InfluencerProgram")}
+            onPress={() => navigation.navigate("Influencer Program")}
             rightIcon={"chevron-forward"}
           />
 
           <ButtonSetting
             iconName={"layers-outline"}
             title={"Creator Plans"}
-            onPress={() => navigation.navigate("CreatorPlans")}
+            onPress={() => navigation.navigate("Creator Plans")}
             rightIcon={"chevron-forward"}
           />
         </View>

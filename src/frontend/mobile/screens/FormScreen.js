@@ -38,6 +38,7 @@ function WebForm() {
 
   // State
   const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [user, setUser] = useState(""); // Automatic value for User
   const [summary, setSummary] = useState("");
@@ -75,6 +76,7 @@ function WebForm() {
     } else {
       console.log({
         title,
+        category,
         price,
         user,
         summary,
@@ -114,7 +116,7 @@ function WebForm() {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.formWrapper}>
-        <Text style={styles.formHeading}>Create your Product</Text>
+        <Text style={styles.formHeading}>Tell us about your Product</Text>
 
         {/* Title */}
         <FormField
@@ -122,6 +124,15 @@ function WebForm() {
           value={title}
           onChangeText={setTitle}
           placeholder="Enter product title"
+          colors={colors}
+        />
+
+        {/* Category */}
+        <FormField
+          label="CATEGORY"
+          value={category}
+          onChangeText={setCategory}
+          placeholder="Enter category"
           colors={colors}
         />
 
@@ -255,7 +266,7 @@ function getWebStyles(colors) {
     scrollContainer: {
       minHeight: height,
       padding: 20,
-      backgroundColor: "#f0f0f0",
+      backgroundColor: colors.background,
     },
     formWrapper: {
       backgroundColor: "transparent",
@@ -266,7 +277,7 @@ function getWebStyles(colors) {
     formHeading: {
       fontSize: 24,
       fontWeight: "bold",
-      color: "#333",
+      color: colors.text,
       marginBottom: 30,
       textAlign: "left",
     },
@@ -275,13 +286,13 @@ function getWebStyles(colors) {
     },
     label: {
       fontSize: 14,
-      color: "#444",
+      color: colors.subtitle,
       marginBottom: 5,
       letterSpacing: 1,
     },
     lineInput: {
       borderBottomWidth: 1,
-      borderBottomColor: "#444",
+      borderBottomColor: colors.secondary,
       paddingVertical: 6,
       fontSize: 15,
       color: colors.text,
@@ -294,15 +305,13 @@ function getWebStyles(colors) {
       marginBottom: 10,
     },
     uploadButton: {
-      backgroundColor: "#fff",
-      borderColor: "#444",
-      borderWidth: 1,
+      backgroundColor: colors.primary,
       paddingVertical: 8,
       alignItems: "center",
       borderRadius: 4,
     },
     uploadButtonText: {
-      color: "#444",
+      color: "#fff",
       fontSize: 14,
       fontWeight: "600",
     },
@@ -328,7 +337,7 @@ function getWebStyles(colors) {
       padding: 5,
     },
     submitButton: {
-      backgroundColor: "#444",
+      backgroundColor: colors.primary,
       paddingVertical: 12,
       alignItems: "center",
       borderRadius: 4,
@@ -354,6 +363,7 @@ function MobileWizard() {
 
   // State
   const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [user, setUser] = useState("");
   const [summary, setSummary] = useState("");
@@ -397,6 +407,17 @@ function MobileWizard() {
       keyboardType: "default",
       multiline: false,
       required: true,
+    },
+    {
+      key: "category",
+      label: "Category",
+      question: "What's your category?",
+      placeholder: "Enter category",
+      value: category,
+      setValue: setCategory,
+      keyboardType: "default",
+      multiline: false,
+      required: false,
     },
     {
       key: "price",
@@ -507,6 +528,7 @@ function MobileWizard() {
     } else {
       console.log({
         title,
+        category,
         price,
         user,
         summary,

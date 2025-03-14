@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/AntDesign";
-import EvilIcons from "@expo/vector-icons/EvilIcons";
 import CheckBox from "expo-checkbox";
 import DropDownPicker from "react-native-dropdown-picker";
 
@@ -26,15 +25,17 @@ import { useTheme } from "../theme/ThemeContext.js";
 import { useCart } from "../context/CartContext";
 
 export default function HomeScreen({ navigation }) {
-  // New: search query state for search bar functionality
+  // Search query state
   const [searchQuery, setSearchQuery] = useState("");
 
-  // CATEGORY & COUNTRY
+  // Filtering states
   const [selectedFilter, setSelectedFilter] = useState("");
   const [selectedPriceRanges, setSelectedPriceRanges] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState("");
+  // modalCountry is used only in the modal; when Apply is pressed, it becomes selectedCountry.
+  const [modalCountry, setModalCountry] = useState("");
 
-  // Mobile Category Dropdown states
+  // Mobile Category Dropdown states (using DropDownPicker for category)
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [categoryValue, setCategoryValue] = useState(selectedFilter);
   const [categoryItems, setCategoryItems] = useState([
@@ -48,16 +49,9 @@ export default function HomeScreen({ navigation }) {
     { label: "Creators", value: "Creators" },
   ]);
 
-  useEffect(() => {
-    setCategoryValue(selectedFilter);
-  }, [selectedFilter]);
-  useEffect(() => {
-    setSelectedFilter(categoryValue);
-  }, [categoryValue]);
-
-  // Mobile Country Dropdown states
+  // Mobile Country Dropdown states (for modal only)
   const [countryOpen, setCountryOpen] = useState(false);
-  const [countryValue, setCountryValue] = useState(selectedCountry);
+  const [countryValue, setCountryValue] = useState("");
   const [countryItems, setCountryItems] = useState([
     { label: "All Countries", value: "" },
     { label: "USA", value: "USA" },
@@ -68,23 +62,26 @@ export default function HomeScreen({ navigation }) {
     { label: "Japan", value: "Japan" },
   ]);
 
+  // When modal opens, initialize modalCountry from selectedCountry.
+  const [showModal, setShowModal] = useState(false);
   useEffect(() => {
-    setCountryValue(selectedCountry);
-  }, [selectedCountry]);
-  useEffect(() => {
-    setSelectedCountry(countryValue);
-  }, [countryValue]);
+    if (showModal) {
+      setModalCountry(selectedCountry);
+    }
+  }, [showModal, selectedCountry]);
 
   // Modal states for Price Ranges, etc.
   const [modalPriceRanges, setModalPriceRanges] = useState([]);
   const [showPanel, setShowPanel] = useState(false);
-  const [showModal, setShowModal] = useState(false);
 
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
 
   const { cartItems } = useCart();
-  const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const totalItems = cartItems.reduce(
+    (sum, item) => sum + (item.quantity || 1),
+    0
+  );
   const windowWidth = Dimensions.get("window").width;
   const windowHeight = Dimensions.get("window").height;
 
@@ -129,7 +126,8 @@ export default function HomeScreen({ navigation }) {
   // Price Ranges
   const priceRanges = [
     { min: 0, max: 100, display: "$0-$100" },
-    { min: 100, max: 500, display: "$100-$500" },
+    { min: 100, max: 250, display: "$100-$250" },
+    { min: 250, max: 500, display: "$250-$500" },
     { min: 500, max: Infinity, display: "$500+" },
   ];
 
@@ -213,20 +211,26 @@ export default function HomeScreen({ navigation }) {
     },
   ];
 
-  // Filtering logic: add search filtering on project name or description
+  // Filtering logic
   function checkPriceRange(range, price) {
     return price >= range.min && price <= range.max;
   }
   const filteredProjects = projects.filter((project) => {
-    const categoryMatch = !selectedFilter || project.category === selectedFilter;
+    const categoryMatch =
+      !selectedFilter || project.category === selectedFilter;
     const priceMatch =
       selectedPriceRanges.length === 0 ||
-      selectedPriceRanges.some((range) => checkPriceRange(range, project.project.price));
-    const countryMatch = !selectedCountry || project.project.country === selectedCountry;
+      selectedPriceRanges.some((range) =>
+        checkPriceRange(range, project.project.price)
+      );
+    const countryMatch =
+      selectedCountry === "" || project.project.country === selectedCountry;
     const searchMatch =
       searchQuery === "" ||
       project.project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.project.description.toLowerCase().includes(searchQuery.toLowerCase());
+      project.project.description
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
     return categoryMatch && priceMatch && countryMatch && searchMatch;
   });
 
@@ -236,15 +240,17 @@ export default function HomeScreen({ navigation }) {
       setShowPanel(!showPanel);
     } else {
       setModalPriceRanges([...selectedPriceRanges]);
+      setModalCountry(selectedCountry);
       setShowModal(true);
     }
   };
 
-  // Web-only checkboxes for the left panel (for price ranges)
+  // Web-only checkboxes for price ranges
   const renderWebCheckboxes = (options, selectedValues, setSelectedValues) => (
     <View style={styles.webCheckboxContainer}>
       {options.map((option) => {
-        const displayValue = typeof option === "object" ? option.display : option;
+        const displayValue =
+          typeof option === "object" ? option.display : option;
         const isSelected = selectedValues.some((value) => {
           if (typeof option === "object" && typeof value === "object") {
             return option.min === value.min && option.max === value.max;
@@ -261,7 +267,10 @@ export default function HomeScreen({ navigation }) {
                 } else {
                   setSelectedValues(
                     selectedValues.filter((v) => {
-                      if (typeof option === "object" && typeof v === "object") {
+                      if (
+                        typeof option === "object" &&
+                        typeof v === "object"
+                      ) {
                         return !(v.min === option.min && v.max === option.max);
                       }
                       return v !== option;
@@ -278,7 +287,11 @@ export default function HomeScreen({ navigation }) {
   );
 
   // Render mobile price range checkboxes
-  const renderMobilePriceCheckboxes = (priceOptions, selectedValues, setSelectedValues) => (
+  const renderMobilePriceCheckboxes = (
+    priceOptions,
+    selectedValues,
+    setSelectedValues
+  ) => (
     <View style={styles.mobileCheckboxContainer}>
       {priceOptions.map((option) => {
         const isSelected = selectedValues.some(
@@ -293,7 +306,9 @@ export default function HomeScreen({ navigation }) {
                   setSelectedValues([...selectedValues, option]);
                 } else {
                   setSelectedValues(
-                    selectedValues.filter((v) => !(v.min === option.min && v.max === option.max))
+                    selectedValues.filter(
+                      (v) => !(v.min === option.min && v.max === option.max)
+                    )
                   );
                 }
               }}
@@ -332,7 +347,7 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* NEW SEARCH BAR BELOW HEADER */}
+      {/* SEARCH BAR */}
       <View style={styles.searchBarContainer}>
         <TextInput
           style={styles.searchInput}
@@ -349,7 +364,12 @@ export default function HomeScreen({ navigation }) {
       {/* DESKTOP WEB LAYOUT */}
       {isDesktopWeb ? (
         <View style={styles.webContainer}>
-          <Animated.View style={[styles.webFilterPanel, { transform: [{ translateX: panelAnim }] }]}>
+          <Animated.View
+            style={[
+              styles.webFilterPanel,
+              { transform: [{ translateX: panelAnim }] },
+            ]}
+          >
             <Text style={styles.webFilterTitle}>Filter Options</Text>
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Category:</Text>
@@ -377,7 +397,11 @@ export default function HomeScreen({ navigation }) {
             </View>
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Price Range:</Text>
-              {renderWebCheckboxes(priceRanges, selectedPriceRanges, setSelectedPriceRanges)}
+              {renderWebCheckboxes(
+                priceRanges,
+                selectedPriceRanges,
+                setSelectedPriceRanges
+              )}
             </View>
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Country:</Text>
@@ -401,11 +425,19 @@ export default function HomeScreen({ navigation }) {
                 <option value="Japan">Japan</option>
               </select>
             </View>
-            <TouchableOpacity style={styles.applyButton} onPress={() => setShowPanel(false)}>
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => setShowPanel(false)}
+            >
               <Text style={styles.applyButtonText}>Apply Filters</Text>
             </TouchableOpacity>
           </Animated.View>
-          <Animated.View style={[styles.webContentContainer, { transform: [{ translateX: contentAnim }] }]}>
+          <Animated.View
+            style={[
+              styles.webContentContainer,
+              { transform: [{ translateX: contentAnim }] },
+            ]}
+          >
             <ScrollView>
               <View style={styles.horizontalCardContainer}>
                 {filteredProjects.map((item) => (
@@ -421,13 +453,15 @@ export default function HomeScreen({ navigation }) {
                     />
                   </View>
                 ))}
-                {filteredProjects.length === 0 && <Text style={{ margin: 16 }}>No items found.</Text>}
+                {filteredProjects.length === 0 && (
+                  <Text style={{ margin: 16 }}>No items found.</Text>
+                )}
               </View>
             </ScrollView>
           </Animated.View>
         </View>
       ) : (
-        // MOBILE LAYOUT (native or mobile web)
+        // MOBILE LAYOUT
         <ScrollView style={styles.content}>
           <FlatList
             data={filteredProjects}
@@ -443,66 +477,110 @@ export default function HomeScreen({ navigation }) {
                 }
               />
             )}
-            ListEmptyComponent={<Text style={{ margin: 16 }}>No items found.</Text>}
+            ListEmptyComponent={
+              <Text style={{ margin: 16 }}>No items found.</Text>
+            }
           />
         </ScrollView>
       )}
 
-      {/* BOTTOM SHEET MODAL for mobile */}
+      {/* MODAL for mobile filter options */}
       {(isMobileWeb || isNativeMobile) && (
         <Modal transparent={true} visible={showModal} animationType="none">
           <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} />
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: "rgba(0,0,0,0.5)" },
+              ]}
+            />
           </TouchableWithoutFeedback>
-          <Animated.View style={[styles.bottomSheetContainer, { transform: [{ translateY: slideUpAnim }] }]}>
+          <Animated.View
+            style={[
+              styles.bottomSheetContainer,
+              { transform: [{ translateY: slideUpAnim }] },
+            ]}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Options</Text>
               <TouchableOpacity onPress={() => setShowModal(false)}>
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={{ flex: 1 }}>
-              <View style={styles.filterSection}>
+            <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+              <View style={[styles.filterSection, { zIndex: 3000 }]}>
                 <Text style={styles.filterLabel}>Category:</Text>
                 <DropDownPicker
                   open={categoryOpen}
-                  value={categoryValue}
-                  items={categoryItems}
+                  value={categoryValue || ""}
+                  items={
+                    categoryItems && categoryItems.length > 0
+                      ? categoryItems
+                      : [{ label: "No Categories", value: "" }]
+                  }
                   setOpen={setCategoryOpen}
                   setValue={setCategoryValue}
                   setItems={setCategoryItems}
                   placeholder="Select a category"
-                  style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
-                  dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
+                  style={{
+                    borderColor: "#ccc",
+                    borderWidth: 1,
+                    borderRadius: 4,
+                  }}
+                  dropDownContainerStyle={{
+                    borderColor: "#ccc",
+                    borderWidth: 1,
+                  }}
+                  containerStyle={{ overflow: "visible" }}
                   zIndex={3000}
                   zIndexInverse={1000}
                 />
               </View>
-              <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Price Range:</Text>
-                {renderMobilePriceCheckboxes(priceRanges, modalPriceRanges, setModalPriceRanges)}
-              </View>
-              <View style={styles.filterSection}>
+
+              <View style={[styles.filterSection, { zIndex: 2000 }]}>
                 <Text style={styles.filterLabel}>Country:</Text>
                 <DropDownPicker
                   open={countryOpen}
-                  value={countryValue}
-                  items={countryItems}
+                  value={modalCountry || ""}
+                  items={
+                    countryItems && countryItems.length > 0
+                      ? countryItems
+                      : [{ label: "No Countries", value: "" }]
+                  }
                   setOpen={setCountryOpen}
-                  setValue={setCountryValue}
+                  setValue={setModalCountry}
                   setItems={setCountryItems}
-                  placeholder="All Countries"
-                  style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
-                  dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
+                  placeholder="Select a country"
+                  style={{
+                    borderColor: "#ccc",
+                    borderWidth: 1,
+                    borderRadius: 4,
+                  }}
+                  dropDownContainerStyle={{
+                    borderColor: "#ccc",
+                    borderWidth: 1,
+                  }}
+                  containerStyle={{ overflow: "visible" }}
                   zIndex={2000}
-                  zIndexInverse={1500}
+                  zIndexInverse={900}
                 />
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Price Range:</Text>
+                {renderMobilePriceCheckboxes(
+                  priceRanges,
+                  modalPriceRanges,
+                  setModalPriceRanges
+                )}
               </View>
             </ScrollView>
             <TouchableOpacity
               style={styles.applyButton}
               onPress={() => {
                 setSelectedPriceRanges([...modalPriceRanges]);
+                setSelectedCountry(modalCountry);
+                setSelectedFilter(categoryValue);
                 setShowModal(false);
               }}
             >
@@ -561,7 +639,6 @@ const getDynamicStyles = (colors) =>
       color: "white",
       fontSize: 12,
     },
-    // NEW: Search bar container below header
     searchBarContainer: {
       flexDirection: "row",
       alignItems: "center",
@@ -591,7 +668,6 @@ const getDynamicStyles = (colors) =>
       borderColor: colors.subtitle,
       alignSelf: "flex-start",
     },
-    // Content and web filter styles
     content: {
       flex: 1,
       paddingTop: 10,
@@ -677,6 +753,7 @@ const getDynamicStyles = (colors) =>
       shadowOpacity: 0.1,
       shadowRadius: 5,
       elevation: 5,
+      overflow: "visible",
     },
     modalHeader: {
       flexDirection: "row",
@@ -705,6 +782,4 @@ const getDynamicStyles = (colors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    // For mobile: pinned bottom button is not needed here since filter panel uses Modal.
-    // If you add additional bottom elements, define them here.
   });

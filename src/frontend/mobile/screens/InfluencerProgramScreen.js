@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -7,15 +7,15 @@ import {
   Platform,
   useWindowDimensions,
   ScrollView,
-} from 'react-native';
+} from "react-native";
 
 // Import the custom hook from your theme context
-import { useTheme } from '../theme/ThemeContext'; // <-- adjust path as needed
+import { useTheme } from "../theme/ThemeContext";
 
 export default function InfluencerProgramScreen() {
   const { width } = useWindowDimensions();
   // If on web AND width >= 768 => horizontal layout
-  const isDesktopWeb = Platform.OS === 'web' && width >= 768;
+  const isDesktopWeb = Platform.OS === "web" && width >= 768;
 
   // Pull colors (and optionally isDarkMode, toggleTheme) from context
   const { colors } = useTheme();
@@ -33,25 +33,18 @@ export default function InfluencerProgramScreen() {
         ]}
       >
         {/* Rising Tier */}
-        <View style={[styles.card, { backgroundColor: colors.baseContainerBody }]}>
-          {/* Pink (or theme-based) header bar */}
-          <View
-            style={[
-              styles.headerBar,
-              // If you prefer a theme-based color, use colors.primary or colors.secondary:
-              // { backgroundColor: colors.secondary }
-              { backgroundColor: colors.primary }, // Hard-coded pink to match your screenshot
-            ]}
-          >
-            <Text style={[styles.starIcon, { color: '#000' }]}>★</Text>
-            <Text style={[styles.baseText, { color: '#000' }]}>
-              Up to $3000/mo base
-            </Text>
-          </View>
-
+        <View
+          style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
+        >
           {/* Card body */}
           <View style={styles.cardBody}>
-            <Text style={[styles.tierTitle, { color: colors.text }]}>Rising Tier</Text>
+            <Text style={[styles.tierTitle, { color: colors.text }]}>
+              Rising Tier
+            </Text>
+
+            <Text style={[styles.baseText, { color: colors.subtitle }]}>
+              Up to $3000/mo base
+            </Text>
 
             <View style={styles.bulletRow}>
               <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
@@ -80,33 +73,37 @@ export default function InfluencerProgramScreen() {
 
             {/* Apply Now button */}
             <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: colors.buttonBackground }]}
+              style={[styles.applyButton, { backgroundColor: "#1e40af" }]}
             >
-              <Text style={[styles.applyButtonText, { color: colors.baseContainerHeader }]}>
+              <Text
+                style={[
+                  styles.applyButtonText,
+                  { color: colors.baseContainerHeader },
+                ]}
+              >
                 Apply Now
               </Text>
-              <Text style={[styles.arrow, { color: colors.baseContainerHeader }]}>→</Text>
+              <Text
+                style={[styles.arrow, { color: colors.baseContainerHeader }]}
+              >
+                →
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Established Tier */}
-        <View style={[styles.card, { backgroundColor: colors.baseContainerBody }]}>
-          <View
-            style={[
-              styles.headerBar,
-              { backgroundColor: colors.primary },
-            ]}
-          >
-            <Text style={[styles.starIcon, { color: '#000' }]}>★</Text>
-            <Text style={[styles.baseText, { color: '#000' }]}>
-              Up to $7500/mo base
-            </Text>
-          </View>
+        <View
+          style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
+        >
 
           <View style={styles.cardBody}>
             <Text style={[styles.tierTitle, { color: colors.text }]}>
               Established Tier
+            </Text>
+
+            <Text style={[styles.baseText, { color: colors.subtitle }]}>
+              Up to $7500/mo base
             </Text>
 
             <View style={styles.bulletRow}>
@@ -135,32 +132,38 @@ export default function InfluencerProgramScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: colors.buttonBackground }]}
+              style={[styles.applyButton, { backgroundColor: "#1e40af" }]}
             >
-              <Text style={[styles.applyButtonText, { color: colors.baseContainerHeader }]}>
+              <Text
+                style={[
+                  styles.applyButtonText,
+                  { color: colors.baseContainerHeader },
+                ]}
+              >
                 Apply Now
               </Text>
-              <Text style={[styles.arrow, { color: colors.baseContainerHeader }]}>→</Text>
+              <Text
+                style={[styles.arrow, { color: colors.baseContainerHeader }]}
+              >
+                →
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Elite Tier */}
-        <View style={[styles.card, { backgroundColor: colors.baseContainerBody }]}>
-          <View
-            style={[
-              styles.headerBar,
-              { backgroundColor: colors.primary },
-            ]}
-          >
-            <Text style={[styles.starIcon, { color: '#000' }]}>★</Text>
-            <Text style={[styles.baseText, { color: '#000' }]}>
+        <View
+          style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
+        >
+          
+          <View style={styles.cardBody}>
+            <Text style={[styles.tierTitle, { color: colors.text }]}>
+              Elite Tier
+            </Text>
+
+            <Text style={[styles.baseText, { color: colors.subtitle }]}>
               Up to $20000/mo base
             </Text>
-          </View>
-
-          <View style={styles.cardBody}>
-            <Text style={[styles.tierTitle, { color: colors.text }]}>Elite Tier</Text>
 
             <View style={styles.bulletRow}>
               <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
@@ -188,12 +191,21 @@ export default function InfluencerProgramScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: colors.buttonBackground }]}
+              style={[styles.applyButton, { backgroundColor: "#1e40af" }]}
             >
-              <Text style={[styles.applyButtonText, { color: colors.baseContainerHeader }]}>
+              <Text
+                style={[
+                  styles.applyButtonText,
+                  { color: colors.baseContainerHeader },
+                ]}
+              >
                 Apply Now
               </Text>
-              <Text style={[styles.arrow, { color: colors.baseContainerHeader }]}>→</Text>
+              <Text
+                style={[styles.arrow, { color: colors.baseContainerHeader }]}
+              >
+                →
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -210,18 +222,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   cardContainer: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   // Desktop web layout: side by side
   rowWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
   // Mobile layout: stacked
   columnWrap: {
-    flexDirection: 'column',
+    flexDirection: "column",
   },
 
   // Each card
@@ -229,24 +241,25 @@ const styles = StyleSheet.create({
     width: 320,
     borderRadius: 8,
     margin: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 
   // Pink header bar
   headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   starIcon: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   baseText: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 16,
   },
 
   // Card body
@@ -255,14 +268,14 @@ const styles = StyleSheet.create({
   },
   tierTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontWeight: "bold",
+    marginBottom: 7,
   },
 
   // Bullet items
   bulletRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 6,
   },
   bullet: {
@@ -275,9 +288,9 @@ const styles = StyleSheet.create({
 
   // "Apply Now" button
   applyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 4,
@@ -285,7 +298,7 @@ const styles = StyleSheet.create({
   },
   applyButtonText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   arrow: {
     fontSize: 16,

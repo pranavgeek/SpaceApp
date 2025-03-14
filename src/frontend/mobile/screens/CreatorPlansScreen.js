@@ -94,7 +94,7 @@ export default function CreatorPlansScreen() {
 
             {/* Select Plan button */}
             <TouchableOpacity
-              style={[styles.selectButton, { backgroundColor: colors.buttonBackground }]}
+              style={[styles.selectButton, { backgroundColor: "#1e40af" }]}
             >
               <Text style={[styles.selectButtonText, { color: colors.baseContainerHeader }]}>
                 Select Plan
