@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, Dimensions } from "react-native";
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; // Correct import
 import { NavigationContainer } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,15 +23,16 @@ const Tab = createBottomTabNavigator();
 
 const App = () => (
 
-  <LikeProvider>
+<LikeProvider>
   <ThemeProvider>
-    <CartProvider> {/* Wrap with CartProvider */}
+    <CartProvider> 
       <NavigationContainer>
         <AppContent />
       </NavigationContainer>
     </CartProvider>
   </ThemeProvider>
 </LikeProvider>
+
 );
 
 const AppContent = () => {
@@ -41,6 +42,11 @@ const AppContent = () => {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
   const navigation = useNavigation();
+
+  const windowWidth = Dimensions.get("window").width;
+  const isMobileWeb = Platform.OS === "web" && windowWidth < 768;
+  const isNativeMobile = Platform.OS !== "web";
+  const isMobile = isMobileWeb || isNativeMobile;
 
   // Open the modal
   const openCreateView = () => {
@@ -64,12 +70,6 @@ const AppContent = () => {
   const toggleDropdown = () => {
     setIsDropdownVisible(!isDropdownVisible);
   };
-
-  const renderMobileTabs = () => (
-    <Tab.Navigator
-      // ... your Tab.Navigator code ...
-    />
-  );
 
 
 
@@ -166,7 +166,7 @@ const AppContent = () => {
               Share your innovation with the world
             </Text>
 
-            <View>
+            <View style={isMobile ? styles.mobileButtonContainer : null}>
               <ButtonSettings
                 iconName={"code-sharp"}
                 title={"Software Application"}
@@ -210,6 +210,10 @@ const getDynamicStyles = (colors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
+    mobileButtonContainer: {
+      marginVertical: 8, // Adjust vertical margin as needed
+      marginHorizontal: 16, // Adjust horizontal margin as needed
+    },
     profileWrapper: {
       position: 'absolute',
       top: 20,
@@ -248,7 +252,7 @@ const getDynamicStyles = (colors) =>
     modalTitle: { fontSize: 18, marginVertical: 5, color: colors.text },
     modalText: { fontSize: 14, color: colors.text, marginBottom: 5 },
     modalIcon: {
-      size: 25,
+      // size: 25,
       color: colors.text,
       borderWidth: 1,
       borderColor: colors.text,

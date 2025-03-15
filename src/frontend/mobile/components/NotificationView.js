@@ -55,7 +55,7 @@ const NotificationView = ({ item, expanded, toggleExpand, deleteNotification }) 
             }
 
             {/* Content Section */}
-            {expanded[item.id] && <LinearGradient style={styles.content} colors={colors.gradientColors}>
+            {expanded[item.id] && <View style={[styles.content, {backgroundColor: "#1e40af"}]}>
                 {/* Expanded Details */}
                 {expanded[item.id] && (
                     <Animated.View style={styles.detailsContainer}>
@@ -72,7 +72,7 @@ const NotificationView = ({ item, expanded, toggleExpand, deleteNotification }) 
                     />
                 </View>}
             
-            </LinearGradient>}
+            </View>}
             {/* Delete Icon */}
             {/*<TouchableOpacity style={styles.deleteIcon} onPress={() => deleteNotification(item.id)}>
                 <Ionicons name="close" size={20} color="#aaa" />
@@ -183,7 +183,7 @@ const getDynamicStyles = (colors) =>
             },
         details: {
             fontSize: 16,
-            color: colors.text,
+            color: "#FFFFFF",
             },
   });
 

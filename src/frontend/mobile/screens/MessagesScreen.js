@@ -19,7 +19,7 @@ export default function MessagesScreen({navigation}) {
 
       {/* Preferences Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{"Chats"}</Text>
+        {/* <Text style={styles.sectionTitle}>{"Chats"}</Text> */}
         <Message 
             chatName={'Sarah Chen'} 
             shortMessage={'Chat with our support team'}
@@ -37,8 +37,6 @@ export default function MessagesScreen({navigation}) {
             time={'07:51 PM'}
             onPress={() => navigation.navigate('Chat')} />
       </View>
-
-      
     </ScrollView>
   );
 }
@@ -77,14 +75,8 @@ const getDynamicStyles = (colors) =>
       color: colors.subtitle,
     },
     section: {
-      marginTop: 10,
+      marginTop:10,
       paddingHorizontal: 10,
-      marginBottom: 10,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: colors.primary,
       marginBottom: 10,
     },
   });
