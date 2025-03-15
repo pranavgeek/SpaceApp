@@ -1,0 +1,17 @@
+[build]
+  base = "src/frontend"  # This specifies the subfolder as the base directory
+  command = "npm install && npm run web"
+  publish = "src/frontend/mobile/web-build"  # Path to the build folder to deploy
+  
+  # Path to the directory to be published
+  publish = "src/frontend/mobile/web-build"  # or out/ if you're using expo export
+
+[build.environment]
+  # Set any environment variables here
+  NODE_ENV = "production"
+
+[[redirects]]
+  # Handle client-side routing (useful for single-page apps)
+  from = "/app/*"
+  to = "/index.html"
+  status = 200
