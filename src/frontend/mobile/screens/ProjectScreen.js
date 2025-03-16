@@ -1,3 +1,4 @@
+// ProjectScreen.js
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -21,18 +22,17 @@ const ProjectScreen = ({ route, navigation }) => {
   const { toggleLike, getLikes } = useLikeContext();
   const { colors } = useTheme();
   const { addToCart } = useCart();
-
   const styles = getDynamicStyles(colors);
 
-  // Image gallery state and ref
+  // Image gallery state and ref.
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollViewRef = useRef(null);
-  const imageCount = 3; // adjust if you have more images
+  const imageCount = 3; // adjust if needed
 
-  // Use stable project ID
+  // Get a stable project id.
   const projectId = getProjectId(project);
 
-  // Global like state
+  // Read the global like state.
   const isLiked = getLikes(projectId);
   const displayedLikes = project.likes + (isLiked ? 1 : 0);
 
@@ -41,7 +41,7 @@ const ProjectScreen = ({ route, navigation }) => {
   };
 
   const handleOpenLink = () => {
-    const projectUrl = "https://example.com"; // Replace with actual URL
+    const projectUrl = "https://example.com"; // Replace with actual URL.
     Linking.openURL(projectUrl);
   };
 
@@ -79,74 +79,49 @@ const ProjectScreen = ({ route, navigation }) => {
             : styles.contentContainer
         }
       >
-         {/* Image Gallery */}
-         <View style={(Platform.OS === "web" && !isMobileWeb) ? styles.webImageContainer : null}>
+        {/* Image Gallery */}
+        <View style={Platform.OS === "web" && !isMobileWeb ? styles.webImageContainer : null}>
           {Platform.OS === "web" && (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TouchableOpacity onPress={() => handleScroll("left")}>
                 <Ionicons name="chevron-back" size={30} color={colors.text} />
               </TouchableOpacity>
-
               <ScrollView
                 ref={scrollViewRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 scrollEnabled={false}
               >
-                {[project.image, project.image, project.image].map(
-                  (img, index) => (
-                    <Image
-                      key={index}
-                      source={{ uri: img }}
-                      style={[
-                        styles.galleryImage,
-                        { width: imageWidth, height: imageHeight },
-                      ]}
-                    />
-                  )
-                )}
+                {[project.image, project.image, project.image].map((img, index) => (
+                  <Image
+                    key={index}
+                    source={{ uri: img }}
+                    style={[styles.galleryImage, { width: imageWidth, height: imageHeight }]}
+                  />
+                ))}
               </ScrollView>
-
               <TouchableOpacity onPress={() => handleScroll("right")}>
-                <Ionicons
-                  name="chevron-forward"
-                  size={30}
-                  color={colors.text}
-                />
+                <Ionicons name="chevron-forward" size={30} color={colors.text} />
               </TouchableOpacity>
             </View>
           )}
-
-          {/* Image Gallery (For Mobile - No Changes) */}
           {Platform.OS !== "web" && (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TouchableOpacity onPress={() => handleScroll("left")}>
                 <Ionicons name="chevron-back" size={30} color={colors.text} />
               </TouchableOpacity>
-
               <ScrollView
                 ref={scrollViewRef}
                 horizontal
                 style={styles.imageGallery}
                 showsHorizontalScrollIndicator={false}
               >
-                {[project.image, project.image, project.image].map(
-                  (img, index) => (
-                    <Image
-                      key={index}
-                      source={{ uri: img }}
-                      style={styles.galleryImage}
-                    />
-                  )
-                )}
+                {[project.image, project.image, project.image].map((img, index) => (
+                  <Image key={index} source={{ uri: img }} style={styles.galleryImage} />
+                ))}
               </ScrollView>
-
               <TouchableOpacity onPress={() => handleScroll("right")}>
-                <Ionicons
-                  name="chevron-forward"
-                  size={30}
-                  color={colors.text}
-                />
+                <Ionicons name="chevron-forward" size={30} color={colors.text} />
               </TouchableOpacity>
             </View>
           )}
@@ -155,9 +130,7 @@ const ProjectScreen = ({ route, navigation }) => {
         {/* Project Info */}
         <View
           style={
-            Platform.OS === "web" && !isMobileWeb
-              ? styles.webInfoContainer
-              : styles.infoContainer
+            Platform.OS === "web" && !isMobileWeb ? styles.webInfoContainer : styles.infoContainer
           }
         >
           <View style={styles.infoRow}>
@@ -215,110 +188,35 @@ const ProjectScreen = ({ route, navigation }) => {
 const getDynamicStyles = (colors) =>
   StyleSheet.create({
     container: { flex: 1 },
-    imageGallery: {
-      height: 200,
-      marginVertical: 10,
-    },
-    galleryImage: {
-      width: 310,
-      height: 200,
-      marginHorizontal: 10,
-      borderRadius: 10,
-    },
-    infoContainer: {
-      padding: 15,
-    },
-    contentContainer: {
-      // Styles for mobile and mobile web
-      padding: 15,
-    },
-    webContentContainer: {
-      flexDirection: "row",
-      padding: 15,
-    },
-    webImageContainer: {
-      marginRight: 20,
-      width: 625,
-      height: 550,
-    },
-    webInfoContainer: {
-      flex: 1,
-    },
-    infoRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    projectName: {
-      fontSize: 22,
-      fontWeight: "bold",
-      marginBottom: 5,
-    },
-    projectPrice: {
-      fontSize: 18,
-      marginBottom: 10,
-    },
-    creatorInfo: {
-      alignItems: "center",
-    },
-    creatorImage: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      marginBottom: 5,
-    },
-    creatorName: {
-      fontSize: 14,
-      fontWeight: "bold",
-    },
-    projectDescription: {
-      fontSize: 16,
-      marginBottom: 10,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: "bold",
-      marginTop: 20,
-      marginBottom: 10,
-    },
-    longDescription: {
-      fontSize: 16,
-      lineHeight: 22,
-    },
-    linkContainer: {
-      marginTop: 20,
-      marginBottom: 30,
-    },
-    projectLink: {
-      fontSize: 16,
-      textDecorationLine: "underline",
-    },
+    imageGallery: { height: 200, marginVertical: 10 },
+    galleryImage: { width: 310, height: 200, marginHorizontal: 10, borderRadius: 10 },
+    infoContainer: { padding: 15 },
+    contentContainer: { padding: 15 },
+    webContentContainer: { flexDirection: "row", padding: 15 },
+    webImageContainer: { marginRight: 20, width: 625, height: 550 },
+    webInfoContainer: { flex: 1 },
+    infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    projectName: { fontSize: 22, fontWeight: "bold", marginBottom: 5 },
+    projectPrice: { fontSize: 18, marginBottom: 10 },
+    creatorInfo: { alignItems: "center" },
+    creatorImage: { width: 40, height: 40, borderRadius: 20, marginBottom: 5 },
+    creatorName: { fontSize: 14, fontWeight: "bold" },
+    projectDescription: { fontSize: 16, marginBottom: 10 },
+    sectionTitle: { fontSize: 18, fontWeight: "bold", marginTop: 20, marginBottom: 10 },
+    longDescription: { fontSize: 16, lineHeight: 22 },
+    linkContainer: { marginTop: 20, marginBottom: 30 },
+    projectLink: { fontSize: 16, textDecorationLine: "underline" },
     actionsContainer: {
       flexDirection: "row",
       justifyContent: "space-around",
       paddingVertical: 20,
       borderTopWidth: 1,
-      borderTopColor: colors.subtitle, // Use subtitle color for border
+      borderTopColor: colors.subtitle,
     },
-    actionButton: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    actionText: {
-      marginLeft: 5,
-      fontSize: 16,
-    },
-    addToCartButton: {
-      padding: 15,
-      borderRadius: 8,
-      alignItems: "center",
-      marginTop: 20,
-    },
-    addToCartButtonText: {
-      color: "white",
-      fontSize: 16,
-      fontWeight: "bold",
-    },
+    actionButton: { flexDirection: "row", alignItems: "center" },
+    actionText: { marginLeft: 5, fontSize: 16 },
+    addToCartButton: { padding: 15, borderRadius: 8, alignItems: "center", marginTop: 20 },
+    addToCartButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
   });
 
 export default ProjectScreen;
