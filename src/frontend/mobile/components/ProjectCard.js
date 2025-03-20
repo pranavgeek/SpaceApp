@@ -19,12 +19,12 @@ export default function ProjectCard({ item, onPress }) {
   const { colors } = useTheme();
   const { addToCart } = useCart();
 
-  // Use the helper to get a stable project id.
+  // Get a stable project id.
   const projectId = getProjectId(item.project);
 
   // Read the global like state.
   const isLiked = getLikes(projectId);
-  // Compute the displayed like count: base likes plus one if liked.
+  // Display like count: base count plus one if liked.
   const displayedLikes = item.project.likes + (isLiked ? 1 : 0);
 
   const handleToggleLike = () => {
