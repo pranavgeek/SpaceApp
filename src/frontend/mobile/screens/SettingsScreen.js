@@ -1,26 +1,42 @@
 import React, { useLayoutEffect } from "react";
-import { View, Text, StyleSheet, Image, ScrollView } from "react-native";
-
+import { View, ScrollView, Image, Alert, StyleSheet, Text } from "react-native";
 import ButtonSetting from "../components/ButtonSetting";
 import BaseContainer from "../components/BaseContainer";
-import { useTheme } from "../theme/ThemeContext.js";
+import { useTheme } from "../theme/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function SettingsScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
+  const { logout, user } = useAuth();
 
   useLayoutEffect(() => {
-    // Dynamically set the header styles when the theme changes
     navigation.setOptions({
       headerStyle: { backgroundColor: colors.background },
       headerTintColor: colors.text,
     });
   }, [navigation, colors]);
 
+  const confirmLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: () => {
+            logout();
+            // Here you might reset navigation if needed.
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
-
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <Image
@@ -60,16 +76,18 @@ export default function SettingsScreen({ navigation }) {
             rightIcon={"chevron-forward"}
           />
 
-          <ButtonSetting
-            iconName={"layers-outline"}
-            title={"Creator Plans"}
-            onPress={() => navigation.navigate("Creator Plans")}
-            rightIcon={"chevron-forward"}
-          />
+          {/* Conditionally render Sellers Plans button only if user role is buyer */}
+          {user.role === "buyer" && (
+            <ButtonSetting
+              iconName={"layers-outline"}
+              title={"Sellers Plans"}
+              onPress={() => navigation.navigate("Sellers Plans")}
+              rightIcon={"chevron-forward"}
+            />
+          )}
         </View>
       </BaseContainer>
 
-      {/* Preferences Section */}
       <BaseContainer title={"Preferences"}>
         <View>
           <ButtonSetting
@@ -93,7 +111,6 @@ export default function SettingsScreen({ navigation }) {
         </View>
       </BaseContainer>
 
-      {/* Support and Logout */}
       <BaseContainer title={"Support & Logout"}>
         <View>
           <ButtonSetting
@@ -105,7 +122,7 @@ export default function SettingsScreen({ navigation }) {
           <ButtonSetting
             iconName={"log-out-outline"}
             title={"Logout"}
-            onPress={() => {}}
+            onPress={confirmLogout}
             rightIcon={"chevron-forward"}
             isDanger={true}
           />
@@ -121,13 +138,6 @@ const getDynamicStyles = (colors) =>
       flex: 1,
       backgroundColor: colors.background,
       padding: 10,
-      color: colors.text,
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: "bold",
-      padding: 20,
-      textAlign: "center",
       color: colors.text,
     },
     profileSection: {
@@ -148,16 +158,5 @@ const getDynamicStyles = (colors) =>
     profileSubtitle: {
       fontSize: 14,
       color: colors.text,
-    },
-    section: {
-      marginTop: 10,
-      paddingHorizontal: 10,
-      marginBottom: 10,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#555",
-      marginBottom: 10,
     },
   });

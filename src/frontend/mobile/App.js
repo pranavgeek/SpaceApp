@@ -1,11 +1,20 @@
 import React, { useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, Dimensions } from "react-native";
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; // Correct import
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Platform,
+  Dimensions,
+} from "react-native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"; // Correct import
 import { NavigationContainer } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Modalize } from "react-native-modalize";
 import { useNavigation } from "@react-navigation/native"; // Use Navigation Hook
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useAuth, AuthProvider } from "./context/AuthContext"; 
 
 import ButtonMain from "./components/ButtonMain";
 import ButtonSettings from "./components/ButtonSettings";
@@ -15,24 +24,41 @@ import SettingsStack from "./navigation/SettingsStack";
 import MessagesStackNavigator from "./navigation/MessagesStack";
 import { LikeProvider } from "./theme/LikeContext";
 import { ThemeProvider, useTheme } from "./theme/ThemeContext";
-import CreatePostScreen from './screens/CreatePostScreen'; // Import CreatePostScreen
-import FormScreen from "./screens/FormScreen"; // Import FormScreen
+import CreatePostScreen from "./screens/CreatePostScreen"; // Import CreatePostScreen
 import { CartProvider } from "./context/CartContext"; // Correct import
+import SignUpScreen from "./screens/SignUpScreen"
+
+console.log("AuthProvider:", AuthProvider);
+console.log("useAuth:", useAuth);
+console.log("SignUpScreen:", SignUpScreen);
+console.log("HomeStack:", HomeStack);
+console.log("ProfileStackNavigator:", ProfileStackNavigator);
+console.log("SettingsStack:", SettingsStack);
+console.log("MessagesStackNavigator:", MessagesStackNavigator);
+console.log("CreatePostScreen:", CreatePostScreen);
+
 
 const Tab = createBottomTabNavigator();
 
+const AppNavigator = () => {
+  const { user } = useAuth();
+
+  // If no user is logged in, show RoleSelection; otherwise, show the main Seller navigator.
+  return user ? <AppContent /> : <SignUpScreen />;
+};
+
 const App = () => (
-
-<LikeProvider>
-  <ThemeProvider>
-    <CartProvider> 
-      <NavigationContainer>
-        <AppContent />
-      </NavigationContainer>
-    </CartProvider>
-  </ThemeProvider>
-</LikeProvider>
-
+  <AuthProvider>
+    <LikeProvider>
+      <ThemeProvider>
+        <CartProvider>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+        </CartProvider>
+      </ThemeProvider>
+    </LikeProvider>
+  </AuthProvider>
 );
 
 const AppContent = () => {
@@ -63,15 +89,13 @@ const AppContent = () => {
   // Close the modal when navigating to FormScreen
   const navigateToFormScreen = (category) => {
     closeModal(); // Close the modal before navigating
-    navigation.navigate("FormScreen", { category }); // Navigate to FormScreen
+    navigation.navigate("Form", { category }); // Navigate to FormScreen
   };
 
   // Toggle profile dropdown visibility
   const toggleDropdown = () => {
     setIsDropdownVisible(!isDropdownVisible);
   };
-
-
 
   return (
     <GestureHandlerRootView>
@@ -170,9 +194,7 @@ const AppContent = () => {
               <ButtonSettings
                 iconName={"code-sharp"}
                 title={"Software Application"}
-                onPress={() =>
-                  navigateToFormScreen("Software")
-                }
+                onPress={() => navigateToFormScreen("Software")}
                 subtitle={"List your software product or application"}
                 rightIcon={"lock-closed-outline"}
               />
@@ -215,22 +237,22 @@ const getDynamicStyles = (colors) =>
       marginHorizontal: 16, // Adjust horizontal margin as needed
     },
     profileWrapper: {
-      position: 'absolute',
+      position: "absolute",
       top: 20,
       right: 20,
       zIndex: 10,
     },
     dropdown: {
-      position: 'absolute',
+      position: "absolute",
       top: 40,
       right: 0,
-      backgroundColor: '#333',
+      backgroundColor: "#333",
       borderRadius: 5,
       padding: 10,
       minWidth: 150,
     },
     dropdownItem: {
-      color: '#fff',
+      color: "#fff",
       fontSize: 16,
       paddingVertical: 10,
     },
@@ -263,4 +285,3 @@ const getDynamicStyles = (colors) =>
   });
 
 export default App;
-

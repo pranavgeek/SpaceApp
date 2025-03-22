@@ -8,29 +8,28 @@ import {
   useWindowDimensions,
   ScrollView,
 } from 'react-native';
-import { useTheme } from '../theme/ThemeContext'; // Adjust path as needed
+import { useTheme } from '../theme/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
-export default function CreatorPlansScreen() {
+export default function SellerPlansScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === 'web' && width >= 768;
-
-  // Access the theme context
   const { colors } = useTheme();
+  const { user, login } = useAuth();
 
-  // Example plan data (from your screenshot-like content)
   const plans = [
     {
-      title: 'Creator Basic',
+      title: 'Seller Basic',
       price: '$0 / month',
       bullets: [
-        'Essential plan for individual creators',
+        'Essential plan for individual Sellers',
         'Basic analytics',
         'Minimal branding',
         'Community access',
       ],
     },
     {
-      title: 'Creator Pro',
+      title: 'Seller Pro',
       price: '$29.99 / month',
       bullets: [
         'Collaboration features',
@@ -41,7 +40,7 @@ export default function CreatorPlansScreen() {
       ],
     },
     {
-      title: 'Creator Enterprise',
+      title: 'Seller Enterprise',
       price: '$99.99 / month',
       bullets: [
         'All Pro features + advanced tools',
@@ -53,14 +52,24 @@ export default function CreatorPlansScreen() {
     },
   ];
 
+  const handleSelectPlan = (plan) => {
+    // If the current user is a buyer, update their role to seller using the same credentials.
+    if (user && user.role === 'buyer') {
+      const updatedUser = { ...user, role: 'seller' };
+      login(updatedUser);
+      // Navigate to the seller home screen (adjust the route name as needed)
+      navigation.navigate('Home');
+    } else {
+      // If already seller or other role, you may navigate directly or show an alert.
+      navigation.navigate('Home');
+    }
+  };
+
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContainer}
     >
-      {/* <Text style={[styles.screenTitle, { color: colors.text }]}>Creator Plans</Text> */}
-
-      {/* Container for plan cards */}
       <View
         style={[
           styles.cardContainer,
@@ -82,7 +91,6 @@ export default function CreatorPlansScreen() {
               {plan.price}
             </Text>
 
-            {/* Bullet points */}
             {plan.bullets.map((item, i) => (
               <View key={i} style={styles.bulletRow}>
                 <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
@@ -92,11 +100,16 @@ export default function CreatorPlansScreen() {
               </View>
             ))}
 
-            {/* Select Plan button */}
             <TouchableOpacity
               style={[styles.selectButton, { backgroundColor: "#1e40af" }]}
+              onPress={() => handleSelectPlan(plan)}
             >
-              <Text style={[styles.selectButtonText, { color: colors.baseContainerHeader }]}>
+              <Text
+                style={[
+                  styles.selectButtonText,
+                  { color: colors.baseContainerHeader },
+                ]}
+              >
                 Select Plan
               </Text>
             </TouchableOpacity>
@@ -115,28 +128,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 8,
   },
-  screenTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
   cardContainer: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Desktop web layout: side by side
   rowWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  // Mobile layout: stacked
   columnWrap: {
     flexDirection: 'column',
   },
-
-  /* Each plan card */
   card: {
     width: 320,
     borderRadius: 8,
@@ -153,8 +156,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-
-  /* Bullet items */
   bulletRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -167,8 +168,6 @@ const styles = StyleSheet.create({
   bulletText: {
     flexShrink: 1,
   },
-
-  /* "Select Plan" button */
   selectButton: {
     borderRadius: 4,
     paddingVertical: 12,
