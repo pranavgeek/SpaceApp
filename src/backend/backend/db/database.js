@@ -59,6 +59,11 @@ const db = {
         user.email,
         user.password,
         user.account_type,
+        user.products_purchased,
+        user.following_count,
+        user.campaigns,
+        user.followers_count,
+        user.earnings
       ];
       const result = await runQuery(query, params);
       return result[0];
@@ -124,6 +129,8 @@ const db = {
         product.summary,
         product.description,
         product.user_seller,
+        product.campaigns
+
       ];
       const result = await runQuery(query, params);
       return result[0];
