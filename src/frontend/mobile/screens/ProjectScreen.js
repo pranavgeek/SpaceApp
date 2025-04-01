@@ -1,4 +1,3 @@
-// ProjectScreen.js
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -7,7 +6,7 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
-  Linking,
+  TextInput,
   Platform,
   Dimensions,
 } from "react-native";
@@ -24,15 +23,15 @@ const ProjectScreen = ({ route, navigation }) => {
   const { addToCart } = useCart();
   const styles = getDynamicStyles(colors);
 
-  // Image gallery state and ref.
+  // Image gallery
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollViewRef = useRef(null);
   const imageCount = 3; // adjust if needed
 
-  // Get a stable project id.
+  // Get stable project ID
   const projectId = getProjectId(project);
 
-  // Read the global like state.
+  // Like state
   const isLiked = getLikes(projectId);
   const displayedLikes = project.likes + (isLiked ? 1 : 0);
 
@@ -40,16 +39,13 @@ const ProjectScreen = ({ route, navigation }) => {
     toggleLike(projectId);
   };
 
-  const handleOpenLink = () => {
-    const projectUrl = "https://example.com"; // Replace with actual URL.
-    Linking.openURL(projectUrl);
-  };
-
+  // Cart
   const handleAddToCart = () => {
     const cartItem = { ...project, cartItemId: projectId };
     addToCart(cartItem);
   };
 
+  // Dimensions for image gallery
   const { width } = Dimensions.get("window");
   const isMobileWeb = Platform.OS === "web" && width < 768;
   const imageWidth = Platform.OS === "web" && !isMobileWeb ? 550 : 320;
@@ -70,6 +66,40 @@ const ProjectScreen = ({ route, navigation }) => {
     });
   };
 
+  // ★★★ REVIEW FEATURE ★★★
+
+  // Example: one existing review
+  const [reviews, setReviews] = useState([
+    {
+      name: "Amy Schmidt",
+      date: "2025-03-16",
+      rating: 4,
+      text: "Alex provided exceptional service with a warm smile and attentive care. Highly recommend his friendly demeanor and menu knowledge!",
+    },
+  ]);
+
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+
+  const handleAddReview = () => {
+    if (!reviewText.trim()) {
+      alert("Please enter your review text.");
+      return;
+    }
+    // For demonstration, let's assume the reviewer is "CurrentUser" and date is "today"
+    const newReview = {
+      name: "CurrentUser",
+      date: new Date().toLocaleDateString(),
+      rating: reviewRating,
+      text: reviewText.trim(),
+    };
+    setReviews([...reviews, newReview]);
+    setShowReviewForm(false);
+    setReviewRating(0);
+    setReviewText("");
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View
@@ -81,7 +111,7 @@ const ProjectScreen = ({ route, navigation }) => {
       >
         {/* Image Gallery */}
         <View style={Platform.OS === "web" && !isMobileWeb ? styles.webImageContainer : null}>
-          {Platform.OS === "web" && (
+          {Platform.OS === "web" ? (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TouchableOpacity onPress={() => handleScroll("left")}>
                 <Ionicons name="chevron-back" size={30} color={colors.text} />
@@ -104,8 +134,7 @@ const ProjectScreen = ({ route, navigation }) => {
                 <Ionicons name="chevron-forward" size={30} color={colors.text} />
               </TouchableOpacity>
             </View>
-          )}
-          {Platform.OS !== "web" && (
+          ) : (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TouchableOpacity onPress={() => handleScroll("left")}>
                 <Ionicons name="chevron-back" size={30} color={colors.text} />
@@ -145,14 +174,15 @@ const ProjectScreen = ({ route, navigation }) => {
               </Text>
             </View>
           </View>
-          <Text style={[styles.projectDescription, { color: colors.subtitle }]}>{project.description}</Text>
+          <Text style={[styles.projectDescription, { color: colors.subtitle }]}>
+            {project.description}
+          </Text>
           <Text style={[styles.sectionTitle, { color: colors.subtitle }]}>Detailed Description</Text>
           <Text style={[styles.longDescription, { color: colors.subtitle }]}>
             This is a longer description of the project. You can include any relevant details here.
           </Text>
-          <TouchableOpacity onPress={handleOpenLink} style={styles.linkContainer}>
-            <Text style={[styles.projectLink, { color: colors.text }]}>Visit Project Website</Text>
-          </TouchableOpacity>
+
+          {/* Add to Cart */}
           <TouchableOpacity
             onPress={handleAddToCart}
             style={[styles.addToCartButton, { backgroundColor: colors.buttonBackground }]}
@@ -172,7 +202,10 @@ const ProjectScreen = ({ route, navigation }) => {
           />
           <Text style={[styles.actionText, { color: colors.text }]}>{displayedLikes}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("Messages")}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate("Messages")}
+        >
           <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
           <Text style={[styles.actionText, { color: colors.text }]}>Message</Text>
         </TouchableOpacity>
@@ -180,6 +213,83 @@ const ProjectScreen = ({ route, navigation }) => {
           <Ionicons name="share-social-outline" size={20} color={colors.text} />
           <Text style={[styles.actionText, { color: colors.text }]}>Share</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* ★★★ REVIEWS SECTION ★★★ */}
+      <View style={styles.reviewSection}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Reviews</Text>
+        {/* Existing Reviews */}
+        {reviews.map((review, index) => (
+          <View key={index} style={[styles.reviewItem, { backgroundColor: colors.baseContainerBody }]}>
+            <Text style={[styles.reviewerName, { color: colors.text }]}>{review.name}</Text>
+            <Text style={[styles.reviewDate, { color: colors.subtitle }]}>{review.date}</Text>
+            <View style={styles.starRow}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Ionicons
+                  key={star}
+                  name={star <= review.rating ? "star" : "star-outline"}
+                  size={16}
+                  color="gold"
+                />
+              ))}
+            </View>
+            <Text style={[styles.reviewText, { color: colors.text }]}>{review.text}</Text>
+          </View>
+        ))}
+
+        {/* "Write a Review" button or form */}
+        {!showReviewForm && (
+          <TouchableOpacity onPress={() => setShowReviewForm(true)}>
+            <Text style={[styles.writeReviewLink, { color: colors.primary }]}>Write a Review</Text>
+          </TouchableOpacity>
+        )}
+
+        {showReviewForm && (
+          <View style={[styles.reviewForm, { borderColor: colors.subtitle }]}>
+            <View style={styles.starContainer}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                  <Ionicons
+                    name={star <= reviewRating ? "star" : "star-outline"}
+                    size={24}
+                    color="gold"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={[styles.reviewInput, { color: colors.text, borderColor: colors.subtitle }]}
+              placeholder="Write your review..."
+              placeholderTextColor={colors.subtitle}
+              value={reviewText}
+              onChangeText={setReviewText}
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.submitReviewButton, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                if (!reviewText.trim()) {
+                  alert("Please enter your review text.");
+                  return;
+                }
+                const newReview = {
+                  name: "CurrentUser",
+                  date: new Date().toLocaleDateString(),
+                  rating: reviewRating,
+                  text: reviewText.trim(),
+                };
+                setReviews([...reviews, newReview]);
+                setShowReviewForm(false);
+                setReviewRating(0);
+                setReviewText("");
+              }}
+            >
+              <Text style={[styles.submitReviewButtonText, { color: "#fff" }]}>
+                Submit Review
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -204,8 +314,6 @@ const getDynamicStyles = (colors) =>
     projectDescription: { fontSize: 16, marginBottom: 10 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", marginTop: 20, marginBottom: 10 },
     longDescription: { fontSize: 16, lineHeight: 22 },
-    linkContainer: { marginTop: 20, marginBottom: 30 },
-    projectLink: { fontSize: 16, textDecorationLine: "underline" },
     actionsContainer: {
       flexDirection: "row",
       justifyContent: "space-around",
@@ -217,6 +325,66 @@ const getDynamicStyles = (colors) =>
     actionText: { marginLeft: 5, fontSize: 16 },
     addToCartButton: { padding: 15, borderRadius: 8, alignItems: "center", marginTop: 20 },
     addToCartButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
+
+    // ★★ Review Styles ★★
+    reviewSection: {
+      paddingHorizontal: 15,
+      paddingBottom: 30,
+      borderTopWidth: 1,
+      borderTopColor: colors.subtitle,
+    },
+    reviewItem: {
+      marginTop: 10,
+      borderRadius: 8,
+      padding: 10,
+    },
+    reviewerName: {
+      fontWeight: "bold",
+      fontSize: 14,
+    },
+    reviewDate: {
+      fontSize: 12,
+      marginBottom: 4,
+    },
+    starRow: {
+      flexDirection: "row",
+      marginBottom: 4,
+    },
+    reviewText: {
+      fontSize: 14,
+    },
+    writeReviewLink: {
+      marginTop: 10,
+      fontWeight: "600",
+      fontSize: 16,
+    },
+    reviewForm: {
+      marginTop: 10,
+      padding: 10,
+      borderWidth: 1,
+      borderRadius: 8,
+    },
+    starContainer: {
+      flexDirection: "row",
+      marginBottom: 10,
+    },
+    reviewInput: {
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 10,
+      height: 80,
+      textAlignVertical: "top",
+    },
+    submitReviewButton: {
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    submitReviewButtonText: {
+      fontSize: 16,
+      fontWeight: "bold",
+    },
   });
 
 export default ProjectScreen;

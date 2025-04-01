@@ -7,7 +7,6 @@ import {
   ScrollView,
 } from 'react-native';
 
-import ButtonSettings from '../components/ButtonSettings';
 import ButtonSetting from '../components/ButtonSetting';
 import BaseContainer from '../components/BaseContainer';
 import { useTheme } from '../theme/ThemeContext.js';

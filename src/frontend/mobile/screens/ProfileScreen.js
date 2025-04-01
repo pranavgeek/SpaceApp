@@ -79,12 +79,12 @@ export default function ProfileScreen({ navigation }) {
             </View>
 
             {/* Social Icons */}
-            <View style={styles.socialMediaContainer}>
+            {/* <View style={styles.socialMediaContainer}>
               <ButtonIcon iconName="logo-twitter" iconColor={colors.text} />
               <ButtonIcon iconName="logo-instagram" iconColor={colors.text} />
               <ButtonIcon iconName="logo-tiktok" iconColor={colors.text} />
               <ButtonIcon iconName="logo-linkedin" iconColor={colors.text} />
-            </View>
+            </View> */}
           </View>
         </View>
 

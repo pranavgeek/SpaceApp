@@ -8,17 +8,29 @@ import FormScreen from "../screens/FormScreen";
 import CartScreen from "../screens/CartScreen";
 import { useCart } from "../context/CartContext";
 import { useNavigation } from "@react-navigation/native";
-import SearchResultScreen from "../screens/SearchResultScreen";
 import CheckoutScreen from "../screens/CheckoutScreen";
+import { useAuth } from "../context/AuthContext";
 
 const HomeStack = createNativeStackNavigator();
 
 const HomeStackNavigation = () => {
+
+    const { user } = useAuth();
+  
+    let HomeScreenComponent;
+    if (user.role === "seller") {
+      HomeScreenComponent = HomeScreen;
+    } else if (user.role === "buyer") {
+      HomeScreenComponent = HomeScreen;
+    } else if (user.role === "influencer") {
+      HomeScreenComponent = HomeScreen;
+    }
+    
   return (
     <HomeStack.Navigator>
       <HomeStack.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeScreenComponent}
         options={{
           headerStyle: { backgroundColor: "#141414" },
           headerTintColor: "#fff",
@@ -44,11 +56,11 @@ const HomeStackNavigation = () => {
           // },
         }}
       />
-      <HomeStack.Screen 
+      {/* <HomeStack.Screen 
         name="SearchResult" 
         component={SearchResultScreen} 
         options={{ title: "Search Projects" }}
-      />
+      /> */}
       <HomeStack.Screen
         name="Project"
         component={ProjectScreen}
@@ -77,7 +89,7 @@ const HomeStackNavigation = () => {
         }}
       />
       <HomeStack.Screen
-        name="FormScreen"
+        name="Form"
         component={FormScreen}
         options={{
           headerStyle: { backgroundColor: "#141414" },

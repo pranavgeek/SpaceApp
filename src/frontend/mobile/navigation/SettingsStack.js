@@ -11,7 +11,7 @@ import RegionLanguageScreen from "../screens/RegionLanguageScreen";
 import AppearanceScreen from "../screens/AppearanceScreen";
 import SecurityPrivacyScreen from "../screens/SecurityPrivacyScreen";
 import InfluencerProgramScreen from "../screens/InfluencerProgramScreen";
-import CreatorPlansScreen from "../screens/CreatorPlansScreen";
+import SellerPlansScreen from "../screens/SellerPlansScreen";
 import { useTheme } from "../theme/ThemeContext.js";
 
 const SettingsStack = createNativeStackNavigator();
@@ -63,8 +63,8 @@ const SettingsStackNavigator = () => {
         //   options={{headerShown: false}} // or your desired options
       />
       <SettingsStack.Screen
-        name="Creator Plans"
-        component={CreatorPlansScreen}
+        name="Sellers Plans"
+        component={SellerPlansScreen}
         //   options={{headerShown: false}}
       />
     </SettingsStack.Navigator>
