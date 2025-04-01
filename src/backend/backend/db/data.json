@@ -89,6 +89,21 @@
       ],
       "followers_count": 5,
       "earnings": 500
+    },
+    {
+      "user_id": 4,
+      "name": "Kspace tester",
+      "about_us": "Tester For Kspace",
+      "address": "611 tester St",
+      "city": "toronto",
+      "country": "Canada",
+      "social_media_x": "@testerkspace",
+      "social_media_linkedin": "linkedin.com/testerkspace",
+      "social_media_website": "testerkspace.com",
+      "profile_image": "profile3.jpg",
+      "email": "tester@kspace-technologies.com",
+      "password": "tester123",
+      "account_type": "admin",
     }
   ],
   "products": [
