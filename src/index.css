@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile Optimizations */
+html {
+  -webkit-tap-highlight-color: transparent;
+  min-height: -webkit-fill-available;
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  overscroll-behavior-y: none;
+  @apply bg-black text-white antialiased;
+}
+
+/* Container Utilities */
+.responsive-container {
+  @apply w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.content-grid {
+  @apply grid gap-4 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5;
+}
+
+/* Aspect Ratios */
+.aspect-card {
+  @apply aspect-[3/4] xs:aspect-square md:aspect-[4/5];
+}
+
+/* Typography Scale */
+.text-adaptive {
+  @apply text-sm sm:text-base lg:text-lg;
+}
+
+.heading-adaptive {
+  @apply text-lg sm:text-xl lg:text-2xl;
+}
+
+/* Safe Area Insets */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
+/* iOS-style scrolling */
+.ios-scroll {
+  -webkit-overflow-scrolling: touch;
+  @apply overflow-auto scrollbar-none;
+}
+
+/* iOS-style buttons */
+.ios-button {
+  @apply active:opacity-70 transition-opacity duration-200;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Modern Card with iOS/Android compatible blur */
+.modern-card {
+  @apply bg-[#111111] rounded-2xl border border-white/[0.08];
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+@layer base {
+  :root {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color-scheme: dark;
+  }
+  
+  body {
+    @apply bg-black text-white antialiased;
+  }
+}
+
+/* iOS-style safe areas and overscroll behavior */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@layer components {
+  .app-gradient {
+    @apply bg-gradient-to-tr from-white/10 via-white/5 to-white/10;
+  }
+  
+  .nav-blur {
+    @apply backdrop-blur-2xl bg-black/80;
+  }
+  
+  .accent-gradient {
+    @apply bg-white hover:bg-white/90;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Modern Card */
+.modern-card {
+  @apply bg-[#111111] rounded-2xl border border-white/[0.08];
+}
+
+/* iOS-style scrolling */
+.ios-scroll {
+  -webkit-overflow-scrolling: touch;
+  @apply overflow-auto scrollbar-none;
+}
+
+/* iOS-style buttons */
+.ios-button {
+  @apply active:opacity-70 transition-opacity duration-200;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hide scrollbars but keep functionality */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

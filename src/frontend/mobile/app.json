@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "KrachisSpaceApp",
+    "slug": "KrachisSpaceApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pranavgotawala.MySpace"
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.pranavgotawala.MySpace"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
