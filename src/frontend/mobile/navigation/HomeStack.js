@@ -24,6 +24,8 @@ const HomeStackNavigation = () => {
       HomeScreenComponent = HomeScreen;
     } else if (user.role === "influencer") {
       HomeScreenComponent = HomeScreen;
+    }else {
+      HomeScreenComponent = HomeScreen; // fallback
     }
     
   return (

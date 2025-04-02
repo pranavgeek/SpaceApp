@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,7 +16,7 @@ export default function SellerPlansScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === 'web' && width >= 768;
   const { colors } = useTheme();
-  const { user, login } = useAuth();
+  const { user, updateRole } = useAuth();
 
   const plans = [
     {
@@ -52,18 +53,34 @@ export default function SellerPlansScreen({ navigation }) {
     },
   ];
 
-  const handleSelectPlan = (plan) => {
-    // If the current user is a buyer, update their role to seller using the same credentials.
-    if (user && user.role === 'buyer') {
-      const updatedUser = { ...user, role: 'seller' };
-      login(updatedUser);
-      // Navigate to the seller home screen (adjust the route name as needed)
-      navigation.navigate('Home');
+  const handleSelectPlan = async (plan) => {
+    if (user && user.account_type === "buyer") {
+      if (plan.title === "Seller Basic") {
+        try {
+          await updateRole("Seller");
+          await AsyncStorage.setItem("switchedRole", "Seller");
+          console.log("Role updated to Seller");
+  
+          // Delay before reset to allow AsyncStorage to save
+          setTimeout(() => {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Home" }],
+            });
+          }, 100); // ⏱️ Short delay
+
+        } catch (err) {
+          console.error("Switch to seller failed:", err);
+          Alert.alert("Error", "Unable to switch to seller. Try again.");
+        }
+      }
     } else {
-      // If already seller or other role, you may navigate directly or show an alert.
-      navigation.navigate('Home');
+      navigation.navigate("Home");
     }
   };
+  
+  
+  
 
   return (
     <ScrollView
@@ -90,7 +107,6 @@ export default function SellerPlansScreen({ navigation }) {
             <Text style={[styles.planPrice, { color: colors.subtitle }]}>
               {plan.price}
             </Text>
-
             {plan.bullets.map((item, i) => (
               <View key={i} style={styles.bulletRow}>
                 <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
@@ -99,7 +115,6 @@ export default function SellerPlansScreen({ navigation }) {
                 </Text>
               </View>
             ))}
-
             <TouchableOpacity
               style={[styles.selectButton, { backgroundColor: "#1e40af" }]}
               onPress={() => handleSelectPlan(plan)}

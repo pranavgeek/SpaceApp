@@ -1,0 +1,223 @@
+{
+  "users": [
+    {
+      "user_id": 99,
+      "name": "KSpace Admin",
+      "about_us": "System administrator",
+      "address": "Admin HQ",
+      "city": "Ottawa",
+      "country": "Canada",
+      "social_media_x": "@admin",
+      "social_media_linkedin": "linkedin.com/admin",
+      "social_media_website": "admin.com",
+      "profile_image": "admin.jpg",
+      "email": "kspace@example.com",
+      "password": "kspace123",
+      "account_type": "admin"
+    },
+    {
+      "user_id": 1,
+      "name": "John Doe",
+      "about_us": "Experienced buyer",
+      "address": "123 Main St",
+      "city": "Toronto",
+      "country": "Canada",
+      "social_media_x": "@johndoe",
+      "social_media_linkedin": "linkedin.com/johndoe",
+      "social_media_website": "johndoe.com",
+      "profile_image": "profile1.jpg",
+      "email": "john@example.com",
+      "password": "secure123",
+      "account_type": "buyer",
+      "products_purchased": [
+        {
+          "product_id": 101,
+          "product_name": "Wireless Headphones",
+          "purchase_date": "2025-03-15",
+          "price": 120
+        },
+        {
+          "product_id": 102,
+          "product_name": "Smartwatch",
+          "purchase_date": "2025-03-20",
+          "price": 199.99
+        }
+      ],
+      "following_count": 5,
+      "role": "buyer",
+      "id": "1"
+    },
+    {
+      "user_id": 2,
+      "name": "Sarah Smith",
+      "about_us": "Top-rated seller",
+      "address": "456 Market Ave",
+      "city": "Vancouver",
+      "country": "Canada",
+      "social_media_x": "@sarahsmith",
+      "social_media_linkedin": "linkedin.com/sarahsmith",
+      "social_media_website": "sarahsmith.com",
+      "profile_image": "profile2.jpg",
+      "email": "sarah@example.com",
+      "password": "sellerpass",
+      "account_type": "Seller",
+      "notifications": [
+        {
+          "notification_id": 402,
+          "user_id": 2,
+          "message": "New review received on your product.",
+          "date_timestamp": "2025-03-19T10:00:00Z"
+        }
+      ],
+      "campaigns": [
+        {
+          "campaign_id": 1,
+          "product_id": 102,
+          "product": "Smartwatch Test",
+          "price": 199.99,
+          "compaign_total": 399.98
+        }
+      ],
+      "followers_count": 5,
+      "earnings": 500
+    },
+    {
+      "user_id": 3,
+      "name": "Mike Influencer",
+      "about_us": "Influencer with 100k followers",
+      "address": "789 Media St",
+      "city": "Montreal",
+      "country": "Canada",
+      "social_media_x": "@mikeinfluencer",
+      "social_media_linkedin": "linkedin.com/mikeinfluencer",
+      "social_media_website": "mikeinfluencer.com",
+      "profile_image": "profile3.jpg",
+      "email": "mike@example.com",
+      "password": "influencer123",
+      "account_type": "Influencer",
+      "campaigns": [
+        {
+          "campaign_id": 2,
+          "product_id": 102,
+          "product": "Smartwatch Test",
+          "price": 199.99,
+          "compaign_total": 399.98
+        }
+      ],
+      "followers_count": 5,
+      "earnings": 500
+    }
+  ],
+  "products": [
+    {
+      "product_id": 101,
+      "product_name": "Smartphone",
+      "category": "Electronics",
+      "product_image": "phone.jpg",
+      "cost": 699,
+      "currency": "USD",
+      "summary": "High-end smartphone",
+      "description": "Latest model with advanced features",
+      "user_seller": 2,
+      "reviews": [
+        {
+          "review_id": 201,
+          "product_id": 101,
+          "user_id": 1,
+          "number_stars": 5,
+          "review": "Amazing phone! Highly recommend it."
+        }
+      ],
+      "download_url": "kspace-technologies.com",
+      "campaigns": []
+    },
+    {
+      "product_id": 102,
+      "product_name": "Wireless Headphones",
+      "category": "headphones",
+      "product_image": "headphone.jpg",
+      "cost": 120,
+      "currency": "USD",
+      "summary": "Noise-cancelling wireless headphones",
+      "description": "High-quality sound with long battery life",
+      "user_seller": 2,
+      "reviews": [
+        {
+          "review_id": 202,
+          "product_id": 102,
+          "user_id": 3,
+          "number_stars": 4,
+          "review": "Very comfortable, but a little expensive."
+        }
+      ],
+      "download_url": "kspace-technologies.com",
+      "campaigns": []
+    }
+  ],
+  "reviews": [
+    {
+      "review_id": 201,
+      "product_id": 101,
+      "user_id": 1,
+      "number_stars": 5,
+      "review": "Amazing phone! Highly recommend it."
+    },
+    {
+      "review_id": 202,
+      "product_id": 102,
+      "user_id": 3,
+      "number_stars": 4,
+      "review": "Very comfortable, but a little expensive."
+    }
+  ],
+  "messages": [
+    {
+      "message_id": 301,
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "Hi, is this product still available?",
+      "add_file": null,
+      "date_timestamp_sent": "2025-03-20T12:00:00Z"
+    },
+    {
+      "message_id": 302,
+      "user_from": "Sarah Smith",
+      "user_to": "John Doe",
+      "type_message": "text",
+      "message_content": "Yes, it’s available. Would you like more details?",
+      "add_file": null,
+      "date_timestamp_sent": "2025-03-20T12:05:00Z"
+    }
+  ],
+  "notifications": [
+    {
+      "notification_id": 401,
+      "user_id": 1,
+      "message": "Your order has been shipped!",
+      "date_timestamp": "2025-03-19T09:30:00Z"
+    },
+    {
+      "notification_id": 402,
+      "user_id": 2,
+      "message": "New review received on your product.",
+      "date_timestamp": "2025-03-19T10:00:00Z"
+    }
+  ],
+  "admin_data": [
+    {
+      "admin_id": 501,
+      "action": "Sign up influencer user group",
+      "user_id": 3,
+      "status": "pending",
+      "date_timestamp": "2025-03-18T14:00:00Z"
+    },
+    {
+      "admin_id": 502,
+      "action": "Sign up seller user group",
+      "user_id": 2,
+      "status": "confirmed",
+      "date_timestamp": "2025-03-18T15:00:00Z"
+    }
+  ]
+}

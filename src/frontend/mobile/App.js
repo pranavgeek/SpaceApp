@@ -27,6 +27,9 @@ import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import CreatePostScreen from "./screens/CreatePostScreen"; // Import CreatePostScreen
 import { CartProvider } from "./context/CartContext"; // Correct import
 import SignUpScreen from "./screens/SignUpScreen"
+import AdminDashboard from "./screens/AdminDashboardScreen"; // Import AdminDashboard
+import AdminNavigator from "./navigation/AdminNavigator"; // import it
+
 
 console.log("AuthProvider:", AuthProvider);
 console.log("useAuth:", useAuth);
@@ -43,8 +46,14 @@ const Tab = createBottomTabNavigator();
 const AppNavigator = () => {
   const { user } = useAuth();
 
-  // If no user is logged in, show RoleSelection; otherwise, show the main Seller navigator.
-  return user ? <AppContent /> : <SignUpScreen />;
+  if (!user) return <SignUpScreen />;
+
+  // Admin check (can be email or a flag in your data)
+  if (user.email === "kspace@example.com") {
+    return <AdminNavigator />; // 🔥 show bottom tabs for admin
+  }
+
+  return <AppContent />; // normal user
 };
 
 const App = () => (
@@ -202,7 +211,7 @@ const AppContent = () => {
                 iconName={"hardware-chip-outline"}
                 title={"Hardware Product"}
                 subtitle={"List your hardware or IoT device"}
-                rightIcon={"lock-closed-outline"}
+                rightIcon={"lock-open-outline"}
               />
               <ButtonSettings
                 iconName={"logo-reddit"}
@@ -214,7 +223,7 @@ const AppContent = () => {
                 iconName={"star-outline"}
                 title={"Influencer Campaign"}
                 subtitle={"Create a new influencer campaign"}
-                rightIcon={"lock-closed-outline"}
+                rightIcon={"lock-open-outline"}
               />
             </View>
 

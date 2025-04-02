@@ -1,4 +1,3 @@
-// InfluencerProfileScreen.js
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -17,12 +16,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { useAuth } from "../context/AuthContext";
 
 export default function InfluencerProfileScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
-
-  // For consistency, we load location & languages even if you might not use them for influencer
+  const { user, updateRole } = useAuth();
   const [location, setLocation] = useState("");
   const [languages, setLanguages] = useState([]);
 
@@ -47,14 +46,15 @@ export default function InfluencerProfileScreen({ navigation }) {
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && windowWidth >= 992;
 
-  // Example influencer data; replace these with dynamic data as needed.
+  // Example influencer data; replace with dynamic data as needed.
   const influencer = {
-    name: "Jane Influencer",
-    profileImage:
+    name: user?.name || "pranav Influencer",
+    accountType: user.account_type || "N/A",
+    profileImage: user?.profileImage ? `http://192.168.1.x:5000/images/${user.profile_image}` :
       "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-    campaigns: 8,
-    followers: "75.0K",
-    earnings: "$12.5K",
+      campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
+      followers: user?.followers_count || 0,
+      earnings: user?.earnings || 0,
   };
 
   // Action Handlers (adjust navigation routes as needed)
@@ -65,7 +65,7 @@ export default function InfluencerProfileScreen({ navigation }) {
     <ScrollView style={styles.container}>
       {isDesktopWeb && <View style={styles.headerBackground} />}
       <View style={styles.profileCard}>
-        {/* PROFILE IMAGE + NAME/SUBTITLE */}
+        {/* PROFILE IMAGE & INFO */}
         <View style={styles.profileTopSection}>
           <Image
             source={{ uri: influencer.profileImage }}
@@ -73,9 +73,9 @@ export default function InfluencerProfileScreen({ navigation }) {
           />
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{influencer.name}</Text>
-            <Text style={styles.profileSubtitle}>Influencer</Text>
+            <Text style={styles.profileSubtitle}>{influencer.accountType}</Text>
 
-            {/* Edit + Share */}
+            {/* Edit & Share Options */}
             <View style={styles.editShareContainer}>
               <ButtonMain
                 style={styles.editBtn}
@@ -97,7 +97,7 @@ export default function InfluencerProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* LOCATION + LANGUAGE (Optional) */}
+        {/* LOCATION & LANGUAGE */}
         <View style={styles.locationSection}>
           <View style={styles.profileRow}>
             <Ionicons
@@ -126,7 +126,7 @@ export default function InfluencerProfileScreen({ navigation }) {
         {/* STATS SECTION */}
         <View style={styles.statsSection}>
           <View style={styles.statsItem}>
-            <Text style={styles.statsValue}>{influencer.campaigns}</Text>
+            <Text style={styles.statsValue}>{influencer.campaigns.length}</Text>
             <Text style={styles.statsLabel}>Campaigns</Text>
           </View>
           <View style={styles.statsItem}>
@@ -273,6 +273,17 @@ function getDynamicStyles(colors) {
       flexWrap: "wrap",
       gap: 10,
       justifyContent: isDesktopWeb ? "flex-start" : "center",
+    },
+    downgradeButton: {
+      marginTop: 10,
+      backgroundColor: "#FF4444",
+      padding: 10,
+      borderRadius: 8,
+    },
+    downgradeButtonText: {
+      color: "#fff",
+      fontSize: 16,
+      textAlign: "center",
     },
   });
 }

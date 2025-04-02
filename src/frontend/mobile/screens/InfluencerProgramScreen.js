@@ -7,208 +7,141 @@ import {
   Platform,
   useWindowDimensions,
   ScrollView,
+  Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../theme/ThemeContext"; // Adjust path as needed
+import { useAuth } from "../context/AuthContext";
 
-// Import the custom hook from your theme context
-import { useTheme } from "../theme/ThemeContext";
-
-export default function InfluencerProgramScreen() {
+export default function InfluencerProgramScreen({ navigation }) {
   const { width } = useWindowDimensions();
-  // If on web AND width >= 768 => horizontal layout
   const isDesktopWeb = Platform.OS === "web" && width >= 768;
-
-  // Pull colors (and optionally isDarkMode, toggleTheme) from context
   const { colors } = useTheme();
+  const { user, updateRole } = useAuth();
+
+  const plans = [
+    {
+      title: "Rising Tier",
+      price: "Up to $3000/mo base",
+      bullets: [
+        "10,000+ followers",
+        "3%+ engagement rate",
+        "15% commission on sales",
+        "Up to $500 in bonuses",
+      ],
+    },
+    {
+      title: "Established Tier",
+      price: "Up to $7500/mo base",
+      bullets: [
+        "50,000+ followers",
+        "4%+ engagement rate",
+        "20% commission on sales",
+        "Up to $2500 in bonuses",
+      ],
+    },
+    {
+      title: "Elite Tier",
+      price: "Up to $20000/mo base",
+      bullets: [
+        "250,000+ followers",
+        "5%+ engagement rate",
+        "25% commission on sales",
+        "Up to $5000 in bonuses",
+      ],
+    },
+  ];
+
+  const handleSelectTier = async (tier) => {
+    if (user && user.role === "buyer") {
+      if (tier === "Rising Tier") {
+        try {
+          await updateRole("influencer"); // 🔁 API + AsyncStorage + state
+          await AsyncStorage.setItem("switchedRole", "Influencer");
+          navigation.navigate("Home");
+           // Delay before reset to allow AsyncStorage to save
+           setTimeout(() => {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Home" }],
+            });
+          }, 100); // ⏱️ Short delay
+        } catch (err) {
+          console.error("Switch to influencer failed:", err);
+          Alert.alert("Error", "Unable to switch account. Try again.");
+        }
+      } else {
+        Alert.alert(
+          "Paid Tier",
+          "This tier requires payment. Please complete payment first.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Proceed",
+              onPress: () =>
+                navigation.navigate("PaymentProcess", { tier }),
+            },
+          ]
+        );
+      }
+    } else {
+      navigation.navigate("Home");
+    }
+  };
+  
 
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContainer}
     >
-      {/* Container for all the tier cards */}
       <View
         style={[
           styles.cardContainer,
           isDesktopWeb ? styles.rowWrap : styles.columnWrap,
         ]}
       >
-        {/* Rising Tier */}
-        <View
-          style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
-        >
-          {/* Card body */}
-          <View style={styles.cardBody}>
-            <Text style={[styles.tierTitle, { color: colors.text }]}>
-              Rising Tier
-            </Text>
-
-            <Text style={[styles.baseText, { color: colors.subtitle }]}>
-              Up to $3000/mo base
-            </Text>
-
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                10,000+ followers
+        {plans.map((plan, index) => (
+          <View
+            key={index}
+            style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
+          >
+            <View style={styles.cardBody}>
+              <Text style={[styles.tierTitle, { color: colors.text }]}>
+                {plan.title}
               </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                3%+ engagement rate
+              <Text style={[styles.baseText, { color: colors.subtitle }]}>
+                {plan.price}
               </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                15% commission on sales
-              </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                Up to $500 in bonuses
-              </Text>
-            </View>
-
-            {/* Apply Now button */}
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: "#1e40af" }]}
-            >
-              <Text
-                style={[
-                  styles.applyButtonText,
-                  { color: colors.baseContainerHeader },
-                ]}
+              {plan.bullets.map((item, i) => (
+                <View key={i} style={styles.bulletRow}>
+                  <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                  <Text style={[styles.bulletText, { color: colors.text }]}>
+                    {item}
+                  </Text>
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[styles.applyButton, { backgroundColor: "#1e40af" }]}
+                onPress={() => handleSelectTier(plan.title)}
               >
-                Apply Now
-              </Text>
-              <Text
-                style={[styles.arrow, { color: colors.baseContainerHeader }]}
-              >
-                →
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.applyButtonText,
+                    { color: colors.baseContainerHeader },
+                  ]}
+                >
+                  Apply Now
+                </Text>
+                <Text
+                  style={[styles.arrow, { color: colors.baseContainerHeader }]}
+                >
+                  →
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-
-        {/* Established Tier */}
-        <View
-          style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
-        >
-
-          <View style={styles.cardBody}>
-            <Text style={[styles.tierTitle, { color: colors.text }]}>
-              Established Tier
-            </Text>
-
-            <Text style={[styles.baseText, { color: colors.subtitle }]}>
-              Up to $7500/mo base
-            </Text>
-
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                50,000+ followers
-              </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                4%+ engagement rate
-              </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                20% commission on sales
-              </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                Up to $2500 in bonuses
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: "#1e40af" }]}
-            >
-              <Text
-                style={[
-                  styles.applyButtonText,
-                  { color: colors.baseContainerHeader },
-                ]}
-              >
-                Apply Now
-              </Text>
-              <Text
-                style={[styles.arrow, { color: colors.baseContainerHeader }]}
-              >
-                →
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Elite Tier */}
-        <View
-          style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
-        >
-          
-          <View style={styles.cardBody}>
-            <Text style={[styles.tierTitle, { color: colors.text }]}>
-              Elite Tier
-            </Text>
-
-            <Text style={[styles.baseText, { color: colors.subtitle }]}>
-              Up to $20000/mo base
-            </Text>
-
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                250,000+ followers
-              </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                5%+ engagement rate
-              </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                25% commission on sales
-              </Text>
-            </View>
-            <View style={styles.bulletRow}>
-              <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-              <Text style={[styles.bulletText, { color: colors.text }]}>
-                Up to $5000 in bonuses
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: "#1e40af" }]}
-            >
-              <Text
-                style={[
-                  styles.applyButtonText,
-                  { color: colors.baseContainerHeader },
-                ]}
-              >
-                Apply Now
-              </Text>
-              <Text
-                style={[styles.arrow, { color: colors.baseContainerHeader }]}
-              >
-                →
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        ))}
       </View>
     </ScrollView>
   );
@@ -226,25 +159,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Desktop web layout: side by side
   rowWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
   },
-  // Mobile layout: stacked
   columnWrap: {
     flexDirection: "column",
   },
-
-  // Each card
   card: {
     width: 320,
     borderRadius: 8,
     margin: 8,
     overflow: "hidden",
   },
-
-  // Pink header bar
   headerBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -261,8 +188,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 16,
   },
-
-  // Card body
   cardBody: {
     padding: 16,
   },
@@ -271,8 +196,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 7,
   },
-
-  // Bullet items
   bulletRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -285,8 +208,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flexShrink: 1,
   },
-
-  // "Apply Now" button
   applyButton: {
     flexDirection: "row",
     alignItems: "center",
