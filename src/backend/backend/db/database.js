@@ -2,8 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const { Pool } = require("pg");
 require("dotenv").config();
+const data = require("./data.json");
 
-const USE_CLOUD_DB = false; 
+const USE_CLOUD_DB = false;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -16,7 +17,10 @@ const loadData = () => {
 };
 
 const saveData = (data) => {
-  fs.writeFileSync(path.join(__dirname, "data.json"), JSON.stringify(data, null, 2));
+  fs.writeFileSync(
+    path.join(__dirname, "data.json"),
+    JSON.stringify(data, null, 2)
+  );
 };
 
 const runQuery = async (query, params) => {
@@ -30,7 +34,15 @@ const runQuery = async (query, params) => {
 };
 
 const db = {
+  getProducts: async () => {
+    return data.products;
+  },
 
+  getProductById: async (id) => {
+    return data.products.find(
+      (product) => product.product_id === parseInt(id, 10)
+    );
+  },
 
   //Get All Users
   getUsers: async () => {
@@ -59,6 +71,11 @@ const db = {
         user.email,
         user.password,
         user.account_type,
+        user.products_purchased,
+        user.following_count,
+        user.campaigns,
+        user.followers_count,
+        user.earnings,
       ];
       const result = await runQuery(query, params);
       return result[0];
@@ -68,6 +85,24 @@ const db = {
     data.users.push(user);
     saveData(data);
     return user;
+  },
+
+  updateUser: async (id, newData) => {
+    const data = loadData();
+    const userIndex = data.users.findIndex(u => u.user_id === id);
+  
+    if (userIndex === -1) return null;
+  
+    const updatedUser = {
+      ...data.users[userIndex],
+      ...newData,
+      user_id: id,
+    };
+  
+    data.users[userIndex] = updatedUser;
+    saveData(data);
+  
+    return updatedUser;
   },
 
   // Get User Dashboard (Products for Seller / Campaigns for Influencer)
@@ -99,8 +134,6 @@ const db = {
     return [];
   },
 
-
-
   // Get All Products
   getProducts: async () => {
     if (USE_CLOUD_DB) {
@@ -124,6 +157,7 @@ const db = {
         product.summary,
         product.description,
         product.user_seller,
+        product.campaigns,
       ];
       const result = await runQuery(query, params);
       return result[0];
@@ -134,8 +168,6 @@ const db = {
     saveData(data);
     return product;
   },
-
-
 
   //  Get All Reviews
   getReviews: async () => {
@@ -151,7 +183,12 @@ const db = {
       const query = `
         INSERT INTO reviews (product_id, user_id, number_stars, review)
         VALUES ($1, $2, $3, $4) RETURNING *`;
-      const params = [review.product_id, review.user_id, review.number_stars, review.review];
+      const params = [
+        review.product_id,
+        review.user_id,
+        review.number_stars,
+        review.review,
+      ];
       const result = await runQuery(query, params);
       return result[0];
     }
@@ -161,8 +198,6 @@ const db = {
     saveData(data);
     return review;
   },
-
-
 
   // Get All Messages
   getMessages: async () => {
@@ -196,12 +231,12 @@ const db = {
     return message;
   },
 
-
-
   // Get Notifications by User ID
   getNotifications: async (user_id) => {
     if (USE_CLOUD_DB) {
-      return await runQuery("SELECT * FROM notifications WHERE user_id = $1", [user_id]);
+      return await runQuery("SELECT * FROM notifications WHERE user_id = $1", [
+        user_id,
+      ]);
     }
     const data = loadData();
     return data.notifications.filter((n) => n.user_id === parseInt(user_id));
@@ -213,7 +248,11 @@ const db = {
       const query = `
         INSERT INTO notifications (user_id, message, date_timestamp)
         VALUES ($1, $2, $3) RETURNING *`;
-      const params = [notification.user_id, notification.message, notification.date_timestamp];
+      const params = [
+        notification.user_id,
+        notification.message,
+        notification.date_timestamp,
+      ];
       const result = await runQuery(query, params);
       return result[0];
     }
@@ -238,7 +277,12 @@ const db = {
       const query = `
         INSERT INTO admin_data (action, user_id, status, date_timestamp)
         VALUES ($1, $2, $3, $4) RETURNING *`;
-      const params = [adminAction.action, adminAction.user_id, adminAction.status, adminAction.date_timestamp];
+      const params = [
+        adminAction.action,
+        adminAction.user_id,
+        adminAction.status,
+        adminAction.date_timestamp,
+      ];
       const result = await runQuery(query, params);
       return result[0];
     }
