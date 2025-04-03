@@ -7,7 +7,7 @@ import {
   ScrollView,
   Platform,
   Dimensions,
-  TouchableOpacity,
+  Alert,
 } from "react-native";
 import ButtonSettings from "../components/ButtonSettings";
 import ButtonMain from "../components/ButtonMain";
@@ -16,33 +16,28 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { useAuth } from "../context/AuthContext";
 
 export default function BuyerProfileScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
+  const { user } = useAuth();
 
   const [location, setLocation] = useState("");
   const [languages, setLanguages] = useState([]);
 
-  // Function to load location and languages from AsyncStorage
-  const loadData = async () => {
-    try {
-      const storedLocation = await AsyncStorage.getItem("location");
-      const storedLanguages = await AsyncStorage.getItem("languages");
-      if (storedLocation) {
-        setLocation(storedLocation);
-      }
-      if (storedLanguages) {
-        setLanguages(JSON.parse(storedLanguages));
-      }
-    } catch (error) {
-      console.error("Error loading data from AsyncStorage", error);
-    }
-  };
-
-  // Reload data each time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      const loadData = async () => {
+        try {
+          const storedLocation = await AsyncStorage.getItem("location");
+          const storedLanguages = await AsyncStorage.getItem("languages");
+          if (storedLocation) setLocation(storedLocation);
+          if (storedLanguages) setLanguages(JSON.parse(storedLanguages));
+        } catch (error) {
+          console.error("Error loading data from AsyncStorage", error);
+        }
+      };
       loadData();
     }, [])
   );
@@ -51,11 +46,238 @@ export default function BuyerProfileScreen({ navigation }) {
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && windowWidth >= 992;
 
+  const profile = {
+    name: user?.name || "Pranav",
+    city: user?.city || "N/A",
+    country: user?.country || "N/A",
+    accountType: user?.account_type || "N/A",
+    productPurchased: Array.isArray(user?.products_purchased) ? user.products_purchased : [],
+    followingCount: user?.following_count || 0,
+    campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
+    followers: user?.followers_count || 0,
+    earnings: user?.earnings || 0,
+  };
+
+  // 👉 Render Seller Layout if switched
+  if (profile.accountType === "Seller") {
+    return (
+      <ScrollView style={styles.container}>
+        {isDesktopWeb && <View style={styles.headerBackground} />}
+        <View style={styles.profileCard}>
+          <View style={styles.profileTopSection}>
+            <Image
+              source={{
+                uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+              }}
+              style={styles.profileImage}
+            />
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{profile.name}</Text>
+              <Text style={styles.profileSubtitle}>{profile.accountType}</Text>
+              <View style={styles.editShareContainer}>
+                <ButtonMain
+                  style={styles.editBtn}
+                  onPress={() => navigation.navigate("Edit Profile")}
+                  buttonColor={colors.primary}
+                >
+                  Edit Profile
+                </ButtonMain>
+                <ButtonIcon iconName="share-social" iconColor={colors.text} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.locationSection}>
+            <View style={styles.profileRow}>
+              <Ionicons
+                name="globe-outline"
+                size={18}
+                color={colors.subtitle}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.profileText}>
+                {profile.city}, {profile.country}
+              </Text>
+            </View>
+            <View style={styles.profileRow}>
+              <Ionicons
+                name="language"
+                size={18}
+                color={colors.subtitle}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.profileText}>
+                {languages.length > 0
+                  ? languages.join(", ")
+                  : "No languages set"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statsSection}>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsValue}>{profile.campaigns.length}</Text>
+              <Text style={styles.statsLabel}>Campaigns</Text>
+            </View>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsValue}>{profile.followers}</Text>
+              <Text style={styles.statsLabel}>Followers</Text>
+            </View>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsValue}>{profile.earnings}</Text>
+              <Text style={styles.statsLabel}>Earnings</Text>
+            </View>
+          </View>
+
+          <View style={styles.bigButtonContainer}>
+            <ButtonSettings
+              iconName="grid-outline"
+              onPress={() => navigation.navigate("My Products")}
+              title="My Products"
+              buttonColor={colors.primary}
+              iconColor={colors.text}
+            />
+            <ButtonSettings
+              iconName="grid-outline"
+              onPress={() => navigation.navigate("Collaboration Requests")}
+              title="Collaboration Requests"
+              buttonColor={colors.primary}
+              iconColor={colors.text}
+            />
+            <ButtonSettings
+              iconName="card-outline"
+              onPress={() => navigation.navigate("Payment History")}
+              title="Payment"
+              buttonColor={colors.primary}
+              iconColor={colors.text}
+            />
+            <ButtonSettings
+              iconName="cube-outline"
+              onPress={() => {}}
+              title="Orders"
+              buttonColor={colors.primary}
+              iconColor={colors.text}
+            />
+            <ButtonSettings
+              iconName="heart-outline"
+              onPress={() => {}}
+              title="Favourites"
+              buttonColor={colors.primary}
+              iconColor={colors.text}
+            />
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (profile.accountType === "Influencer") {
+    return (
+      <ScrollView style={styles.container}>
+        {isDesktopWeb && <View style={styles.headerBackground} />}
+        <View style={styles.profileCard}>
+          <View style={styles.profileTopSection}>
+            <Image
+              source={{
+                uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+              }}
+              style={styles.profileImage}
+            />
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{profile.name}</Text>
+              <Text style={styles.profileSubtitle}>{profile.accountType}</Text>
+              <View style={styles.editShareContainer}>
+                <ButtonMain
+                  style={styles.editBtn}
+                  onPress={() => navigation.navigate("Edit Profile")}
+                  buttonColor={colors.primary}
+                >
+                  Edit Profile
+                </ButtonMain>
+                <ButtonIcon iconName="share-social" iconColor={colors.text} />
+              </View>
+
+              {/* Social Icons */}
+              <View style={styles.socialMediaContainer}>
+                <ButtonIcon iconName="logo-twitter" iconColor={colors.text} />
+                <ButtonIcon iconName="logo-instagram" iconColor={colors.text} />
+                <ButtonIcon iconName="logo-tiktok" iconColor={colors.text} />
+                <ButtonIcon iconName="logo-linkedin" iconColor={colors.text} />
+              </View>
+            </View>
+          </View>
+
+          {/* LOCATION & LANGUAGE */}
+          <View style={styles.locationSection}>
+            <View style={styles.profileRow}>
+              <Ionicons
+                name="globe-outline"
+                size={18}
+                color={colors.subtitle}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.profileText}>
+                {location || "No location set"}
+              </Text>
+            </View>
+            <View style={styles.profileRow}>
+              <Ionicons
+                name="language"
+                size={18}
+                color={colors.subtitle}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.profileText}>
+                {languages.length > 0
+                  ? languages.join(", ")
+                  : "No languages set"}
+              </Text>
+            </View>
+          </View>
+
+          {/* STATS SECTION */}
+          <View style={styles.statsSection}>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsValue}>{profile.campaigns.length}</Text>
+              <Text style={styles.statsLabel}>Campaigns</Text>
+            </View>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsValue}>{profile.followers}</Text>
+              <Text style={styles.statsLabel}>Followers</Text>
+            </View>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsValue}>{profile.earnings}</Text>
+              <Text style={styles.statsLabel}>Earnings</Text>
+            </View>
+          </View>
+
+          {/* BUTTONS */}
+          <View style={styles.bigButtonContainer}>
+            <ButtonSettings
+              iconName="megaphone-outline"
+              onPress={handleCampaigns}
+              title="Campaigns"
+              buttonColor={colors.primary}
+              iconColor={colors.text}
+            />
+            <ButtonSettings
+              iconName="time-outline"
+              onPress={handlePendingCampaigns}
+              title="Pending Campaigns"
+              buttonColor={colors.primary}
+              iconColor={colors.text}
+            />
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // Default Buyer Layout
   return (
     <ScrollView style={styles.container}>
       {isDesktopWeb && <View style={styles.headerBackground} />}
       <View style={styles.profileCard}>
-        {/* PROFILE IMAGE + NAME/SUBTITLE */}
         <View style={styles.profileTopSection}>
           <Image
             source={{
@@ -64,10 +286,8 @@ export default function BuyerProfileScreen({ navigation }) {
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Jane Doe</Text>
-            <Text style={styles.profileSubtitle}>Buyer</Text>
-
-            {/* Edit + Share */}
+            <Text style={styles.profileName}>{profile.name}</Text>
+            <Text style={styles.profileSubtitle}>{profile.accountType}</Text>
             <View style={styles.editShareContainer}>
               <ButtonMain
                 style={styles.editBtn}
@@ -78,18 +298,9 @@ export default function BuyerProfileScreen({ navigation }) {
               </ButtonMain>
               <ButtonIcon iconName="share-social" iconColor={colors.text} />
             </View>
-
-            {/* Social Icons */}
-            {/* <View style={styles.socialMediaContainer}>
-              <ButtonIcon iconName="logo-twitter" iconColor={colors.text} />
-              <ButtonIcon iconName="logo-instagram" iconColor={colors.text} />
-              <ButtonIcon iconName="logo-tiktok" iconColor={colors.text} />
-              <ButtonIcon iconName="logo-linkedin" iconColor={colors.text} />
-            </View> */}
           </View>
         </View>
 
-        {/* LOCATION + LANGUAGE */}
         <View style={styles.locationSection}>
           <View style={styles.profileRow}>
             <Ionicons
@@ -99,7 +310,7 @@ export default function BuyerProfileScreen({ navigation }) {
               style={{ marginRight: 6 }}
             />
             <Text style={styles.profileText}>
-              {location || "No location set"}
+              {profile.city}, {profile.country}
             </Text>
           </View>
           <View style={styles.profileRow}>
@@ -115,19 +326,17 @@ export default function BuyerProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* STATS */}
         <View style={styles.statsSection}>
           <View style={styles.statsItem}>
-            <Text style={styles.statsValue}>24</Text>
+            <Text style={styles.statsValue}>{profile.productPurchased.length}</Text>
             <Text style={styles.statsLabel}>Products Purchased</Text>
           </View>
           <View style={styles.statsItem}>
-            <Text style={styles.statsValue}>52.0K</Text>
+            <Text style={styles.statsValue}>{profile.followingCount}</Text>
             <Text style={styles.statsLabel}>Following</Text>
           </View>
         </View>
 
-        {/* BIG BUTTON CONTAINER */}
         <View style={styles.bigButtonContainer}>
           <ButtonSettings
             iconName="heart-outline"
@@ -178,7 +387,9 @@ function getDynamicStyles(colors) {
       zIndex: -1,
     },
     profileCard: {
-      backgroundColor: isDesktopWeb ? colors.baseContainerHeader : colors.background,
+      backgroundColor: isDesktopWeb
+        ? colors.baseContainerHeader
+        : colors.background,
       marginTop: isDesktopWeb ? 60 : 0,
       marginHorizontal: isDesktopWeb ? "auto" : 0,
       width: isDesktopWeb ? 800 : "100%",

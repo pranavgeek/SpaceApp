@@ -25,6 +25,8 @@ import { useCart } from "../context/CartContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
 import { mockCities } from "../data/MockData.js";
+import { fetchProducts } from "../backend/db/API.js";
+import AccountSwitchOverlay from "../components/AccountSwitchOverlay.js";
 
 export default function HomeScreen({ navigation }) {
   // Search query state
@@ -110,35 +112,35 @@ export default function HomeScreen({ navigation }) {
   const [modalCountryOpen, setModalCountryOpen] = useState(false);
 
   // Load the user's default country from AsyncStorage and update city dropdown accordingly.
-  useEffect(() => {
-    const loadUserCountry = async () => {
-      try {
-        const country = await AsyncStorage.getItem("userCountry");
-        console.log("Loaded userCountry:", country);
-        if (country) {
-          setSelectedCountry(country);
-          setModalCountry(country);
-          // Build city dropdown items by filtering mockCities based on the country.
-          const filteredCities = mockCities.filter((cityStr) => {
-            const parts = cityStr.split(",");
-            const cityCountry = parts[1]?.trim() || "";
-            return cityCountry === country;
-          });
-          const dropdownItems = filteredCities.map((cityStr) => {
-            const cityName = cityStr.split(",")[0].trim();
-            return { label: cityName, value: cityName };
-          });
-          setCityItems([{ label: "All Cities", value: "" }, ...dropdownItems]);
-        }
-      } catch (error) {
-        console.error("Error loading userCountry:", error);
-      }
-    };
+  // useEffect(() => {
+  //   const loadUserCountry = async () => {
+  //     try {
+  //       const country = await AsyncStorage.getItem("userCountry");
+  //       console.log("Loaded userCountry:", country);
+  //       if (country) {
+  //         setSelectedCountry(country);
+  //         setModalCountry(country);
+  //         // Build city dropdown items by filtering mockCities based on the country.
+  //         const filteredCities = mockCities.filter((cityStr) => {
+  //           const parts = cityStr.split(",");
+  //           const cityCountry = parts[1]?.trim() || "";
+  //           return cityCountry === country;
+  //         });
+  //         const dropdownItems = filteredCities.map((cityStr) => {
+  //           const cityName = cityStr.split(",")[0].trim();
+  //           return { label: cityName, value: cityName };
+  //         });
+  //         setCityItems([{ label: "All Cities", value: "" }, ...dropdownItems]);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error loading userCountry:", error);
+  //     }
+  //   };
 
-    if (isFocused) {
-      loadUserCountry();
-    }
-  }, [isFocused]);
+  //   if (isFocused) {
+  //     loadUserCountry();
+  //   }
+  // }, [isFocused]);
 
   // Also update cityItems whenever the applied country changes.
   useEffect(() => {
@@ -183,6 +185,40 @@ export default function HomeScreen({ navigation }) {
     }
   }, [showPanel, showModal]);
 
+  // --------------------------
+  // Fetch products using the provided API function and map to expected structure
+  // --------------------------
+  const [fetchedProjects, setFetchedProjects] = useState([]);
+
+  useEffect(() => {
+    fetchProducts()
+      .then((data) => {
+        // Map each product to the structure expected by ProjectCard.
+        const mappedProjects = data.map((product) => ({
+          id: product.product_id.toString(),
+          category: product.category,
+          project: {
+            name: product.product_name,
+            description: product.description,
+            image: product.product_image.startsWith("http")
+              ? product.product_image
+              : `http://10.0.0.25:5001/${product.product_image}`,
+            price: product.cost,
+            likes: 0, // Default like count if not provided
+            summary: product.summary,
+          },
+          // Supply default creator data since the API doesn't provide it.
+          creator: {
+            name: `Seller ${product.user_seller}`,
+            image: "https://via.placeholder.com/150",
+          },
+        }));
+        setFetchedProjects(mappedProjects);
+      })
+      .catch((error) => console.error("Error fetching products:", error));
+  }, []);
+  // --------------------------
+
   // Price ranges (example)
   const priceRanges = [
     { min: 0, max: 100, display: "$0-$100" },
@@ -191,95 +227,29 @@ export default function HomeScreen({ navigation }) {
     { min: 500, max: Infinity, display: "$500+" },
   ];
 
-  // Sample project data now includes city along with country.
-  const projects = [
-    {
-      id: "1",
-      creator: {
-        name: "John Doe",
-        image:
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-      },
-      category: "Software",
-      project: {
-        name: "My App",
-        description: "This is a sample project description.",
-        image:
-          "https://viso.ai/wp-content/smush-webp/2024/02/Computer-vision-for-robotics-1536x864.jpg.webp",
-        price: 299,
-        likes: 120,
-        views: 400,
-        country: "USA",
-        city: "New York",
-      },
-    },
-    {
-      id: "2",
-      creator: {
-        name: "Jane Smith",
-        image:
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-      },
-      category: "Hardware",
-      project: {
-        name: "Cool Gadget",
-        description: "Another sample project using some new technologies.",
-        image:
-          "https://cdn.prod.website-files.com/63f471ed5975db4280f5573f/65c9dcbacfce6029a3d241b2_what-is-deep-learning.jpg.webp",
-        price: 499,
-        likes: 340,
-        views: 900,
-        country: "Canada",
-        city: "Toronto",
-      },
-    },
-    {
-      id: "3",
-      creator: {
-        name: "Alex Jones",
-        image:
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-      },
-      category: "AI Tools",
-      project: {
-        name: "AI Assistant",
-        description: "An intelligent AI assistant for your daily tasks.",
-        image:
-          "https://viso.ai/wp-content/smush-webp/2024/02/Computer-vision-for-robotics-1536x864.jpg.webp",
-        price: 149,
-        likes: 210,
-        views: 550,
-        country: "UK",
-        city: "London",
-      },
-    },
-    {
-      id: "4",
-      creator: {
-        name: "Sarah Miller",
-        image:
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-      },
-      category: "Cloud",
-      project: {
-        name: "Cloud Storage",
-        description: "Secure and scalable cloud storage solution.",
-        image:
-          "https://cdn.prod.website-files.com/63f471ed5975db4280f5573f/65c9dcbacfce6029a3d241b2_what-is-deep-learning.jpg.webp",
-        price: 599,
-        likes: 175,
-        views: 420,
-        country: "Germany",
-        city: "Berlin",
-      },
-    },
-  ];
+
+  const [showOverlay, setShowOverlay] = useState(null); // "Seller", "Influencer"
+  // Check if the user has switched accounts and set the overlay accordingly.
+  useEffect(() => {
+  const checkAccountSwitch = async () => {
+    const switchedRole = await AsyncStorage.getItem("switchedRole");
+    console.log("🔎 Switched role from AsyncStorage:", switchedRole);
+    
+    if (switchedRole) {
+      setShowOverlay(switchedRole); // This triggers the overlay
+      await AsyncStorage.removeItem("switchedRole");
+    }
+  };
+  checkAccountSwitch();
+}, []);
+
+  
 
   // Filtering logic now checks category, price, country, and city.
   function checkPriceRange(range, price) {
     return price >= range.min && price <= range.max;
   }
-  const filteredProjects = projects.filter((project) => {
+  const filteredProjects = fetchedProjects.filter((project) => {
     const categoryMatch = !selectedFilter || project.category === selectedFilter;
     const priceMatch =
       selectedPriceRanges.length === 0 ||
@@ -372,7 +342,16 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 
-  return (
+
+  return (   
+    <>
+    {showOverlay && (
+      <AccountSwitchOverlay
+        role={showOverlay}
+        onDone={() => setShowOverlay(null)}
+      />
+    )}
+    
     <SafeAreaView style={styles.safeArea}>
       {/* CUSTOM HEADER */}
       <View style={styles.customHeader}>
@@ -568,7 +547,7 @@ export default function HomeScreen({ navigation }) {
                   placeholder="Select a category"
                   style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
                   dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
-                  containerStyle={{ overflow: "visible" }}
+                  containerStyle={{ overflow: "visible", zIndex: 3000 }}
                   zIndex={3000}
                   zIndexInverse={1000}
                 />
@@ -633,6 +612,7 @@ export default function HomeScreen({ navigation }) {
         </Modal>
       )}
     </SafeAreaView>
+    </>
   );
 }
 

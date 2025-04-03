@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 export default function SettingsScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
-  const { logout, user } = useAuth();
+  const { logout, user, updateRole } = useAuth();
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -27,7 +27,7 @@ export default function SettingsScreen({ navigation }) {
           text: "Yes",
           onPress: () => {
             logout();
-            // Here you might reset navigation if needed.
+            // Additional navigation logic if needed.
           },
         },
       ],
@@ -35,19 +35,24 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
+  const handleDowngrade = () => {
+    updateRole("buyer");
+    navigation.navigate("Home");
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Profile Section */}
-      <View style={styles.profileSection}>
+      {/* <View style={styles.profileSection}>
         <Image
           source={{
             uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
           }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>John Doe</Text>
+        <Text style={styles.profileName}>{user?.name}</Text>
         <Text style={styles.profileSubtitle}>Software Engineer</Text>
-      </View>
+      </View> */}
 
       <BaseContainer title={"Account"}>
         <View>
@@ -70,21 +75,41 @@ export default function SettingsScreen({ navigation }) {
             rightIcon={"chevron-forward"}
           />
           <ButtonSetting
+            iconName={"speedometer-outline"}
+            title={"Admin Dashboard"}
+            onPress={() => navigation.navigate("Admin Dashboard")}
+            rightIcon={"chevron-forward"}
+          />
+          <ButtonSetting
             iconName={"star-outline"}
             title={"Influencer Program"}
             onPress={() => navigation.navigate("Influencer Program")}
             rightIcon={"chevron-forward"}
           />
 
-          {/* Conditionally render Sellers Plans button only if user role is buyer */}
-          {user.role === "buyer" && (
+          {user.role === "influencer" && (
             <ButtonSetting
-              iconName={"layers-outline"}
-              title={"Sellers Plans"}
-              onPress={() => navigation.navigate("Sellers Plans")}
+              iconName={"people-outline"}
+              title={"Collaboration"}
+              onPress={() => navigation.navigate("Collaboration")}
               rightIcon={"chevron-forward"}
             />
           )}
+
+          {/* Sellers Plans button always rendered.
+              If user is not a buyer, it appears faded and disabled. */}
+          <ButtonSetting
+            iconName={"layers-outline"}
+            title={"Sellers Plans"}
+            onPress={
+              user.role === "buyer"
+                ? () => navigation.navigate("Sellers Plans")
+                : null
+            }
+            rightIcon={"chevron-forward"}
+            style={user.role === "buyer" ? {} : { opacity: 0.1 }}
+            disabled={user.role !== "buyer"}
+          />
         </View>
       </BaseContainer>
 
@@ -119,6 +144,16 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => navigation.navigate("Support")}
             rightIcon={"chevron-forward"}
           />
+          {/* Downgrade button shown for seller and influencer */}
+          {user.role !== "buyer" && (
+            <ButtonSetting
+              iconName={"arrow-down-outline"}
+              title={"Downgrade to Buyer"}
+              onPress={handleDowngrade}
+              rightIcon={"chevron-forward"}
+              isDanger={true}
+            />
+          )}
           <ButtonSetting
             iconName={"log-out-outline"}
             title={"Logout"}

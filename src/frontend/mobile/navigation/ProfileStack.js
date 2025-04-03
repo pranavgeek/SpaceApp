@@ -13,6 +13,7 @@ import ProductScreen from "../screens/ProductScreen";
 import { useTheme } from "../theme/ThemeContext.js";
 import { useAuth } from "../context/AuthContext";
 import BuyerProfileScreen from "../screens/BuyerProfileScreen";
+import CollaborationRequestScreen from "../screens/CollaborationRequestScreen";
 import InfluencerProfileScreen from "../screens/InfluencerProfileScreen.js";
 
 const ProfileStack = createNativeStackNavigator();
@@ -28,6 +29,8 @@ const ProfileStackNavigator = () => {
     ProfileScreenComponent = BuyerProfileScreen;
   } else if (user.role === "influencer") {
     ProfileScreenComponent = InfluencerProfileScreen;
+  }else {
+    ProfileScreenComponent = BuyerProfileScreen; // default fallback
   }
 
   return (
@@ -87,6 +90,11 @@ const ProfileStackNavigator = () => {
             </TouchableOpacity>
           ),
         }}
+      />
+      <ProfileStack.Screen
+        name="Collaboration Requests"
+        component={CollaborationRequestScreen}
+        // options={{ title: "Collaboration Requests" }}
       />
     </ProfileStack.Navigator>
   );

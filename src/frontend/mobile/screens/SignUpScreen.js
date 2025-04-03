@@ -1,4 +1,3 @@
-// SignUpScreen.js
 import React, { useState } from "react";
 import {
   View,
@@ -24,39 +23,18 @@ const SignUpScreen = ({ navigation }) => {
   // State for forgot password email
   const [forgotEmail, setForgotEmail] = useState("");
 
-  // Allowed static credentials
-  const allowedEmail = "buyer@example.com";
-  const allowedPhone = "1234567890";
-  const allowedPassword = "password123";
-
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please enter both email/phone and password.");
+      Alert.alert("Error", "Please enter both email and password.");
       return;
     }
-    if (email === allowedEmail || email === allowedPhone) {
-      if (password === allowedPassword) {
-        // Successful login as Buyer (default)
-        const user = {
-          name: "Test Buyer",
-          email: email,
-          role: "buyer",
-        };
-        login(user);
-      } else {
-        Alert.alert("Incorrect Password", "The password you entered is incorrect.");
-      }
-    } else {
-      Alert.alert(
-        "User Not Found",
-        "No user found with that email/phone. Redirecting to registration.",
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.navigate("Register"),
-          },
-        ]
-      );
+
+    try {
+      // Since login is now corrected to use apiLogin within the context, use it here
+      await login(email, password);
+      // navigation.navigate("Home");
+    } catch (error) {
+      Alert.alert("Login Failed", error.message || "Invalid credentials");
     }
   };
 
@@ -76,7 +54,7 @@ const SignUpScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to My Space App</Text>
+      <Text style={styles.title}>Welcome to Space App</Text>
 
       {!isForgotPassword ? (
         <>
@@ -102,8 +80,7 @@ const SignUpScreen = ({ navigation }) => {
             <Text style={styles.linkText}>Forgot Password?</Text>
           </TouchableOpacity>
           <Text style={styles.note}>
-            Default account is Buyer. You can switch to Seller or Influencer from
-            Settings.
+            Default account is Buyer. You can switch to Seller or Influencer from Settings.
           </Text>
         </>
       ) : (
@@ -127,13 +104,15 @@ const SignUpScreen = ({ navigation }) => {
   );
 };
 
+export default SignUpScreen;
+
 const getDynamicStyles = (colors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
       backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
       padding: 20,
     },
     title: {
@@ -144,36 +123,35 @@ const getDynamicStyles = (colors) =>
     },
     input: {
       width: "100%",
-      height: 50,
+      height: 40,
+      borderColor: colors.border,
       borderWidth: 1,
-      borderColor: colors.subtitle,
-      borderRadius: 8,
+      borderRadius: 4,
       paddingHorizontal: 10,
-      marginBottom: 15,
+      marginBottom: 10,
       color: colors.text,
     },
     button: {
+      width: "100%",
+      height: 40,
       backgroundColor: colors.primary,
-      paddingVertical: 15,
-      paddingHorizontal: 30,
-      borderRadius: 8,
-      marginBottom: 20,
+      borderRadius: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 10,
     },
     buttonText: {
-      color: "#fff",
-      fontSize: 16,
+      color: colors.buttonText,
       fontWeight: "bold",
     },
+    linkText: {
+      color: colors.link,
+      textDecorationLine: "underline",
+      marginBottom: 10,
+    },
     note: {
-      fontSize: 14,
+      fontSize: 12,
       color: colors.subtitle,
       textAlign: "center",
     },
-    linkText: {
-      fontSize: 16,
-      color: colors.primary,
-      marginBottom: 10,
-    },
   });
-
-export default SignUpScreen;
