@@ -8,6 +8,9 @@ import {
   Platform,
   Dimensions,
   TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  ImageBackground,
 } from "react-native";
 import ButtonSettings from "../components/ButtonSettings";
 import ButtonMain from "../components/ButtonMain";
@@ -17,6 +20,7 @@ import { useTheme } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function InfluencerProfileScreen({ navigation }) {
   const { colors } = useTheme();
@@ -50,11 +54,12 @@ export default function InfluencerProfileScreen({ navigation }) {
   const influencer = {
     name: user?.name || "pranav Influencer",
     accountType: user.account_type || "N/A",
-    profileImage: user?.profileImage ? `http://192.168.1.x:5000/images/${user.profile_image}` :
-      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-      campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
-      followers: user?.followers_count || 0,
-      earnings: user?.earnings || 0,
+    profileImage: user?.profileImage
+      ? `http://192.168.1.x:5000/images/${user.profile_image}`
+      : "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+    campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
+    followers: user?.followers_count || 0,
+    earnings: user?.earnings || 0,
   };
 
   // Action Handlers (adjust navigation routes as needed)
@@ -62,228 +67,443 @@ export default function InfluencerProfileScreen({ navigation }) {
   const handlePendingCampaigns = () => navigation.navigate("PendingCampaigns");
 
   return (
-    <ScrollView style={styles.container}>
-      {isDesktopWeb && <View style={styles.headerBackground} />}
-      <View style={styles.profileCard}>
-        {/* PROFILE IMAGE & INFO */}
-        <View style={styles.profileTopSection}>
-          <Image
-            source={{ uri: influencer.profileImage }}
-            style={styles.profileImage}
-          />
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{influencer.name}</Text>
-            <Text style={styles.profileSubtitle}>{influencer.accountType}</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar
+        translucent={true}
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Profile Header with Background */}
+        <View style={styles.profileHeader}>
+          <ImageBackground
+            source={{
+              uri: "https://images.unsplash.com/photo-1504805572947-34fad45aed93?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+            }}
+            style={styles.headerBackground}
+          >
+            <LinearGradient
+              colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.7)"]}
+              style={styles.gradient}
+            />
+            <View style={styles.headerContent}>
+              <View style={styles.profileImageContainer}>
+                <Image
+                  source={{ uri: influencer.profileImage }}
+                  style={styles.profileImage}
+                />
+              </View>
+            </View>
+          </ImageBackground>
+        </View>
 
-            {/* Edit & Share Options */}
-            <View style={styles.editShareContainer}>
-              <ButtonMain
-                style={styles.editBtn}
+        {/* Profile Content Card */}
+        <View style={styles.profileContent}>
+          {/* Profile Info Section */}
+          <View style={styles.profileInfoSection}>
+            <View style={styles.nameSection}>
+              <Text style={styles.profileName}>{influencer.name}</Text>
+              <View style={styles.accountTypeBadge}>
+                <Text style={styles.accountTypeText}>
+                  {influencer.accountType}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={styles.editProfileButton}
                 onPress={() => navigation.navigate("Edit Profile")}
-                buttonColor={colors.primary}
               >
-                Edit Profile
-              </ButtonMain>
-              <ButtonIcon iconName="share-social" iconColor={colors.text} />
+                <Text style={styles.editProfileText}>Edit Profile</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.shareButton}>
+                <Ionicons
+                  name="share-social-outline"
+                  size={20}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
             </View>
 
-            {/* Social Icons */}
+            {/* Social Media Icons */}
             <View style={styles.socialMediaContainer}>
-              <ButtonIcon iconName="logo-twitter" iconColor={colors.text} />
-              <ButtonIcon iconName="logo-instagram" iconColor={colors.text} />
-              <ButtonIcon iconName="logo-tiktok" iconColor={colors.text} />
-              <ButtonIcon iconName="logo-linkedin" iconColor={colors.text} />
+              <TouchableOpacity style={styles.socialIcon}>
+                <Ionicons name="logo-twitter" size={20} color="#1DA1F2" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialIcon}>
+                <Ionicons name="logo-instagram" size={20} color="#C13584" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialIcon}>
+                <Ionicons name="logo-tiktok" size={20} color="#000000" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialIcon}>
+                <Ionicons name="logo-linkedin" size={20} color="#0077B5" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Location & Language */}
+            <View style={styles.locationContainer}>
+              <View style={styles.infoItem}>
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={colors.subtitle}
+                />
+                <Text style={styles.infoText}>
+                  {location || "No location set"}
+                </Text>
+              </View>
+
+              <View style={styles.infoItem}>
+                <Ionicons
+                  name="language-outline"
+                  size={18}
+                  color={colors.subtitle}
+                />
+                <Text style={styles.infoText}>
+                  {languages.length > 0
+                    ? languages.join(", ")
+                    : "No languages set"}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Stats Section */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {influencer.campaigns.length}
+              </Text>
+              <Text style={styles.statLabel}>Campaigns</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{influencer.followers}</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>${influencer.earnings}</Text>
+              <Text style={styles.statLabel}>Earnings</Text>
+            </View>
+          </View>
+
+          {/* Campaign Management Section */}
+          <View style={styles.menuSection}>
+            <Text style={styles.sectionTitle}>Campaign Management</Text>
+            <View style={styles.buttonsGrid}>
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={handleCampaigns}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons
+                    name="megaphone-outline"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={styles.buttonText}>Active Campaigns</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={handlePendingCampaigns}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons
+                    name="time-outline"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={styles.buttonText}>Pending Campaigns</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
-
-        {/* LOCATION & LANGUAGE */}
-        <View style={styles.locationSection}>
-          <View style={styles.profileRow}>
-            <Ionicons
-              name="globe-outline"
-              size={18}
-              color={colors.subtitle}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.profileText}>
-              {location || "No location set"}
-            </Text>
-          </View>
-          <View style={styles.profileRow}>
-            <Ionicons
-              name="language"
-              size={18}
-              color={colors.subtitle}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.profileText}>
-              {languages.length > 0 ? languages.join(", ") : "No languages set"}
-            </Text>
-          </View>
-        </View>
-
-        {/* STATS SECTION */}
-        <View style={styles.statsSection}>
-          <View style={styles.statsItem}>
-            <Text style={styles.statsValue}>{influencer.campaigns.length}</Text>
-            <Text style={styles.statsLabel}>Campaigns</Text>
-          </View>
-          <View style={styles.statsItem}>
-            <Text style={styles.statsValue}>{influencer.followers}</Text>
-            <Text style={styles.statsLabel}>Followers</Text>
-          </View>
-          <View style={styles.statsItem}>
-            <Text style={styles.statsValue}>{influencer.earnings}</Text>
-            <Text style={styles.statsLabel}>Earnings</Text>
-          </View>
-        </View>
-
-        {/* BIG BUTTON CONTAINER */}
-        <View style={styles.bigButtonContainer}>
-          <ButtonSettings
-            iconName="megaphone-outline"
-            onPress={handleCampaigns}
-            title="Campaigns"
-            buttonColor={colors.primary}
-            iconColor={colors.text}
-          />
-          <ButtonSettings
-            iconName="time-outline"
-            onPress={handlePendingCampaigns}
-            title="Pending Campaigns"
-            buttonColor={colors.primary}
-            iconColor={colors.text}
-          />
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 function getDynamicStyles(colors) {
-  const { width } = Dimensions.get("window");
+  const { width, height } = Dimensions.get("window");
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && width >= 992;
+
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
-      padding: isDesktopWeb ? 0 : 10,
+      backgroundColor: "#f8f9fa",
+    },
+    profileHeader: {
+      width: "100%",
+      height: height * 0.25,
     },
     headerBackground: {
+      width: "100%",
+      height: "100%",
+      justifyContent: "flex-end",
+    },
+    gradient: {
       position: "absolute",
-      top: 0,
       left: 0,
       right: 0,
-      height: 140,
-      backgroundColor: colors.primary,
-      opacity: 0.7,
-      zIndex: -1,
+      top: 0,
+      bottom: 0,
     },
-    profileCard: {
-      backgroundColor: isDesktopWeb ? colors.baseContainerHeader : colors.background,
-      marginTop: isDesktopWeb ? 60 : 0,
-      marginHorizontal: isDesktopWeb ? "auto" : 0,
-      width: isDesktopWeb ? 800 : "100%",
-      borderRadius: 8,
-      padding: 20,
+    headerContent: {
+      paddingBottom: 70,
+      alignItems: "center",
+    },
+    profileImageContainer: {
+      borderWidth: 4,
+      borderColor: "#fff",
+      borderRadius: 70,
+      height: 140,
+      width: 140,
+      overflow: "hidden",
+      elevation: 6,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
+      shadowOpacity: 0.3,
       shadowRadius: 4,
-      elevation: 3,
-    },
-    profileTopSection: {
-      flexDirection: isDesktopWeb ? "row" : "column",
-      alignItems: isDesktopWeb ? "flex-start" : "center",
-      marginBottom: 20,
     },
     profileImage: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      marginRight: isDesktopWeb ? 20 : 0,
-      marginBottom: isDesktopWeb ? 0 : 10,
-      borderWidth: isDesktopWeb ? 3 : 0,
-      borderColor: "#fff",
+      height: "100%",
+      width: "100%",
     },
-    profileInfo: {
-      alignItems: isDesktopWeb ? "flex-start" : "center",
+    profileContent: {
+      marginTop: -70,
+      paddingTop: 80,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
+      backgroundColor: "#fff",
+      paddingHorizontal: 20,
+      paddingBottom: 30,
     },
-    profileName: {
-      fontSize: 22,
-      fontWeight: "bold",
-      color: colors.text,
+    profileInfoSection: {
+      marginBottom: 20,
     },
-    profileSubtitle: {
-      fontSize: 16,
-      color: colors.subtitle,
-      marginTop: 2,
-      marginBottom: 10,
-    },
-    editShareContainer: {
+    nameSection: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 10,
-      gap: 10,
+      marginBottom: 12,
     },
-    editBtn: {
+    profileName: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.text,
+      marginRight: 10,
+    },
+    accountTypeBadge: {
+      backgroundColor: "#fef3c7",
       paddingHorizontal: 12,
-      paddingVertical: 6,
+      paddingVertical: 4,
+      borderRadius: 16,
+    },
+    accountTypeText: {
+      color: "#d97706",
+      fontWeight: "600",
+      fontSize: 12,
+    },
+    actionsRow: {
+      flexDirection: "row",
+      marginBottom: 16,
+    },
+    editProfileButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      marginRight: 10,
+    },
+    editProfileText: {
+      color: "#fff",
+      fontWeight: "600",
+      fontSize: 14,
+    },
+    shareButton: {
+      backgroundColor: "#f1f5f9",
+      padding: 8,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
     },
     socialMediaContainer: {
       flexDirection: "row",
-      gap: 10,
+      marginBottom: 16,
     },
-    locationSection: {
-      marginTop: 20,
-      marginBottom: 20,
-      alignItems: isDesktopWeb ? "flex-start" : "center",
+    socialIcon: {
+      backgroundColor: "#f1f5f9",
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      marginRight: 10,
+      alignItems: "center",
+      justifyContent: "center",
     },
-    profileRow: {
+    locationContainer: {
+      marginTop: 8,
+    },
+    infoItem: {
       flexDirection: "row",
       alignItems: "center",
-      marginVertical: 2,
+      marginBottom: 8,
     },
-    profileText: {
+    infoText: {
+      marginLeft: 8,
+      color: colors.subtitle,
       fontSize: 14,
+    },
+    statsContainer: {
+      flexDirection: "row",
+      backgroundColor: "#f8fafc",
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 24,
+    },
+    statItem: {
+      flex: 1,
+      alignItems: "center",
+    },
+    statValue: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 12,
       color: colors.subtitle,
     },
-    statsSection: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      marginBottom: 20,
+    statDivider: {
+      width: 1,
+      backgroundColor: "#e2e8f0",
     },
-    statsItem: {
+    audienceCard: {
+      backgroundColor: "#f8fafc",
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 24,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    seeAllButton: {
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+    },
+    seeAllText: {
+      color: colors.primary,
+      fontWeight: "600",
+      fontSize: 14,
+    },
+    audienceStats: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    audienceStat: {
+      flexDirection: "row",
       alignItems: "center",
     },
-    statsValue: {
-      fontSize: 18,
+    audienceIconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+    audienceStatValue: {
+      fontSize: 16,
       fontWeight: "bold",
       color: colors.text,
     },
-    statsLabel: {
-      fontSize: 14,
+    audienceStatLabel: {
+      fontSize: 12,
       color: colors.subtitle,
     },
-    bigButtonContainer: {
-      marginTop: 10,
-      flexDirection: isDesktopWeb ? "row" : "column",
+    menuSection: {
+      marginBottom: 24,
+    },
+    buttonsGrid: {
+      flexDirection: "row",
       flexWrap: "wrap",
-      gap: 10,
-      justifyContent: isDesktopWeb ? "flex-start" : "center",
+      marginTop: 16,
+      marginHorizontal: -8,
     },
-    downgradeButton: {
-      marginTop: 10,
-      backgroundColor: "#FF4444",
-      padding: 10,
-      borderRadius: 8,
+    menuButton: {
+      width: "33.333%",
+      alignItems: "center",
+      paddingHorizontal: 8,
+      paddingBottom: 16,
     },
-    downgradeButtonText: {
-      color: "#fff",
-      fontSize: 16,
+    buttonIconContainer: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: `${colors.primary}10`,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 8,
+    },
+    buttonText: {
+      fontSize: 12,
+      color: colors.text,
       textAlign: "center",
+    },
+    activitySection: {
+      marginBottom: 20,
+    },
+    activityList: {
+      backgroundColor: "#f8fafc",
+      borderRadius: 12,
+      padding: 16,
+    },
+    activityItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+    },
+    activityDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 12,
+    },
+    activityContent: {
+      flex: 1,
+    },
+    activityTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.text,
+      marginBottom: 2,
+    },
+    activityDescription: {
+      fontSize: 12,
+      color: colors.subtitle,
+    },
+    activityTime: {
+      fontSize: 12,
+      color: colors.subtitle,
+    },
+    activityDivider: {
+      height: 1,
+      backgroundColor: "#e2e8f0",
     },
   });
 }

@@ -89,19 +89,19 @@ const db = {
 
   updateUser: async (id, newData) => {
     const data = loadData();
-    const userIndex = data.users.findIndex(u => u.user_id === id);
-  
+    const userIndex = data.users.findIndex((u) => u.user_id === id);
+
     if (userIndex === -1) return null;
-  
+
     const updatedUser = {
       ...data.users[userIndex],
       ...newData,
       user_id: id,
     };
-  
+
     data.users[userIndex] = updatedUser;
     saveData(data);
-  
+
     return updatedUser;
   },
 
@@ -291,6 +291,91 @@ const db = {
     data.admin_data.push(adminAction);
     saveData(data);
     return adminAction;
+  },
+
+  // Get Orders by Buyer ID
+  getOrdersByBuyer: async (buyerId) => {
+    const data = loadData();
+    const buyer = data.users.find((user) => user.user_id === parseInt(buyerId));
+    return buyer?.orders || [];
+  },
+
+  //--------------------------------------------------------------
+
+  // Create Order
+  createOrder: async (order) => {
+    const data = loadData();
+    console.log(
+      "👀 All User IDs:",
+      data.users.map((u) => ({ id: u.user_id, type: typeof u.user_id }))
+    );
+
+    console.log(
+      "Order includes buyer ID",
+      order.buyer_id,
+      "and seller ID",
+      order.seller_id
+    );
+
+    const buyer = data.users.find(
+      (u) => String(u.user_id) === String(order.buyer_id)
+    );
+    const seller = data.users.find(
+      (u) => String(u.user_id) === String(order.seller_id)
+    );
+
+    if (!buyer || !seller) {
+      return res.status(400).json({
+        error: "Failed to create order",
+        details: "❌ Buyer or Seller not found.",
+      });
+    }
+
+    // Generate unique order_id
+    const timestamp = Date.now();
+    const orderId = `ORD-${timestamp}-${Math.floor(Math.random() * 1000)}`;
+    const now = new Date().toISOString();
+
+    const orderObject = {
+      order_id: orderId,
+      product_id: order.product_id || null,
+      product_name: order.product_name || "Unnamed Product",
+      quantity: order.quantity || 1,
+      order_date: now,
+      status: order.status || "completed",
+      tracking_number: order.tracking_number || "",
+      amount: order.amount || 0,
+      buyer_id: order.buyer_id, // Use directly from order, as it's already parsed and used for finding buyer
+      seller_id: order.seller_id, // Use directly from order, as it's already parsed and used for finding seller
+
+      // ✅ Add contact + shipping info
+      buyer_first_name: order.buyer_first_name || "",
+      buyer_last_name: order.buyer_last_name || "",
+      buyer_email: order.buyer_email || "",
+      buyer_phone: order.buyer_phone || "",
+      shipping_address: order.shipping_address || "",
+      shipping_city: order.shipping_city || "",
+      shipping_province: order.shipping_province || "",
+      shipping_country: order.shipping_country || "",
+      shipping_postal_code: order.shipping_postal_code || "",
+    };
+
+    // Add to buyer's order history
+    buyer.orders = buyer.orders || [];
+    buyer.orders.push(orderObject);
+
+    // Add to seller's received_orders
+    seller.received_orders = seller.received_orders || [];
+    seller.received_orders.push(orderObject);
+
+    // Add to global order list
+    data.orders = data.orders || [];
+    data.orders.push(orderObject);
+
+    saveData(data);
+    console.log("✅ Order successfully created:", orderObject.order_id);
+
+    return orderObject;
   },
 };
 

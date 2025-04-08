@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, { createContext, useState, useContext, useEffect, Platform } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiLogin } from "../backend/db/API"; // Rename the imported function
 import { updateUser } from "../backend/db/API";
@@ -48,10 +48,52 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const storage = {
+    setItem: async (key, value) => {
+      try {
+        // For React Native
+        await AsyncStorage.setItem(key, value);
+        // For web
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(key, value);
+        }
+      } catch (error) {
+        console.error('Storage setItem error:', error);
+      }
+    },
+    getItem: async (key) => {
+      try {
+        // Try React Native first
+        const value = await AsyncStorage.getItem(key);
+        // If no value and we're on web, try localStorage
+        if (!value && typeof window !== 'undefined' && window.localStorage) {
+          return window.localStorage.getItem(key);
+        }
+        return value;
+      } catch (error) {
+        console.error('Storage getItem error:', error);
+        return null;
+      }
+    },
+    removeItem: async (key) => {
+      try {
+        // For React Native
+        await AsyncStorage.removeItem(key);
+        // For web
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem(key);
+        }
+      } catch (error) {
+        console.error('Storage removeItem error:', error);
+      }
+    }
+  };
+  
+  // Then use it in your logout function
   const logout = async () => {
     setUser(null);
-    await AsyncStorage.removeItem("user");
-    await AsyncStorage.removeItem("userRole"); // Uncomment this line if you want to clear the role on logout
+    await storage.removeItem("user");
+    await storage.removeItem("userRole");
   };
 
   const updateRole = async (newRole) => {

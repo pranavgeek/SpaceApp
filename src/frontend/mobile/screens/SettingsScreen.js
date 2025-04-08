@@ -1,5 +1,5 @@
 import React, { useLayoutEffect } from "react";
-import { View, ScrollView, Image, Alert, StyleSheet, Text } from "react-native";
+import { View, ScrollView, Image, Alert, StyleSheet, Text, Platform } from "react-native";
 import ButtonSetting from "../components/ButtonSetting";
 import BaseContainer from "../components/BaseContainer";
 import { useTheme } from "../theme/ThemeContext";
@@ -18,21 +18,23 @@ export default function SettingsScreen({ navigation }) {
   }, [navigation, colors]);
 
   const confirmLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: () => {
-            logout();
-            // Additional navigation logic if needed.
-          },
-        },
-      ],
-      { cancelable: false }
-    );
+    if (Platform.OS === 'web') {
+      // Web-specific logout
+      if (window.confirm("Are you sure you want to logout?")) {
+        logout();
+      }
+    } else {
+      // Native logout with Alert
+      Alert.alert(
+        "Logout",
+        "Are you sure you want to logout?",
+        [
+          { text: "No", style: "cancel" },
+          { text: "Yes", onPress: () => logout() },
+        ],
+        { cancelable: false }
+      );
+    }
   };
 
   const handleDowngrade = () => {
@@ -56,12 +58,12 @@ export default function SettingsScreen({ navigation }) {
 
       <BaseContainer title={"Account"}>
         <View>
-          <ButtonSetting
+          {/* <ButtonSetting
             iconName={"person-outline"}
             title={"Profile Information"}
             onPress={() => navigation.navigate("Edit Profile")}
             rightIcon={"chevron-forward"}
-          />
+          /> */}
           <ButtonSetting
             iconName={"lock-closed-outline"}
             title={"Security & Privacy"}
@@ -72,12 +74,6 @@ export default function SettingsScreen({ navigation }) {
             iconName={"card-outline"}
             title={"Payment Options"}
             onPress={() => navigation.navigate("Payment Methods")}
-            rightIcon={"chevron-forward"}
-          />
-          <ButtonSetting
-            iconName={"speedometer-outline"}
-            title={"Admin Dashboard"}
-            onPress={() => navigation.navigate("Admin Dashboard")}
             rightIcon={"chevron-forward"}
           />
           <ButtonSetting

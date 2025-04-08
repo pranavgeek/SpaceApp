@@ -1,9 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import userData from "./data.json"
+import userData from "./data.json";
+import { Platform } from "react-native";
 
+// Dynamically choose the BASE_URL based on platform
+const BASE_URL = Platform.OS === "web" 
+  ? "http://localhost:5001/api"
+  : "http://10.0.0.25:5001/api";
 
-//URL
-const BASE_URL = "http://10.0.0.25:5001/api";
+console.log(`Using API base URL: ${BASE_URL}`);
 
 //LOGIN
 export const apiLogin = async (email, password) => {
@@ -17,6 +21,80 @@ export const apiLogin = async (email, password) => {
       }
     }, 1000);
   });
+};
+
+export const createOrder = async (buyerId, orderData) => {
+  try {
+    console.log(`Creating order at: ${BASE_URL}/users/${buyerId}/orders/create`);
+    console.log("Order data:", JSON.stringify(orderData));
+    
+    const response = await fetch(`${BASE_URL}/users/${buyerId}/orders/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(orderData)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("❌ Server responded with:", errText);
+      throw new Error("Failed to create order");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+};
+
+export const getUserOrders = async (userId) => {
+  const res = await fetch(`${BASE_URL}/users/${userId}/orders`);
+  if (!res.ok) throw new Error("Failed to fetch orders");
+  return await res.json();
+};
+
+export const getSellerReceivedOrders = async (userId) => {
+  const response = await fetch(`${BASE_URL}/users/${userId}/received-orders`);
+  if (!response.ok) throw new Error("Failed to fetch received orders");
+  return await response.json();
+};
+
+
+//Tracking API
+export const submitTrackingLink = async (orderId, trackingLink) => {
+  const response = await fetch(`${BASE_URL}/orders/${orderId}/submit-tracking`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tracking_link: trackingLink,
+      submitted_by: "seller",
+    }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await response.text();
+    throw new Error(`Failed to submit tracking: ${errorMsg}`);
+  }
+
+  return await response.json();
+};
+
+export const fetchPendingTrackingLinks = async () => {
+  const response = await fetch(`${BASE_URL}/admin/pending-trackings`);
+  if (!response.ok) throw new Error("Failed to fetch pending tracking links");
+  return await response.json();
+};
+
+export const approveTrackingLink = async (orderId, trackingUrl) => {
+  const response = await fetch(`${BASE_URL}/orders/${orderId}/approve-tracking`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tracking_url: trackingUrl })
+  });
+  if (!response.ok) throw new Error("Failed to approve tracking URL");
+  return await response.json();
 };
 
 // USERS
