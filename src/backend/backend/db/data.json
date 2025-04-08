@@ -210,14 +210,90 @@
       "action": "Sign up influencer user group",
       "user_id": 3,
       "status": "pending",
-      "date_timestamp": "2025-03-18T14:00:00Z"
+      "date_timestamp": "2025-03-18T14:00:00Z",
+      "influencer_metrics": [
+        {
+          "influencer_id": 3,
+          "name": "Mike Influencer",
+          "followers_count": 100000,
+          "engagement_rate": 4.5,
+          "products_promoted": [
+            {
+              "product_id": 102,
+              "product_name": "Wireless Headphones",
+              "total_sales": 20,
+              "total_revenue": 2399.80,
+              "commission_percent": 10,
+              "commission_earned": 239.98
+            }
+          ],
+          "bonus_history": [
+            {
+              "bonus_id": 1,
+              "reason": "Reached 100 sales milestone",
+              "bonus_amount": 100,
+              "date_awarded": "2025-03-25"
+            }
+          ],
+          "application_status": "approved"
+        }
+      ],
+      "campaigns": [
+        {
+          "campaign_id": 1,
+          "product_id": 102,
+          "product": "Wireless Headphones",
+          "price": 199.99,
+          "compaign_total": 399.98
+        }
+      ]
     },
     {
       "admin_id": 502,
       "action": "Sign up seller user group",
       "user_id": 2,
       "status": "confirmed",
-      "date_timestamp": "2025-03-18T15:00:00Z"
+      "date_timestamp": "2025-03-18T15:00:00Z",
+      "products": [
+        {
+          "product_id": 102,
+          "product_name": "Wireless Headphones",
+          "category": "headphones",
+          "product_image": "headphone.jpg",
+          "cost": 120,
+          "currency": "USD"
+        }
+      ]
+    },
+    {
+      "admin_id": 503,
+      "action": "Order purchase",
+      "user_id": 3,
+      "status": "completed",
+      "date_timestamp": "2025-03-18T16:00:00Z",
+      "order": [
+        {
+          "order_id": 1,
+          "items": [
+            {
+              "product_id": 102,
+              "product_name": "Wireless Headphones",
+              "category": "headphones",
+              "product_image": "headphone.jpg",
+              "quantity": 1,
+              "cost": 120,
+              "currency": "USD"
+            },
+            {
+              "item_id": 1002,
+              "name": "Mechanical Keyboard",
+              "quantity": 1,
+              "price": 120.00
+            }
+          ],
+          "Influencer_code": "{user_id:2}_{product_id:102}"
+        }
+      ]
     }
   ]
 }

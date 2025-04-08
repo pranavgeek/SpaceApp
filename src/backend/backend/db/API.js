@@ -1,4 +1,4 @@
-const BASE_URL = "http://192.168.1.x:5000/api";
+const BASE_URL = "http://localhost:5000/api";
 import userData from "./data.json"
 
 //LOGIN
