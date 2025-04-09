@@ -45,6 +45,50 @@
       ],
       "following_count": 5,
       "role": "buyer",
+      "orders": [
+        {
+          "order_id": "ORD-1744052528949-10",
+          "product_id": 102,
+          "product_name": "Wireless Headphones",
+          "quantity": 1,
+          "order_date": "2025-04-07T19:02:08.950Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 120,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "John",
+          "buyer_last_name": "Deo",
+          "buyer_email": "John@gmail.com",
+          "buyer_phone": "4252628280",
+          "shipping_address": "Wedgewood Dr",
+          "shipping_city": "London",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N5Y 2G7"
+        },
+        {
+          "order_id": "ORD-1744063126853-307",
+          "product_id": 101,
+          "product_name": "Smartphone",
+          "quantity": 1,
+          "order_date": "2025-04-07T21:58:46.854Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 699,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "John",
+          "buyer_last_name": "Doe",
+          "buyer_email": "John@example.com",
+          "buyer_phone": "5192804167",
+          "shipping_address": "Wedgewood dr",
+          "shipping_city": "London",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N5Y 2G7"
+        }
+      ],
       "id": "1"
     },
     {
@@ -79,7 +123,51 @@
         }
       ],
       "followers_count": 5,
-      "earnings": 500
+      "earnings": 500,
+      "received_orders": [
+        {
+          "order_id": "ORD-1744052528949-10",
+          "product_id": 102,
+          "product_name": "Wireless Headphones",
+          "quantity": 1,
+          "order_date": "2025-04-07T19:02:08.950Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 120,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "John",
+          "buyer_last_name": "Deo",
+          "buyer_email": "John@gmail.com",
+          "buyer_phone": "4252628280",
+          "shipping_address": "Wedgewood Dr",
+          "shipping_city": "London",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N5Y 2G7"
+        },
+        {
+          "order_id": "ORD-1744063126853-307",
+          "product_id": 101,
+          "product_name": "Smartphone",
+          "quantity": 1,
+          "order_date": "2025-04-07T21:58:46.854Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 699,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "John",
+          "buyer_last_name": "Doe",
+          "buyer_email": "John@example.com",
+          "buyer_phone": "5192804167",
+          "shipping_address": "Wedgewood dr",
+          "shipping_city": "London",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N5Y 2G7"
+        }
+      ]
     },
     {
       "user_id": 3,
@@ -188,6 +276,12 @@
       "message_content": "Yes, it’s available. Would you like more details?",
       "add_file": null,
       "date_timestamp_sent": "2025-03-20T12:05:00Z"
+    },
+    {
+      "sender_id": 2,
+      "receiver_id": 1,
+      "timestamp": "2025-04-08T20:03:40.577Z",
+      "content": "📦 Your order has shipped! Track it here: https://esqa.moneris.com/mpg/admin/chkt_config/index.php"
     }
   ],
   "notifications": [
@@ -202,6 +296,14 @@
       "user_id": 2,
       "message": "New review received on your product.",
       "date_timestamp": "2025-03-19T10:00:00Z"
+    },
+    {
+      "user_id": 1,
+      "message": "Your tracking link for order #ORD-1744052528949-10 is now available. Sent by Sarah Smith",
+      "date_timestamp": "2025-04-08T20:03:40.582Z",
+      "link": "https://esqa.moneris.com/mpg/admin/chkt_config/index.php",
+      "order_id": "ORD-1744052528949-10",
+      "notification_id": 3
     }
   ],
   "admin_data": [
@@ -218,6 +320,53 @@
       "user_id": 2,
       "status": "confirmed",
       "date_timestamp": "2025-03-18T15:00:00Z"
+    }
+  ],
+  "orders": [
+    {
+      "order_id": "ORD-1744052528949-10",
+      "product_id": 102,
+      "product_name": "Wireless Headphones",
+      "quantity": 1,
+      "order_date": "2025-04-07T19:02:08.950Z",
+      "status": "Completed",
+      "tracking_number": "https://esqa.moneris.com/mpg/admin/chkt_config/index.php",
+      "amount": 120,
+      "buyer_id": 1,
+      "seller_id": 2,
+      "buyer_first_name": "John",
+      "buyer_last_name": "Deo",
+      "buyer_email": "John@gmail.com",
+      "buyer_phone": "4252628280",
+      "shipping_address": "Wedgewood Dr",
+      "shipping_city": "London",
+      "shipping_province": "Ontario",
+      "shipping_country": "Canada",
+      "shipping_postal_code": "N5Y 2G7",
+      "tracking_approval_status": "approved"
+    },
+    {
+      "order_id": "ORD-1744139882862-849",
+      "product_id": 102,
+      "product_name": "Wireless Headphones",
+      "quantity": 1,
+      "order_date": "2025-04-08T19:18:02.862Z",
+      "status": "Completed",
+      "tracking_number": "",
+      "amount": 120,
+      "buyer_id": 1,
+      "seller_id": 2,
+      "buyer_first_name": "Pranav",
+      "buyer_last_name": "Gotawala",
+      "buyer_email": "pranavgotawala@gmail.com",
+      "buyer_phone": "5192804167",
+      "shipping_address": "287 Wedgewood Dr",
+      "shipping_city": "London",
+      "shipping_province": "Ontario",
+      "shipping_country": "Canada",
+      "shipping_postal_code": "N5Y 2G7",
+      "pending_tracking_link": "https://ariweinkle.com/",
+      "tracking_approval_status": "pending"
     }
   ]
 }

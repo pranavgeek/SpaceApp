@@ -25,7 +25,7 @@ import { useCart } from "../context/CartContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
 import { mockCities } from "../data/MockData.js";
-import { fetchProducts } from "../backend/db/API.js";
+import { fetchProducts, fetchUsers } from "../backend/db/API.js";
 import AccountSwitchOverlay from "../components/AccountSwitchOverlay.js";
 
 export default function HomeScreen({ navigation }) {
@@ -54,7 +54,9 @@ export default function HomeScreen({ navigation }) {
   ]);
 
   // City dropdown states – will be updated dynamically based on the selected country
-  const [cityItems, setCityItems] = useState([{ label: "All Cities", value: "" }]);
+  const [cityItems, setCityItems] = useState([
+    { label: "All Cities", value: "" },
+  ]);
   const [cityOpen, setCityOpen] = useState(false);
 
   // Mobile Category Dropdown states (using DropDownPicker for category)
@@ -90,7 +92,10 @@ export default function HomeScreen({ navigation }) {
   const styles = getDynamicStyles(colors);
 
   const { cartItems } = useCart();
-  const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const totalItems = cartItems.reduce(
+    (sum, item) => sum + (item.quantity || 1),
+    0
+  );
   const windowWidth = Dimensions.get("window").width;
   const windowHeight = Dimensions.get("window").height;
 
@@ -191,10 +196,20 @@ export default function HomeScreen({ navigation }) {
   const [fetchedProjects, setFetchedProjects] = useState([]);
 
   useEffect(() => {
-    fetchProducts()
-      .then((data) => {
-        // Map each product to the structure expected by ProjectCard.
-        const mappedProjects = data.map((product) => ({
+    const loadData = async () => {
+      try {
+        const [products, users] = await Promise.all([
+          fetchProducts(),
+          fetchUsers(),
+        ]);
+
+        // Map seller ID to their actual name
+        const sellerMap = {};
+        users.forEach((user) => {
+          sellerMap[user.user_id] = user.name;
+        });
+
+        const mappedProjects = products.map((product) => ({
           id: product.product_id.toString(),
           category: product.category,
           project: {
@@ -204,19 +219,26 @@ export default function HomeScreen({ navigation }) {
               ? product.product_image
               : `http://10.0.0.25:5001/${product.product_image}`,
             price: product.cost,
-            likes: 0, // Default like count if not provided
+            likes: 0,
             summary: product.summary,
+            user_seller: product.user_seller, // seller_id passed to cart
           },
-          // Supply default creator data since the API doesn't provide it.
           creator: {
-            name: `Seller ${product.user_seller}`,
+            name:
+              sellerMap[product.user_seller] || `Seller ${product.user_seller}`,
             image: "https://via.placeholder.com/150",
           },
         }));
+
         setFetchedProjects(mappedProjects);
-      })
-      .catch((error) => console.error("Error fetching products:", error));
+      } catch (error) {
+        console.error("Error loading products or users:", error);
+      }
+    };
+
+    loadData();
   }, []);
+
   // --------------------------
 
   // Price ranges (example)
@@ -227,40 +249,46 @@ export default function HomeScreen({ navigation }) {
     { min: 500, max: Infinity, display: "$500+" },
   ];
 
-
   const [showOverlay, setShowOverlay] = useState(null); // "Seller", "Influencer"
   // Check if the user has switched accounts and set the overlay accordingly.
   useEffect(() => {
-  const checkAccountSwitch = async () => {
-    const switchedRole = await AsyncStorage.getItem("switchedRole");
-    console.log("🔎 Switched role from AsyncStorage:", switchedRole);
-    
-    if (switchedRole) {
-      setShowOverlay(switchedRole); // This triggers the overlay
-      await AsyncStorage.removeItem("switchedRole");
-    }
-  };
-  checkAccountSwitch();
-}, []);
+    const checkAccountSwitch = async () => {
+      const switchedRole = await AsyncStorage.getItem("switchedRole");
+      console.log("🔎 Switched role from AsyncStorage:", switchedRole);
 
-  
+      if (switchedRole) {
+        setShowOverlay(switchedRole); // This triggers the overlay
+        await AsyncStorage.removeItem("switchedRole");
+      }
+    };
+    checkAccountSwitch();
+  }, []);
 
   // Filtering logic now checks category, price, country, and city.
   function checkPriceRange(range, price) {
     return price >= range.min && price <= range.max;
   }
   const filteredProjects = fetchedProjects.filter((project) => {
-    const categoryMatch = !selectedFilter || project.category === selectedFilter;
+    const categoryMatch =
+      !selectedFilter || project.category === selectedFilter;
     const priceMatch =
       selectedPriceRanges.length === 0 ||
-      selectedPriceRanges.some((range) => checkPriceRange(range, project.project.price));
-    const countryMatch = selectedCountry === "" || project.project.country === selectedCountry;
-    const cityMatch = selectedCity === "" || project.project.city === selectedCity;
+      selectedPriceRanges.some((range) =>
+        checkPriceRange(range, project.project.price)
+      );
+    const countryMatch =
+      selectedCountry === "" || project.project.country === selectedCountry;
+    const cityMatch =
+      selectedCity === "" || project.project.city === selectedCity;
     const searchMatch =
       searchQuery === "" ||
       project.project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.project.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return categoryMatch && priceMatch && countryMatch && cityMatch && searchMatch;
+      project.project.description
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+    return (
+      categoryMatch && priceMatch && countryMatch && cityMatch && searchMatch
+    );
   });
 
   // Handle filter button press
@@ -279,7 +307,8 @@ export default function HomeScreen({ navigation }) {
   const renderWebCheckboxes = (options, selectedValues, setSelectedValues) => (
     <View style={styles.webCheckboxContainer}>
       {options.map((option) => {
-        const displayValue = typeof option === "object" ? option.display : option;
+        const displayValue =
+          typeof option === "object" ? option.display : option;
         const isSelected = selectedValues.some((value) => {
           if (typeof option === "object" && typeof value === "object") {
             return option.min === value.min && option.max === value.max;
@@ -313,7 +342,11 @@ export default function HomeScreen({ navigation }) {
   );
 
   // Render mobile price range checkboxes
-  const renderMobilePriceCheckboxes = (priceOptions, selectedValues, setSelectedValues) => (
+  const renderMobilePriceCheckboxes = (
+    priceOptions,
+    selectedValues,
+    setSelectedValues
+  ) => (
     <View style={styles.mobileCheckboxContainer}>
       {priceOptions.map((option) => {
         const isSelected = selectedValues.some(
@@ -342,276 +375,346 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 
-
-  return (   
+  return (
     <>
-    {showOverlay && (
-      <AccountSwitchOverlay
-        role={showOverlay}
-        onDone={() => setShowOverlay(null)}
-      />
-    )}
-    
-    <SafeAreaView style={styles.safeArea}>
-      {/* CUSTOM HEADER */}
-      <View style={styles.customHeader}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={require("../assets/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+      {showOverlay && (
+        <AccountSwitchOverlay
+          role={showOverlay}
+          onDone={() => setShowOverlay(null)}
+        />
+      )}
+
+      <SafeAreaView style={styles.safeArea}>
+        {/* CUSTOM HEADER */}
+        <View style={styles.customHeader}>
+          <View style={styles.headerLeft}>
+            <Image
+              source={require("../assets/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.headerTitle} />
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              style={styles.cartIconContainer}
+              onPress={() => navigation.navigate("CartScreen")}
+            >
+              <Icon name="shoppingcart" size={26} color={colors.subtitle} />
+              {totalItems > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{totalItems}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-        <Text style={styles.headerTitle} />
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
+
+        {/* SEARCH BAR */}
+        <View style={styles.searchBarContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search..."
+            placeholderTextColor={colors.subtitle}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
           <TouchableOpacity
-            style={styles.cartIconContainer}
-            onPress={() => navigation.navigate("CartScreen")}
+            style={styles.filterIcon}
+            onPress={handleFilterPress}
           >
-            <Icon name="shoppingcart" size={26} color={colors.subtitle} />
-            {totalItems > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{totalItems}</Text>
-              </View>
-            )}
+            <Ionicons name="filter" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* SEARCH BAR */}
-      <View style={styles.searchBarContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search..."
-          placeholderTextColor={colors.subtitle}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <TouchableOpacity style={styles.filterIcon} onPress={handleFilterPress}>
-          <Ionicons name="filter" size={20} color={colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      {/* DESKTOP WEB LAYOUT */}
-      {isDesktopWeb ? (
-        <View style={styles.webContainer}>
-          <Animated.View
-            style={[styles.webFilterPanel, { transform: [{ translateX: panelAnim }] }]}
-          >
-            <Text style={styles.webFilterTitle}>Filter Options</Text>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Category:</Text>
-              <select
-                value={selectedFilter}
-                onChange={(e) => setSelectedFilter(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  fontSize: 16,
-                  border: "1px solid #ccc",
-                  borderRadius: 4,
-                  marginBottom: 10,
-                }}
-              >
-                <option value="">All Categories</option>
-                <option value="Software">Software</option>
-                <option value="Hardware">Hardware</option>
-                <option value="AI Tools">AI Tools</option>
-                <option value="Cloud">Cloud</option>
-                <option value="Feature">Feature</option>
-                <option value="Startups">Startups</option>
-                <option value="Creators">Creators</option>
-              </select>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Price Range:</Text>
-              {renderWebCheckboxes(priceRanges, selectedPriceRanges, setSelectedPriceRanges)}
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Country:</Text>
-              <select
-                value={selectedCountry}
-                onChange={(e) => setSelectedCountry(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  fontSize: 16,
-                  border: "1px solid #ccc",
-                  borderRadius: 4,
-                }}
-              >
-                {countryItems.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>City:</Text>
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  fontSize: 16,
-                  border: "1px solid #ccc",
-                  borderRadius: 4,
-                }}
-              >
-                {cityItems.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </View>
-            <TouchableOpacity
-              style={styles.applyButton}
-              onPress={() => setShowPanel(false)}
+        {/* DESKTOP WEB LAYOUT */}
+        {isDesktopWeb ? (
+          <View style={styles.webContainer}>
+            <Animated.View
+              style={[
+                styles.webFilterPanel,
+                { transform: [{ translateX: panelAnim }] },
+              ]}
             >
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
-            </TouchableOpacity>
-          </Animated.View>
-          <Animated.View
-            style={[styles.webContentContainer, { transform: [{ translateX: contentAnim }] }]}
-          >
-            <ScrollView>
-              <View style={styles.horizontalCardContainer}>
-                {filteredProjects.map((item) => (
-                  <View key={item.id} style={styles.webCardWrapper}>
-                    <ProjectCard
-                      item={item}
-                      onPress={() =>
-                        navigation.navigate("Project", {
-                          project: item.project,
-                          creator: item.creator,
-                        })
-                      }
-                    />
-                  </View>
-                ))}
-                {filteredProjects.length === 0 && (
-                  <Text style={{ margin: 16 }}>No items found.</Text>
-                )}
-              </View>
-            </ScrollView>
-          </Animated.View>
-        </View>
-      ) : (
-        // MOBILE LAYOUT
-        <ScrollView style={styles.content}>
-          <FlatList
-            data={filteredProjects}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <ProjectCard
-                item={item}
-                onPress={() =>
-                  navigation.navigate("Project", {
-                    project: item.project,
-                    creator: item.creator,
-                  })
-                }
-              />
-            )}
-            ListEmptyComponent={<Text style={{ margin: 16 }}>No items found.</Text>}
-          />
-        </ScrollView>
-      )}
-
-      {/* MODAL for mobile filter options */}
-      {(isMobileWeb || isNativeMobile) && (
-        <Modal transparent={true} visible={showModal} animationType="none">
-          <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} />
-          </TouchableWithoutFeedback>
-          <Animated.View style={[styles.bottomSheetContainer, { transform: [{ translateY: slideUpAnim }] }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter Options</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-              <View style={[styles.filterSection, { zIndex: 3000 }]}>
+              <Text style={styles.webFilterTitle}>Filter Options</Text>
+              <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Category:</Text>
-                <DropDownPicker
-                  open={categoryOpen}
-                  value={categoryValue || ""}
-                  items={categoryItems && categoryItems.length > 0 ? categoryItems : [{ label: "No Categories", value: "" }]}
-                  setOpen={setCategoryOpen}
-                  setValue={setCategoryValue}
-                  setItems={setCategoryItems}
-                  placeholder="Select a category"
-                  style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
-                  dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
-                  containerStyle={{ overflow: "visible", zIndex: 3000 }}
-                  zIndex={3000}
-                  zIndexInverse={1000}
-                />
+                <select
+                  value={selectedFilter}
+                  onChange={(e) => setSelectedFilter(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    fontSize: 16,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                    marginBottom: 10,
+                  }}
+                >
+                  <option value="">All Categories</option>
+                  <option value="Software">Software</option>
+                  <option value="Hardware">Hardware</option>
+                  <option value="AI Tools">AI Tools</option>
+                  <option value="Cloud">Cloud</option>
+                  <option value="Feature">Feature</option>
+                  <option value="Startups">Startups</option>
+                  <option value="Creators">Creators</option>
+                </select>
               </View>
-
-              {/* Horizontal container for Country and City dropdowns */}
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
-                <View style={{ flex: 1, marginRight: 5 }}>
-                  <Text style={styles.filterLabel}>Country:</Text>
-                  <DropDownPicker
-                    open={modalCountryOpen}
-                    value={modalCountry || ""}
-                    items={countryItems && countryItems.length > 0 ? countryItems : [{ label: "No Countries", value: "" }]}
-                    setOpen={setModalCountryOpen}
-                    setValue={setModalCountry}
-                    setItems={setCountryItems}
-                    placeholder="Country"
-                    style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
-                    dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
-                    containerStyle={{ overflow: "visible" }}
-                    zIndex={2000}
-                    zIndexInverse={900}
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 5 }}>
-                  <Text style={styles.filterLabel}>City:</Text>
-                  <DropDownPicker
-                    open={cityOpen}
-                    value={modalCity || ""}
-                    items={cityItems && cityItems.length > 0 ? cityItems : [{ label: "No Cities", value: "" }]}
-                    setOpen={setCityOpen}
-                    setValue={setModalCity}
-                    setItems={setCityItems}
-                    placeholder="City"
-                    style={{ borderColor: "#ccc", borderWidth: 1, borderRadius: 4 }}
-                    dropDownContainerStyle={{ borderColor: "#ccc", borderWidth: 1 }}
-                    containerStyle={{ overflow: "visible" }}
-                    zIndex={1000}
-                    zIndexInverse={800}
-                  />
-                </View>
-              </View>
-
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Price Range:</Text>
-                {renderMobilePriceCheckboxes(priceRanges, modalPriceRanges, setModalPriceRanges)}
+                {renderWebCheckboxes(
+                  priceRanges,
+                  selectedPriceRanges,
+                  setSelectedPriceRanges
+                )}
               </View>
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.applyButton}
-              onPress={() => {
-                setSelectedPriceRanges([...modalPriceRanges]);
-                setSelectedCountry(modalCountry);
-                setSelectedCity(modalCity);
-                setSelectedFilter(categoryValue);
-                setShowModal(false);
-              }}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Country:</Text>
+                <select
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    fontSize: 16,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                  }}
+                >
+                  {countryItems.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>City:</Text>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    fontSize: 16,
+                    border: "1px solid #ccc",
+                    borderRadius: 4,
+                  }}
+                >
+                  {cityItems.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </View>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => setShowPanel(false)}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.webContentContainer,
+                { transform: [{ translateX: contentAnim }] },
+              ]}
             >
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </Modal>
-      )}
-    </SafeAreaView>
+              <ScrollView>
+                <View style={styles.horizontalCardContainer}>
+                  {filteredProjects.map((item) => (
+                    <View key={item.id} style={styles.webCardWrapper}>
+                      <ProjectCard
+                        item={item}
+                        onPress={() =>
+                          navigation.navigate("Project", {
+                            project: item.project,
+                            creator: item.creator,
+                          })
+                        }
+                      />
+                    </View>
+                  ))}
+                  {filteredProjects.length === 0 && (
+                    <Text style={{ margin: 16 }}>No items found.</Text>
+                  )}
+                </View>
+              </ScrollView>
+            </Animated.View>
+          </View>
+        ) : (
+          // MOBILE LAYOUT
+          <View style={styles.content}>
+            <FlatList
+              data={filteredProjects}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <ProjectCard
+                  item={item}
+                  onPress={() =>
+                    navigation.navigate("Project", {
+                      project: item.project,
+                      creator: item.creator,
+                    })
+                  }
+                />
+              )}
+              ListEmptyComponent={
+                <Text style={{ margin: 16 }}>No items found.</Text>
+              }
+            />
+          </View>
+        )}
+
+        {/* MODAL for mobile filter options */}
+        {(isMobileWeb || isNativeMobile) && (
+          <Modal transparent={true} visible={showModal} animationType="none">
+            <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: "rgba(0,0,0,0.5)" },
+                ]}
+              />
+            </TouchableWithoutFeedback>
+            <Animated.View
+              style={[
+                styles.bottomSheetContainer,
+                { transform: [{ translateY: slideUpAnim }] },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Filter Options</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={{ flex: 1 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={[styles.filterSection, { zIndex: 3000 }]}>
+                  <Text style={styles.filterLabel}>Category:</Text>
+                  <DropDownPicker
+                    open={categoryOpen}
+                    value={categoryValue || ""}
+                    items={
+                      categoryItems && categoryItems.length > 0
+                        ? categoryItems
+                        : [{ label: "No Categories", value: "" }]
+                    }
+                    setOpen={setCategoryOpen}
+                    setValue={setCategoryValue}
+                    setItems={setCategoryItems}
+                    placeholder="Select a category"
+                    style={{
+                      borderColor: "#ccc",
+                      borderWidth: 1,
+                      borderRadius: 4,
+                    }}
+                    dropDownContainerStyle={{
+                      borderColor: "#ccc",
+                      borderWidth: 1,
+                    }}
+                    containerStyle={{ overflow: "visible", zIndex: 3000 }}
+                    zIndex={3000}
+                    zIndexInverse={1000}
+                  />
+                </View>
+
+                {/* Horizontal container for Country and City dropdowns */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginBottom: 20,
+                  }}
+                >
+                  <View style={{ flex: 1, marginRight: 5 }}>
+                    <Text style={styles.filterLabel}>Country:</Text>
+                    <DropDownPicker
+                      open={modalCountryOpen}
+                      value={modalCountry || ""}
+                      items={
+                        countryItems && countryItems.length > 0
+                          ? countryItems
+                          : [{ label: "No Countries", value: "" }]
+                      }
+                      setOpen={setModalCountryOpen}
+                      setValue={setModalCountry}
+                      setItems={setCountryItems}
+                      placeholder="Country"
+                      style={{
+                        borderColor: "#ccc",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                      }}
+                      dropDownContainerStyle={{
+                        borderColor: "#ccc",
+                        borderWidth: 1,
+                      }}
+                      containerStyle={{ overflow: "visible" }}
+                      zIndex={2000}
+                      zIndexInverse={900}
+                    />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 5 }}>
+                    <Text style={styles.filterLabel}>City:</Text>
+                    <DropDownPicker
+                      open={cityOpen}
+                      value={modalCity || ""}
+                      items={
+                        cityItems && cityItems.length > 0
+                          ? cityItems
+                          : [{ label: "No Cities", value: "" }]
+                      }
+                      setOpen={setCityOpen}
+                      setValue={setModalCity}
+                      setItems={setCityItems}
+                      placeholder="City"
+                      style={{
+                        borderColor: "#ccc",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                      }}
+                      dropDownContainerStyle={{
+                        borderColor: "#ccc",
+                        borderWidth: 1,
+                      }}
+                      containerStyle={{ overflow: "visible" }}
+                      zIndex={1000}
+                      zIndexInverse={800}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Price Range:</Text>
+                  {renderMobilePriceCheckboxes(
+                    priceRanges,
+                    modalPriceRanges,
+                    setModalPriceRanges
+                  )}
+                </View>
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => {
+                  setSelectedPriceRanges([...modalPriceRanges]);
+                  setSelectedCountry(modalCountry);
+                  setSelectedCity(modalCity);
+                  setSelectedFilter(categoryValue);
+                  setShowModal(false);
+                }}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </Modal>
+        )}
+      </SafeAreaView>
     </>
   );
 }
@@ -628,7 +731,7 @@ const getDynamicStyles = (colors) =>
       alignItems: "center",
       paddingHorizontal: 15,
       height: 60,
-      backgroundColor: colors.baseContainerHeader,
+      backgroundColor: 'transparent',
     },
     headerLeft: {
       marginRight: 10,

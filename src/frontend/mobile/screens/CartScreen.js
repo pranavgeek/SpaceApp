@@ -14,12 +14,14 @@ import Icon from "react-native-vector-icons/AntDesign";
 import { useCart } from "../context/CartContext";
 import { useTheme } from "../theme/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
+import { useAuth } from "../context/AuthContext";
 
 export default function CartScreen() {
   const { cartItems, removeFromCart, updateItemQuantity } = useCart();
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
   const navigation = useNavigation();
+  const { user } = useAuth(); // Get logged-in user
 
   // For shipping & discount logic (used for large web only)
   const [shippingMethod, setShippingMethod] = useState("free");
@@ -66,8 +68,38 @@ export default function CartScreen() {
   };
 
   const handleCheckout = () => {
-    navigation.navigate("Checkout");
+    const cartItem = cartItems[0];
+  
+    if (!cartItem) {
+      console.error("🚫 No item in cart.");
+      return;
+    }
+  
+    const productId = cartItem.product_id || cartItem.id || cartItem.project_id;
+    const quantity = cartItem.quantity || 1;
+    const seller_id = cartItem.seller_id;
+    const buyer_id = user?.user_id;
+  
+    console.log("🛒 Final cart item:", cartItem);
+    console.log("🛒 Passing to Checkout:", {
+      productId,
+      quantity,
+      total: total.toFixed(2),
+      buyer_id,
+      seller_id,
+    });
+  
+    navigation.navigate("ContactForm", {
+      total: total.toFixed(2),
+      productId,
+      quantity,
+      buyer_id,
+      seller_id,
+      product_name: cartItem.name,
+    });
   };
+  
+  
 
   const decrementQuantity = (item) => {
     if (item.quantity > 1) {
@@ -392,7 +424,7 @@ export default function CartScreen() {
             style={styles.checkoutButton}
             onPress={handleCheckout}
           >
-            <Text style={styles.checkoutButtonText}>Checkout</Text>
+            <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
           </TouchableOpacity>
         </View>
       )}

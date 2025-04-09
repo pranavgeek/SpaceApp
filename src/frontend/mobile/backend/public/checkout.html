@@ -1,0 +1,327 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Moneris Checkout</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <script src="https://gatewayt.moneris.com/chktv2/js/chkt_v2.00.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      #monerisCheckout {
+        width: 100%;
+        flex: 1;
+        border: none;
+      }
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        padding: 20px;
+        text-align: center;
+        display: none;
+      }
+      .success-icon {
+        width: 80px;
+        height: 80px;
+        background-color: #2e7d32;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 40px;
+        margin-bottom: 20px;
+      }
+      .success-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #2e7d32;
+      }
+      .success-message {
+        font-size: 16px;
+        margin-bottom: 30px;
+        color: #333;
+      }
+      .order-details {
+        background-color: #f5f5f5;
+        padding: 16px;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 300px;
+        margin-bottom: 20px;
+      }
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+      .detail-label {
+        font-weight: bold;
+        color: #555;
+      }
+      .message {
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin: 16px;
+        font-size: 14px;
+        text-align: center;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+      }
+      .error {
+        background-color: #d32f2f;
+      }
+      .progress-bar {
+        width: 100%;
+        max-width: 300px;
+        height: 4px;
+        background-color: #e0e0e0;
+        border-radius: 2px;
+        margin-top: 20px;
+        overflow: hidden;
+      }
+      .progress-indicator {
+        height: 100%;
+        background-color: #2e7d32;
+        width: 0%;
+        transition: width 3s linear;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="monerisCheckout"></div>
+    <div id="message" class="message" style="display: none"></div>
+
+    <!-- Success Overlay -->
+    <div id="successOverlay" class="overlay">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Payment Successful!</div>
+      <div class="success-message">Your transaction has been completed successfully.</div>
+      <div class="order-details">
+        <div class="detail-row">
+          <span class="detail-label">Amount:</span>
+          <span id="successAmount">$0.00</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Order ID:</span>
+          <span id="successOrderId">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Transaction ID:</span>
+          <span id="successTxnId">Not returned</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Date:</span>
+          <span id="successDate">-</span>
+        </div>
+      </div>
+      <p>Returning to app homepage...</p>
+      <div class="progress-bar">
+        <div id="progressIndicator" class="progress-indicator"></div>
+      </div>
+    </div>
+
+    <!-- Failure Overlay -->
+    <div id="failureOverlay" class="overlay">
+      <div class="success-icon" style="background-color: #d32f2f;">✕</div>
+      <div class="success-title" style="color: #d32f2f;">Payment Failed</div>
+      <div class="success-message">Unfortunately, your payment could not be processed.</div>
+      <p>Redirecting back to app...</p>
+      <div class="progress-bar">
+        <div id="failureProgress" class="progress-indicator" style="background-color: #d32f2f;"></div>
+      </div>
+    </div>
+
+    <script>
+      const getQueryParam = (key) => new URLSearchParams(window.location.search).get(key);
+      const amount = getQueryParam("total") || "99.99";
+      const productId = getQueryParam("productId") || "";
+      const quantity = getQueryParam("quantity") || "1";
+      const productName = getQueryParam("product_name") || "Unnamed Product";
+
+      // Add a log to verify parameters are received correctly
+      console.log("Checkout parameters:", { amount, productId, quantity, productName });
+
+      // Determine if we're running in an iframe (web) or WebView (mobile)
+      const isInIframe = window.self !== window.top;
+      const isInWebView = !!window.ReactNativeWebView;
+      console.log("Environment:", { isInIframe, isInWebView });
+
+      const showMessage = (text, type = "success") => {
+        const div = document.getElementById("message");
+        div.className = `message ${type}`;
+        div.textContent = text;
+        div.style.display = "block";
+        setTimeout(() => {
+          div.style.display = "none";
+        }, 5000);
+      };
+
+      // Function to safely send messages back to the parent/React Native
+      const sendMessage = (data) => {
+        const jsonData = JSON.stringify(data);
+        console.log("Sending message:", jsonData);
+        
+        if (isInWebView && window.ReactNativeWebView) {
+          // For mobile WebView
+          window.ReactNativeWebView.postMessage(jsonData);
+        } else if (isInIframe) {
+          // For web iframe
+          window.parent.postMessage(jsonData, "*");
+        } else {
+          console.log("Message would be sent:", data);
+        }
+      };
+
+      const showSuccessOverlay = (orderDetails) => {
+        document.getElementById("successAmount").textContent = `$${orderDetails.amount}`;
+        document.getElementById("successOrderId").textContent = orderDetails.orderId || "N/A";
+        document.getElementById("successTxnId").textContent = orderDetails.transactionId || "N/A";
+        document.getElementById("successDate").textContent = new Date().toLocaleString();
+        document.getElementById("successOverlay").style.display = "flex";
+        document.getElementById("monerisCheckout").style.display = "none";
+
+        const progress = document.getElementById("progressIndicator");
+        progress.style.width = "0%";
+        setTimeout(() => {
+          progress.style.width = "100%";
+        }, 1000);
+        setTimeout(() => navigateToHome(orderDetails), 3000);
+      };
+
+      const showFailureOverlay = (orderDetails) => {
+        document.getElementById("failureOverlay").style.display = "flex";
+        document.getElementById("monerisCheckout").style.display = "none";
+
+        const progress = document.getElementById("failureProgress");
+        progress.style.width = "0%";
+        setTimeout(() => {
+          progress.style.width = "100%";
+        }, 50);
+        setTimeout(() => navigateToHome(orderDetails), 3000);
+      };
+
+      const navigateToHome = (orderDetails) => {
+        sendMessage({
+          type: "navigation",
+          target: "Home",
+          orderDetails
+        });
+      };
+
+      const initializeMonerisCheckout = (ticket) => {
+        const checkout = new window.monerisCheckout();
+        checkout.setMode("qa");
+        checkout.setCheckoutDiv("monerisCheckout");
+
+        checkout.setCallback("payment_complete", (response) => {
+          let parsed = typeof response === "string" ? JSON.parse(response) : response;
+          if (typeof parsed.paymentDetails === "string") {
+            parsed.paymentDetails = JSON.parse(parsed.paymentDetails);
+          }
+
+          const code = parseInt(parsed.response_code || parsed.paymentDetails?.response_code, 10);
+          const isSuccess = !isNaN(code) && code < 50;
+
+          const orderDetails = {
+            transactionId: parsed.txn_num || "Not returned",
+            orderId: parsed.order_id || "Not returned",
+            amount,
+            productId,
+            quantity,
+            product_name: productName,
+            date: new Date().toISOString(),
+            status: isSuccess ? "Completed" : "failed",
+            paymentDetails: parsed,
+          };
+
+          // Send message to parent application
+          sendMessage({
+            type: "payment_response",
+            success: isSuccess,
+            orderDetails,
+            message: parsed.message || ""
+          });
+
+          isSuccess ? showSuccessOverlay(orderDetails) : showFailureOverlay(orderDetails);
+        });
+
+        checkout.setCallback("cancel_transaction", () => {
+          showMessage("Payment canceled", "error");
+          sendMessage({
+            type: "payment_response",
+            success: false,
+            message: "Payment canceled by user"
+          });
+        });
+
+        checkout.setCallback("error_event", (error) => {
+          showMessage("Payment error: " + (error.message || "Unknown error"), "error");
+          sendMessage({
+            type: "error",
+            message: error.message || "Payment processing error"
+          });
+        });
+
+        checkout.startCheckout(ticket);
+      };
+
+      const fetchTicketAndStart = () => {
+        // Send a message that payment is starting
+        sendMessage({ type: "payment_started" });
+        
+        // Determine the API URL based on whether we're in web or mobile
+        const apiBaseUrl = isInIframe ? "http://localhost:5001" : "http://10.0.0.25:5001";
+        const apiUrl = `${apiBaseUrl}/api/payment?total=${amount}`;
+        
+        console.log("Fetching ticket from:", apiUrl);
+        
+        fetch(apiUrl, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.ticket) throw new Error("Missing ticket");
+            initializeMonerisCheckout(data.ticket);
+          })
+          .catch((error) => {
+            showMessage("Initialization failed: " + error.message, "error");
+            sendMessage({ 
+              type: "error", 
+              message: error.message 
+            });
+          });
+      };
+
+      window.onload = fetchTicketAndStart;
+      
+      // Let the parent know we're ready
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          sendMessage({ type: 'loaded' });
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

@@ -13,11 +13,13 @@ import { useLikeContext } from "../theme/LikeContext";
 import { useTheme } from "../theme/ThemeContext";
 import { useCart } from "../context/CartContext";
 import { getProjectId } from "../context/projectIdHelper";
+import { useAuth } from "../context/AuthContext";
 
 export default function ProjectCard({ item, onPress }) {
   const { toggleLike, getLikes } = useLikeContext();
   const { colors } = useTheme();
   const { addToCart } = useCart();
+  const { user } = useAuth();
 
   // Get a stable project id.
   const projectId = getProjectId(item.project);
@@ -31,10 +33,25 @@ export default function ProjectCard({ item, onPress }) {
     toggleLike(projectId);
   };
 
+
   const handleAddToCart = () => {
-    const cartItem = { ...item.project, cartItemId: projectId };
+    const buyerId = parseInt(user?.user_id); // logged-in buyer
+    const sellerId = parseInt(item.project.user_seller); // seller ID from the product
+    const productId = item.project.product_id || item.project.id || item.id;
+  
+    const cartItem = {
+      ...item.project,
+      cartItemId: projectId,
+      seller_id: sellerId,
+      buyer_id: buyerId,
+      product_id: productId,
+    };
+  
+    console.log("🛒 Final cart item:", JSON.stringify(cartItem));
     addToCart(cartItem);
   };
+  
+  
 
   return (
     <TouchableOpacity

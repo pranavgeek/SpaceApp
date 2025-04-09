@@ -15,6 +15,10 @@ import { useAuth } from "../context/AuthContext";
 import BuyerProfileScreen from "../screens/BuyerProfileScreen";
 import CollaborationRequestScreen from "../screens/CollaborationRequestScreen";
 import InfluencerProfileScreen from "../screens/InfluencerProfileScreen.js";
+import BuyerOrderScreen from "../screens/BuyerOrdersScreen.js";
+import SellerOrderScreen from "../screens/SellerOrderScreen.js";
+import ShippingDetailScreen from "../screens/ShippingDetailScreen.js";
+import TrackNotification from "../screens/TrackNotification.js";
 
 const ProfileStack = createNativeStackNavigator();
 
@@ -91,10 +95,25 @@ const ProfileStackNavigator = () => {
           ),
         }}
       />
+       <ProfileStack.Screen
+        name="BuyersOrders"
+        component={BuyerOrderScreen}
+      />
+      <ProfileStack.Screen
+        name="Notifications"
+        component={TrackNotification}
+      />
+      <ProfileStack.Screen
+        name="SellersOrders"
+        component={SellerOrderScreen}
+      />
+      <ProfileStack.Screen
+        name="Shipping"
+        component={ShippingDetailScreen}
+      />
       <ProfileStack.Screen
         name="Collaboration Requests"
         component={CollaborationRequestScreen}
-        // options={{ title: "Collaboration Requests" }}
       />
     </ProfileStack.Navigator>
   );

@@ -9,6 +9,7 @@ import CartScreen from "../screens/CartScreen";
 import { useCart } from "../context/CartContext";
 import { useNavigation } from "@react-navigation/native";
 import CheckoutScreen from "../screens/CheckoutScreen";
+import BuyerContactFormScreen from "../screens/BuyerContactFormScreen";
 import { useAuth } from "../context/AuthContext";
 
 const HomeStack = createNativeStackNavigator();
@@ -102,6 +103,15 @@ const HomeStackNavigation = () => {
       <HomeStack.Screen
         name="CartScreen"
         component={CartScreen}
+        options={{
+          headerStyle: { backgroundColor: "#141414" },
+          headerTintColor: "#fff",
+          headerTitleStyle: { fontWeight: "bold" },
+        }}
+      />
+      <HomeStack.Screen
+        name="ContactForm"
+        component={BuyerContactFormScreen}
         options={{
           headerStyle: { backgroundColor: "#141414" },
           headerTintColor: "#fff",

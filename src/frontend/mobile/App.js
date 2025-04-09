@@ -50,7 +50,7 @@ const AppNavigator = () => {
 
   // Admin check (can be email or a flag in your data)
   if (user.email === "kspace@example.com") {
-    return <AdminNavigator />; // 🔥 show bottom tabs for admin
+    return <AdminNavigator />; //
   }
 
   return <AppContent />; // normal user

@@ -13,7 +13,6 @@ import SecurityPrivacyScreen from "../screens/SecurityPrivacyScreen";
 import InfluencerProgramScreen from "../screens/InfluencerProgramScreen";
 import SellerPlansScreen from "../screens/SellerPlansScreen";
 import CollaborationScreen from "../screens/CollaborationScreen"
-import AdminDashboardScreen from "../screens/AdminDashboardScreen";
 import { useTheme } from "../theme/ThemeContext.js";
 
 const SettingsStack = createNativeStackNavigator();
@@ -47,10 +46,6 @@ const SettingsStackNavigator = () => {
       <SettingsStack.Screen
         name="Payment Methods"
         component={PaymentMethodsScreen}
-      />
-      <SettingsStack.Screen
-        name="Admin Dashboard"
-        component={AdminDashboardScreen}
       />
       <SettingsStack.Screen
         name="Notifications"
