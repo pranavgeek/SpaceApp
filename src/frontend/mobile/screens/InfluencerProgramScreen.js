@@ -21,6 +21,16 @@ export default function InfluencerProgramScreen({ navigation }) {
 
   const plans = [
     {
+      title: "Starter Tier",
+      price: "$0/mo base",
+      bullets: [
+        "Less than 5,000 followers",
+        "1.5% engagement rate",
+        "5% commission on sales",
+        "No bonus",
+      ],
+    },
+    {
       title: "Rising Tier",
       price: "Up to $3000/mo base",
       bullets: [
@@ -53,42 +63,49 @@ export default function InfluencerProgramScreen({ navigation }) {
   ];
 
   const handleSelectTier = async (tier) => {
-    if (user && user.role === "buyer") {
-      if (tier === "Rising Tier") {
-        try {
-          await updateRole("influencer"); // 🔁 API + AsyncStorage + state
-          await AsyncStorage.setItem("switchedRole", "Influencer");
-          navigation.navigate("Home");
-           // Delay before reset to allow AsyncStorage to save
-           setTimeout(() => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Home" }],
-            });
-          }, 100); // ⏱️ Short delay
-        } catch (err) {
-          console.error("Switch to influencer failed:", err);
-          Alert.alert("Error", "Unable to switch account. Try again.");
-        }
-      } else {
-        Alert.alert(
-          "Paid Tier",
-          "This tier requires payment. Please complete payment first.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Proceed",
-              onPress: () =>
-                navigation.navigate("PaymentProcess", { tier }),
-            },
-          ]
-        );
+    // Only buyer accounts can switch to influencer
+    if (!user || user.role !== "buyer") {
+      Alert.alert(
+        "Access Denied",
+        "Only buyer accounts are eligible to switch to an influencer account."
+      );
+      navigation.navigate("Home");
+      return;
+    }
+
+    // Buyer selecting the free Starter Tier will have their role switched to influencer immediately.
+    if (tier === "Starter Tier") {
+      try {
+        await updateRole("influencer"); // 🔁 API call, AsyncStorage update, and context state update
+        await AsyncStorage.setItem("switchedRole", "Influencer");
+        Alert.alert("Success", "Your account has been switched to Influencer.");
+        // Short delay before resetting navigation
+        setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Home" }],
+          });
+        }, 100);
+      } catch (err) {
+        console.error("Switch to influencer failed:", err);
+        Alert.alert("Error", "Unable to switch account. Try again.");
       }
     } else {
-      navigation.navigate("Home");
+      // For all paid tiers, show the payment alert
+      Alert.alert(
+        "Paid Tier",
+        "This tier requires payment. Please complete payment first.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Proceed",
+            onPress: () =>
+              navigation.navigate("PaymentProcess", { tier }),
+          },
+        ]
+      );
     }
   };
-  
 
   return (
     <ScrollView

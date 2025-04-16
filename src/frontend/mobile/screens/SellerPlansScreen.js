@@ -7,6 +7,7 @@ import {
   Platform,
   useWindowDimensions,
   ScrollView,
+  Alert,
 } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from '../theme/ThemeContext';
@@ -54,33 +55,65 @@ export default function SellerPlansScreen({ navigation }) {
   ];
 
   const handleSelectPlan = async (plan) => {
-    if (user && user.account_type === "buyer") {
+    if (!user) return;
+
+    // For a buyer account (the default account)
+    if (user.role === "buyer") {
       if (plan.title === "Seller Basic") {
+        // Buyer selects free plan – update account to Seller
         try {
           await updateRole("Seller");
           await AsyncStorage.setItem("switchedRole", "Seller");
-          console.log("Role updated to Seller");
-  
-          // Delay before reset to allow AsyncStorage to save
+          Alert.alert("Success", "Your account has been switched to Seller Basic.");
           setTimeout(() => {
             navigation.reset({
               index: 0,
               routes: [{ name: "Home" }],
             });
-          }, 100); // ⏱️ Short delay
-
+          }, 100);
         } catch (err) {
           console.error("Switch to seller failed:", err);
-          Alert.alert("Error", "Unable to switch to seller. Try again.");
+          Alert.alert("Error", "Unable to switch to seller. Please try again.");
         }
+      } else {
+        // Buyer selecting a paid plan: ask for payment confirmation
+        Alert.alert(
+          "Paid Tier",
+          "This tier requires payment. Please complete payment first.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Proceed",
+              onPress: () => navigation.navigate("PaymentProcess", { tier: plan.title }),
+            },
+          ]
+        );
+      }
+    }
+    // For a seller account
+    else if (user.role === "seller") {
+      if (plan.title === "Seller Basic") {
+        // Already on the free plan
+        Alert.alert("Already on Seller Basic", "You are currently using the Seller Basic plan.");
+      } else {
+        // For paid plans, ask for payment confirmation
+        Alert.alert(
+          "Paid Tier",
+          "This tier requires payment. Please complete payment first.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Proceed",
+              onPress: () => navigation.navigate("PaymentProcess", { tier: plan.title }),
+            },
+          ]
+        );
       }
     } else {
+      // Fallback: navigate to home
       navigation.navigate("Home");
     }
   };
-  
-  
-  
 
   return (
     <ScrollView
@@ -93,43 +126,50 @@ export default function SellerPlansScreen({ navigation }) {
           isDesktopWeb ? styles.rowWrap : styles.columnWrap,
         ]}
       >
-        {plans.map((plan, index) => (
-          <View
-            key={index}
-            style={[
-              styles.card,
-              { backgroundColor: colors.baseContainerBody },
-            ]}
-          >
-            <Text style={[styles.planTitle, { color: colors.text }]}>
-              {plan.title}
-            </Text>
-            <Text style={[styles.planPrice, { color: colors.subtitle }]}>
-              {plan.price}
-            </Text>
-            {plan.bullets.map((item, i) => (
-              <View key={i} style={styles.bulletRow}>
-                <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
-                <Text style={[styles.bulletText, { color: colors.text }]}>
-                  {item}
-                </Text>
-              </View>
-            ))}
-            <TouchableOpacity
-              style={[styles.selectButton, { backgroundColor: "#1e40af" }]}
-              onPress={() => handleSelectPlan(plan)}
+        {plans.map((plan, index) => {
+          // Fade the Seller Basic plan if the current account is a seller
+          const isBasicDisabled = user?.role === "seller" && plan.title === "Seller Basic";
+
+          return (
+            <View
+              key={index}
+              style={[
+                styles.card,
+                { backgroundColor: colors.baseContainerBody },
+                isBasicDisabled && { opacity: 0.5 },
+              ]}
             >
-              <Text
-                style={[
-                  styles.selectButtonText,
-                  { color: colors.baseContainerHeader },
-                ]}
-              >
-                Select Plan
+              <Text style={[styles.planTitle, { color: colors.text }]}>
+                {plan.title}
               </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+              <Text style={[styles.planPrice, { color: colors.subtitle }]}>
+                {plan.price}
+              </Text>
+              {plan.bullets.map((item, i) => (
+                <View key={i} style={styles.bulletRow}>
+                  <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                  <Text style={[styles.bulletText, { color: colors.text }]}>
+                    {item}
+                  </Text>
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[styles.selectButton, { backgroundColor: "#1e40af" }]}
+                onPress={() => handleSelectPlan(plan)}
+                disabled={isBasicDisabled}
+              >
+                <Text
+                  style={[
+                    styles.selectButtonText,
+                    { color: colors.baseContainerHeader },
+                  ]}
+                >
+                  Select Plan
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </View>
     </ScrollView>
   );

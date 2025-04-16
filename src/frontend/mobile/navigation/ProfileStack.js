@@ -45,7 +45,7 @@ const ProfileStackNavigator = () => {
         options={{
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: "bold" },
+          headerTitleStyle: { },
           // headerRight: () => (
           //     <TouchableOpacity style={{marginRight: 15}}>
           //     <Icon name="notifications-outline" size={24} color="#fff" />
@@ -59,7 +59,7 @@ const ProfileStackNavigator = () => {
         options={{
           headerStyle: { backgroundColor: "#141414" },
           headerTintColor: "#fff",
-          headerTitleStyle: { fontWeight: "bold", fontSize: 20 },
+          headerTitleStyle: { },
           headerRight: () => (
             <TouchableOpacity style={{ marginRight: 15 }}>
               <Icon name="notifications-outline" size={24} color="#fff" />
@@ -73,7 +73,7 @@ const ProfileStackNavigator = () => {
         options={{
           headerStyle: { backgroundColor: "#141414" },
           headerTintColor: "#fff",
-          headerTitleStyle: { fontWeight: "bold", fontSize: 20 },
+          headerTitleStyle: { },
           headerRight: () => (
             <TouchableOpacity style={{ marginRight: 15 }}>
               <Icon name="notifications-outline" size={24} color="#fff" />
@@ -87,12 +87,7 @@ const ProfileStackNavigator = () => {
         options={{
           headerStyle: { backgroundColor: "#141414" },
           headerTintColor: "#fff",
-          headerTitleStyle: { fontWeight: "bold", fontSize: 20 },
-          headerRight: () => (
-            <TouchableOpacity style={{ marginRight: 15 }}>
-              <Icon name="notifications-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
+          headerTitleStyle: { }
         }}
       />
        <ProfileStack.Screen

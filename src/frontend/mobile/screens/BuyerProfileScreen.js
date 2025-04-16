@@ -209,6 +209,18 @@ export default function BuyerProfileScreen({ navigation, route }) {
             </View>
             <Text style={styles.buttonText}>Favorites</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+              style={styles.settingItem}
+              onPress={() => navigation.navigate("Notifications")}
+            >
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+              </View>
+              <Text style={styles.settingText}>Notifications</Text>
+              {hasNewNotifications && <View style={styles.settingBadge} />}
+              <Ionicons name="chevron-forward" size={18} color={colors.subtitle} />
+            </TouchableOpacity>
         </View>
       );
     } else if (profile.accountType === "Influencer") {

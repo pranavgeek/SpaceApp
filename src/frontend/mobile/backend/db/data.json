@@ -26,9 +26,11 @@
       "social_media_linkedin": "linkedin.com/johndoe",
       "social_media_website": "johndoe.com",
       "profile_image": "profile1.jpg",
+      "gender": "Male",
+      "age": 30,
       "email": "john@example.com",
-      "password": "secure123",
-      "account_type": "buyer",
+      "password": "123456789",
+      "account_type": "Buyer",
       "products_purchased": [
         {
           "product_id": 101,
@@ -87,6 +89,27 @@
           "shipping_province": "Ontario",
           "shipping_country": "Canada",
           "shipping_postal_code": "N5Y 2G7"
+        },
+        {
+          "order_id": "ORD-1744766018833-596",
+          "product_id": 5,
+          "product_name": "Keyboard",
+          "quantity": 1,
+          "order_date": "2025-04-16T01:13:38.833Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 300,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "Prem",
+          "buyer_last_name": "Gotawala",
+          "buyer_email": "vats@weingenious.com",
+          "buyer_phone": "5192804167",
+          "shipping_address": "379 Hilton place",
+          "shipping_city": "London",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N5W2R8"
         }
       ],
       "id": "1"
@@ -102,6 +125,8 @@
       "social_media_linkedin": "linkedin.com/sarahsmith",
       "social_media_website": "sarahsmith.com",
       "profile_image": "profile2.jpg",
+      "gender": "Female",
+      "age": 25,
       "email": "sarah@example.com",
       "password": "sellerpass",
       "account_type": "Seller",
@@ -166,6 +191,48 @@
           "shipping_province": "Ontario",
           "shipping_country": "Canada",
           "shipping_postal_code": "N5Y 2G7"
+        },
+        {
+          "order_id": "ORD-1744679639079-766",
+          "product_id": 101,
+          "product_name": "Smartphone",
+          "quantity": 1,
+          "order_date": "2025-04-15T01:13:59.079Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 699,
+          "buyer_id": 2,
+          "seller_id": 2,
+          "buyer_first_name": "John",
+          "buyer_last_name": "Deo",
+          "buyer_email": "Deo@gm.com",
+          "buyer_phone": "5192801567",
+          "shipping_address": "Wedge dr",
+          "shipping_city": "London",
+          "shipping_province": "On",
+          "shipping_country": "Ca",
+          "shipping_postal_code": "N5Y 2G7"
+        },
+        {
+          "order_id": "ORD-1744766018833-596",
+          "product_id": 5,
+          "product_name": "Keyboard",
+          "quantity": 1,
+          "order_date": "2025-04-16T01:13:38.833Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 300,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "Prem",
+          "buyer_last_name": "Gotawala",
+          "buyer_email": "vats@weingenious.com",
+          "buyer_phone": "5192804167",
+          "shipping_address": "379 Hilton place",
+          "shipping_city": "London",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N5W2R8"
         }
       ]
     },
@@ -180,6 +247,8 @@
       "social_media_linkedin": "linkedin.com/mikeinfluencer",
       "social_media_website": "mikeinfluencer.com",
       "profile_image": "profile3.jpg",
+      "gender": "Male",
+      "age": 28,
       "email": "mike@example.com",
       "password": "influencer123",
       "account_type": "Influencer",
@@ -214,10 +283,19 @@
           "user_id": 1,
           "number_stars": 5,
           "review": "Amazing phone! Highly recommend it."
+        },
+        {
+          "product_id": 101,
+          "user_id": 1,
+          "number_stars": 4,
+          "review": "Good product",
+          "date_timestamp": "2025-04-12T00:13:22.430Z",
+          "review_id": 4
         }
       ],
       "download_url": "kspace-technologies.com",
-      "campaigns": []
+      "campaigns": [],
+      "verified": true
     },
     {
       "product_id": 102,
@@ -239,7 +317,32 @@
         }
       ],
       "download_url": "kspace-technologies.com",
-      "campaigns": []
+      "campaigns": [],
+      "verified": true
+    },
+    {
+      "product_name": "MacBook",
+      "category": "",
+      "cost": 2500,
+      "description": "13” inch",
+      "country": "Delhi, India",
+      "user_seller": 2,
+      "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/532A4BF5-D49E-49D0-B129-1281A4E9ED9F.jpg",
+      "verified": true,
+      "created_at": "2025-04-15T02:22:56.818Z",
+      "product_id": 4
+    },
+    {
+      "product_name": "Keyboard",
+      "category": "",
+      "cost": 300,
+      "description": "Logitech",
+      "country": "São Paulo, Brazil",
+      "user_seller": 2,
+      "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/E6B0C803-2C68-4E38-A8A0-B2AFA47A72A3.jpg",
+      "verified": true,
+      "created_at": "2025-04-15T02:45:37.090Z",
+      "product_id": 5
     }
   ],
   "reviews": [
@@ -256,32 +359,130 @@
       "user_id": 3,
       "number_stars": 4,
       "review": "Very comfortable, but a little expensive."
+    },
+    {
+      "product_id": 101,
+      "user_id": 1,
+      "number_stars": 3,
+      "review": "Nasty product",
+      "date_timestamp": "2025-04-10T18:11:19.498Z",
+      "review_id": 3
+    },
+    {
+      "product_id": 101,
+      "user_id": 1,
+      "number_stars": 4,
+      "review": "Good product",
+      "date_timestamp": "2025-04-12T00:13:22.430Z",
+      "review_id": 4
+    },
+    {
+      "product_id": 4,
+      "user_id": 1,
+      "number_stars": 4,
+      "review": "Nice monitor",
+      "date_timestamp": "2025-04-14T23:58:28.740Z",
+      "review_id": 6
     }
   ],
   "messages": [
     {
       "message_id": 301,
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
+      "user_from": 2,
+      "user_to": 1,
       "type_message": "text",
       "message_content": "Hi, is this product still available?",
       "add_file": null,
-      "date_timestamp_sent": "2025-03-20T12:00:00Z"
+      "date_timestamp_sent": "2025-03-20T12:00:00Z",
+      "is_read": true
     },
     {
       "message_id": 302,
-      "user_from": "Sarah Smith",
-      "user_to": "John Doe",
+      "user_from": 1,
+      "user_to": 2,
       "type_message": "text",
-      "message_content": "Yes, it’s available. Would you like more details?",
+      "message_content": "Yes, it's available. Would you like more details?",
       "add_file": null,
-      "date_timestamp_sent": "2025-03-20T12:05:00Z"
+      "date_timestamp_sent": "2025-03-20T12:05:00Z",
+      "is_read": false
     },
     {
       "sender_id": 2,
       "receiver_id": 1,
       "timestamp": "2025-04-08T20:03:40.577Z",
       "content": "📦 Your order has shipped! Track it here: https://esqa.moneris.com/mpg/admin/chkt_config/index.php"
+    },
+    {
+      "sender_id": 2,
+      "receiver_id": 1,
+      "timestamp": "2025-04-09T00:23:15.733Z",
+      "content": "📦 Your order has shipped! Track it here: https://ariweinkle.com/"
+    },
+    {
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "Hi, is this product still available?",
+      "date_timestamp_sent": "2025-04-14T22:08:55.988Z",
+      "is_read": false,
+      "message_id": 5,
+      "add_file": null
+    },
+    {
+      "user_from": "Sarah Smith",
+      "user_to": "John Doe",
+      "type_message": "text",
+      "message_content": "hii",
+      "date_timestamp_sent": "2025-04-14T23:55:22.215Z",
+      "is_read": false,
+      "message_id": 7,
+      "add_file": null
+    },
+    {
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "How are you?",
+      "date_timestamp_sent": "2025-04-14T23:55:34.522Z",
+      "is_read": false,
+      "message_id": 8,
+      "add_file": null
+    },
+    {
+      "user_from": "Sarah Smith",
+      "user_to": "John Doe",
+      "type_message": "text",
+      "message_content": "Hi",
+      "date_timestamp_sent": "2025-04-15T23:31:51.969Z",
+      "is_read": false,
+      "message_id": 8,
+      "add_file": null
+    },
+    {
+      "user_from": "Sarah Smith",
+      "user_to": "John Doe",
+      "type_message": "text",
+      "message_content": "product is available",
+      "date_timestamp_sent": "2025-04-15T23:35:05.411Z",
+      "is_read": false,
+      "message_id": 9,
+      "add_file": null
+    },
+    {
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "Ok",
+      "date_timestamp_sent": "2025-04-15T23:35:21.858Z",
+      "is_read": false,
+      "message_id": 10,
+      "add_file": null
+    },
+    {
+      "sender_id": 2,
+      "receiver_id": 1,
+      "timestamp": "2025-04-16T01:15:34.715Z",
+      "content": "📦 Your order has shipped! Track it here: https://basicappleguy.com/"
     }
   ],
   "notifications": [
@@ -304,6 +505,88 @@
       "link": "https://esqa.moneris.com/mpg/admin/chkt_config/index.php",
       "order_id": "ORD-1744052528949-10",
       "notification_id": 3
+    },
+    {
+      "user_id": 1,
+      "message": "Your tracking link for order #ORD-1744139882862-849 is now available. Sent by Sarah Smith",
+      "date_timestamp": "2025-04-09T00:23:15.748Z",
+      "link": "https://ariweinkle.com/",
+      "order_id": "ORD-1744139882862-849",
+      "notification_id": 4
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Wireless Headphones\" has been verified and is now live!",
+      "date_timestamp": "2025-04-12T05:20:38.939Z",
+      "notification_id": 6
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Smartphone\" has been verified and is now live!",
+      "date_timestamp": "2025-04-12T05:20:39.684Z",
+      "notification_id": 7
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Monitor\" has been verified and is now live!",
+      "date_timestamp": "2025-04-12T05:47:08.364Z",
+      "notification_id": 9
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Monitor\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T01:27:19.732Z",
+      "notification_id": 8
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Monitor\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T01:27:57.357Z",
+      "notification_id": 9
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Monitor\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T02:01:29.197Z",
+      "notification_id": 10
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Monitor\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T02:02:03.021Z",
+      "notification_id": 11
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Monitor\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T02:08:01.813Z",
+      "notification_id": 12
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Monitor\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T02:23:35.636Z",
+      "notification_id": 13
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"MacBook\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T02:39:45.490Z",
+      "notification_id": 14
+    },
+    {
+      "user_id": 2,
+      "message": "✅ Your product \"Keyboard\" has been verified and is now live!",
+      "date_timestamp": "2025-04-15T02:46:17.902Z",
+      "notification_id": 15
+    },
+    {
+      "user_id": 1,
+      "message": "Your tracking link for order #ORD-1744766018833-596 is now available. Sent by Sarah Smith",
+      "date_timestamp": "2025-04-16T01:15:34.718Z",
+      "link": "https://basicappleguy.com/",
+      "order_id": "ORD-1744766018833-596",
+      "notification_id": 16
     }
   ],
   "admin_data": [
@@ -352,7 +635,7 @@
       "quantity": 1,
       "order_date": "2025-04-08T19:18:02.862Z",
       "status": "Completed",
-      "tracking_number": "",
+      "tracking_number": "https://ariweinkle.com/",
       "amount": 120,
       "buyer_id": 1,
       "seller_id": 2,
@@ -365,8 +648,29 @@
       "shipping_province": "Ontario",
       "shipping_country": "Canada",
       "shipping_postal_code": "N5Y 2G7",
-      "pending_tracking_link": "https://ariweinkle.com/",
-      "tracking_approval_status": "pending"
+      "tracking_approval_status": "approved"
+    },
+    {
+      "order_id": "ORD-1744766018833-596",
+      "product_id": 5,
+      "product_name": "Keyboard",
+      "quantity": 1,
+      "order_date": "2025-04-16T01:13:38.833Z",
+      "status": "Completed",
+      "tracking_number": "https://basicappleguy.com/",
+      "amount": 300,
+      "buyer_id": 1,
+      "seller_id": 2,
+      "buyer_first_name": "Prem",
+      "buyer_last_name": "Gotawala",
+      "buyer_email": "vats@weingenious.com",
+      "buyer_phone": "5192804167",
+      "shipping_address": "379 Hilton place",
+      "shipping_city": "London",
+      "shipping_province": "Ontario",
+      "shipping_country": "Canada",
+      "shipping_postal_code": "N5W2R8",
+      "tracking_approval_status": "approved"
     }
   ]
 }

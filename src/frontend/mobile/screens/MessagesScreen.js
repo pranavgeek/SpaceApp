@@ -1,11 +1,181 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import Message from '../components/Message';
+import { 
+  View, 
+  FlatList, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Text,
+  Image,
+  Alert,
+  SafeAreaView,
+  Animated,
+  Dimensions,
+  StatusBar
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { fetchMessages } from '../backend/db/API';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
+import TermsOfUseManager from '../components/TermsOfUseModal';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+
+const { width } = Dimensions.get('window');
+
+// Enhanced date formatting for more natural display and shorter times
+const formatMessageDate = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  
+  // Same day - show time only
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  }
+  
+  // Yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  }
+  
+  // Within last week - show day name (e.g., "Mon", "Tue")
+  const daysDiff = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+  if (daysDiff < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' });
+  }
+  
+  // This year - show month and day (e.g., "Mar 15")
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  }
+  
+  // Different year - include year (e.g., "Mar 15, 2024")
+  return date.toLocaleDateString([], { 
+    month: 'short', 
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+// Format message preview - truncate if needed, add sender prefix if received
+const formatMessagePreview = (message, isFromCurrentUser) => {
+  // If the message is from current user (sent), add "You: " prefix
+  const prefix = isFromCurrentUser ? 'You: ' : '';
+  
+  // Get message content, trim whitespace
+  const content = (message || '').trim();
+  
+  // Truncate if it's too long
+  const maxLength = 40;
+  const truncated = content.length > maxLength
+    ? content.substring(0, maxLength) + '...'
+    : content;
+  
+  return prefix + truncated;
+};
+
+const ConversationItem = ({ chat, currentUser, onPress, onDelete }) => {
+  const { colors } = useTheme();
+  const styles = getDynamicStyles(colors);
+  
+  const renderRightActions = (progress, dragX) => {
+    const trans = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+    
+    return (
+      <TouchableOpacity
+        style={styles.deleteAction}
+        onPress={onDelete}
+      >
+        <Animated.View
+          style={[
+            styles.deleteActionContent,
+            {
+              transform: [{ translateX: trans }],
+            },
+          ]}
+        >
+          <Ionicons name="trash-outline" size={24} color="#fff" />
+          <Text style={styles.deleteActionText}>Delete</Text>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
+  
+  // Generate a placeholder profile pic based on the name
+  const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+  
+  // Generate a color based on the name
+  const getProfileColor = (name) => {
+    const colors = ['#1abc9c', '#3498db', '#9b59b6', '#e74c3c', '#f39c12'];
+    const charSum = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return colors[charSum % colors.length];
+  };
+  
+  const profileColor = getProfileColor(chat.chatName);
+  
+  // Format message preview with appropriate prefix
+  const messagePreview = formatMessagePreview(chat.shortMessage, chat.isFromCurrentUser);
+  
+  // Format timestamp for display
+  const formattedTime = chat.timestamp ? formatMessageDate(chat.timestamp) : '';
+  
+  return (
+    <Swipeable renderRightActions={renderRightActions}>
+      <TouchableOpacity 
+        style={[
+          styles.conversationItem, 
+          chat.isNew && styles.newConversation
+        ]} 
+        onPress={onPress}
+      >
+        <View style={[styles.profileImage, { backgroundColor: profileColor }]}>
+          <Text style={styles.profileInitials}>{getInitials(chat.chatName)}</Text>
+        </View>
+        
+        <View style={styles.conversationInfo}>
+          <View style={styles.conversationHeader}>
+            <Text style={styles.chatName} numberOfLines={1}>{chat.chatName}</Text>
+            <Text style={[
+              styles.timeStamp,
+              chat.isNew && styles.newTimeStamp
+            ]}>
+              {formattedTime}
+            </Text>
+          </View>
+          
+          <View style={styles.previewContainer}>
+            <Text 
+              style={[
+                styles.messagePreview, 
+                chat.isNew && styles.newMessagePreview
+              ]} 
+              numberOfLines={1}
+            >
+              {messagePreview}
+            </Text>
+            
+            {chat.isNew && (
+              <View style={styles.newMessageIndicator} />
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
+  );
+};
 
 export default function MessagesScreen({ navigation }) {
   const { colors } = useTheme();
@@ -14,83 +184,115 @@ export default function MessagesScreen({ navigation }) {
 
   const [messagesData, setMessagesData] = useState([]);
   const [collabRequests, setCollabRequests] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!currentUser || !currentUser.name) return;
-
-    const fetchAllData = async () => {
-      try {
-        const [messages, storedRequests] = await Promise.all([
-          fetchMessages(),
-          AsyncStorage.getItem("collaborationRequests")
-        ]);
-
-        const allRequests = storedRequests ? JSON.parse(storedRequests) : [];
-        setCollabRequests(allRequests);
-
-        let updatedMessages = [...messages];
-
-        if (currentUser.account_type === "Influencer") {
-          const hasPending = allRequests.find(
-            (req) =>
-              req.influencerName === currentUser.name &&
-              req.sellerName === "Sarah Smith" &&
-              req.status === "Pending"
-          );
-
-          const alreadyMessaged = messages.some(
-            (msg) =>
-              msg.user_from === currentUser.name &&
-              msg.user_to === "Sarah Smith"
-          );
-
-          if (hasPending && !alreadyMessaged) {
-            updatedMessages.push({
-              message_id: 999,
-              user_from: currentUser.name,
-              user_to: "Sarah Smith",
-              type_message: "text",
-              message_content: "Hi Sarah, I'd love to collaborate!",
-              date_timestamp_sent: new Date().toISOString(),
-            });
-          }
-        }
-
-        setMessagesData(updatedMessages);
-      } catch (error) {
-        console.error("Error loading messages or requests:", error);
-      }
-    };
-
+    
     fetchAllData();
   }, [currentUser]);
 
+  const fetchAllData = async () => {
+    if (!currentUser || !currentUser.name) return;
+    
+    try {
+      setRefreshing(true);
+      const [messages, storedRequests] = await Promise.all([
+        fetchMessages(),
+        AsyncStorage.getItem("collaborationRequests")
+      ]);
+
+      const allRequests = storedRequests ? JSON.parse(storedRequests) : [];
+      setCollabRequests(allRequests);
+
+      let updatedMessages = [...messages];
+
+      if (currentUser.account_type === "Influencer") {
+        const hasPending = allRequests.find(
+          (req) =>
+            req.influencerName === currentUser.name &&
+            req.sellerName === "Sarah Smith" &&
+            req.status === "Pending"
+        );
+
+        const alreadyMessaged = messages.some(
+          (msg) =>
+            msg.user_from === currentUser.name &&
+            msg.user_to === "Sarah Smith"
+        );
+
+        if (hasPending && !alreadyMessaged) {
+          updatedMessages.push({
+            message_id: 999,
+            user_from: currentUser.name,
+            user_to: "Sarah Smith",
+            type_message: "text",
+            message_content: "Hi Sarah, I'd love to collaborate!",
+            date_timestamp_sent: new Date().toISOString(),
+          });
+        }
+      }
+
+      setMessagesData(updatedMessages);
+    } catch (error) {
+      console.error("Error loading messages or requests:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const chatPartners = useMemo(() => {
+    if (!currentUser || !currentUser.name) return [];
+    
     const map = {};
 
-    messagesData.forEach((msg, index) => {
+    messagesData.forEach((msg) => {
       const isSender = msg.user_from === currentUser.name;
       const isReceiver = msg.user_to === currentUser.name;
 
       if (!isSender && !isReceiver) return;
 
       const partnerName = isSender ? msg.user_to : msg.user_from;
-      const key = `${partnerName}-${index}`;
-
-      if (!map[partnerName]) {
+      
+      // Get timestamp - handle different message formats
+      let timestamp;
+      if (msg.date_timestamp_sent) {
+        timestamp = msg.date_timestamp_sent;
+      } else if (msg.timestamp) {
+        timestamp = msg.timestamp;
+      } else {
+        timestamp = new Date().toISOString(); // Fallback
+      }
+      
+      // We want to keep only the most recent message for each chat partner
+      const existingTimestamp = map[partnerName]?.timestamp 
+        ? new Date(map[partnerName].timestamp).getTime() 
+        : 0;
+      const newTimestamp = new Date(timestamp).getTime();
+      
+      if (!map[partnerName] || newTimestamp > existingTimestamp) {
+        // Check if this is a new message (less than 24 hours old and not from current user)
+        const isNew = (
+          !isSender && // Only mark messages from others as new
+          newTimestamp > Date.now() - (24 * 60 * 60 * 1000) // Less than 24 hours old
+        );
+        
         map[partnerName] = {
           chatName: partnerName,
-          shortMessage: msg.message_content,
-          time: new Date(msg.date_timestamp_sent).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
+          shortMessage: msg.message_content || msg.content, // Handle different message formats
+          time: formatMessageDate(timestamp),
+          timestamp: timestamp,
+          isNew: isNew,
+          isFromCurrentUser: isSender
         };
       }
     });
 
-    return map;
-  }, [messagesData, currentUser.name]);
+    // Convert to array and sort by timestamp (newest first)
+    return Object.values(map).sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [messagesData, currentUser]);
 
   const handleChatOpen = (chatName) => {
     if (currentUser.account_type !== "Seller") {
@@ -116,6 +318,40 @@ export default function MessagesScreen({ navigation }) {
       chatPartner: chatName,
       requestStatus,
     });
+  };
+
+  const handleDeleteConversation = async (chatName) => {
+    Alert.alert(
+      "Delete Conversation",
+      `Are you sure you want to delete your conversation with ${chatName}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Get all messages
+              const messages = await fetchMessages();
+              
+              // Filter out messages for this conversation
+              const filteredMessages = messages.filter(msg => {
+                return !((msg.user_from === currentUser.name && msg.user_to === chatName) || 
+                         (msg.user_from === chatName && msg.user_to === currentUser.name));
+              });
+              
+              // Save filtered messages
+              await AsyncStorage.setItem("messages", JSON.stringify(filteredMessages));
+              
+              // Update state
+              setMessagesData(filteredMessages);
+            } catch (error) {
+              console.error("Failed to delete conversation:", error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const clearAllCollabData = async () => {
@@ -146,43 +382,74 @@ export default function MessagesScreen({ navigation }) {
   if (!currentUser || !currentUser.name) return null;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        {Object.values(chatPartners).length > 0 ? (
-          Object.values(chatPartners).map((chat, index) => (
-            <Message
-              key={`${chat.chatName}-${index}`}
-              chatName={chat.chatName}
-              shortMessage={chat.shortMessage}
-              time={chat.time}
-              onPress={() => handleChatOpen(chat.chatName)}
-            />
-          ))
-        ) : (
-          <Text style={{ color: colors.subtitle, textAlign: 'center', marginTop: 30 }}>
-            No messages yet.
+    <TermsOfUseManager>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Chats</Text>
+          
+          {currentUser.account_type === "Seller" && (
+            <TouchableOpacity
+              onPress={() => Alert.alert(
+                "Reset Data",
+                "Are you sure you want to reset all collaboration data?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { 
+                    text: "Reset", 
+                    style: "destructive",
+                    onPress: clearAllCollabData
+                  }
+                ]
+              )}
+              style={styles.resetButton}
+            >
+              <Ionicons name="refresh-outline" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        {/* Info Banner */}
+        <View style={styles.infoBanner}>
+          <Ionicons name="information-circle" size={18} color="#fff" />
+          <Text style={styles.infoText}>
+            All conversations must remain within the app for your safety
           </Text>
-        )}
-      </View>
-
-      {currentUser.account_type === "Seller" && (
-        <TouchableOpacity
-          onPress={clearAllCollabData}
-          style={{
-            alignSelf: 'center',
-            marginVertical: 20,
-            padding: 12,
-            backgroundColor: "#FF3B30",
-            borderRadius: 10,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          <Ionicons name="trash-outline" size={18} color="white" style={{ marginRight: 6 }} />
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Reset Collaboration Data</Text>
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+        </View>
+        
+        {/* Conversations List */}
+        <FlatList
+          data={chatPartners}
+          renderItem={({ item }) => (
+            <ConversationItem 
+              chat={item}
+              currentUser={currentUser}
+              onPress={() => handleChatOpen(item.chatName)}
+              onDelete={() => handleDeleteConversation(item.chatName)}
+            />
+          )}
+          keyExtractor={(item, index) => `${item.chatName}-${index}`}
+          contentContainerStyle={styles.conversationsList}
+          refreshing={refreshing}
+          onRefresh={fetchAllData}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons 
+                name="message-text-outline" 
+                size={80} 
+                color={colors.subtitle + '50'} 
+              />
+              <Text style={styles.emptyText}>No conversations yet</Text>
+              <Text style={styles.emptySubtext}>
+                Messages from sellers and collaborators will appear here
+              </Text>
+            </View>
+          }
+        />
+      </SafeAreaView>
+    </TermsOfUseManager>
   );
 }
 
@@ -190,11 +457,144 @@ const getDynamicStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 5,
   },
-  section: {
-    marginTop: 10,
-    paddingHorizontal: 10,
-    marginBottom: 10,
+  header: {
+    paddingTop: 16,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.subtitle + '20',
   },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  resetButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.cardBackground,
+  },
+  infoBanner: {
+    backgroundColor: colors.primary,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    marginLeft: 8,
+    color: '#fff',
+    fontSize: 13,
+    flex: 1,
+  },
+  conversationsList: {
+    flexGrow: 1,
+  },
+  conversationItem: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: colors.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.subtitle + '10',
+  },
+  newConversation: {
+    backgroundColor: colors.primary + '08', // Very subtle highlight
+  },
+  profileImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInitials: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  conversationInfo: {
+    flex: 1,
+    marginLeft: 14,
+    justifyContent: 'center',
+  },
+  conversationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  chatName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1, // Take available space
+    marginRight: 8,
+  },
+  timeStamp: {
+    fontSize: 12,
+    color: colors.subtitle,
+  },
+  newTimeStamp: {
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  previewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  messagePreview: {
+    fontSize: 14,
+    color: colors.subtitle,
+    flex: 1,
+    marginRight: 8,
+  },
+  newMessagePreview: {
+    color: colors.text,
+    fontWeight: '500',
+  },
+  newMessageIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  deleteAction: {
+    backgroundColor: '#FF3B30',
+    width: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  deleteActionContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteActionText: {
+    color: '#fff',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 30,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: colors.subtitle,
+    textAlign: 'center',
+    marginTop: 8,
+  }
 });

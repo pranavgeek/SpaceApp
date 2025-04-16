@@ -1,194 +1,205 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   FlatList,
-  Image,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { fetchProducts, getVerifiedProductsCount } from '../backend/db/API';
 
-const projects = [
-  {
-    id: '1',
-    name: 'Project Alpha',
-    image: 'https://via.placeholder.com/150',
-    unitPrice: 25,
-    totalSales: 120,
-    likes: 35,
-    messages: 15,
-  },
-  {
-    id: '2',
-    name: 'Project Beta',
-    image: 'https://via.placeholder.com/150',
-    unitPrice: 30,
-    totalSales: 90,
-    likes: 50,
-    messages: 20,
-  },
-  {
-    id: '3',
-    name: 'Project Gamma',
-    image: 'https://via.placeholder.com/150',
-    unitPrice: 40,
-    totalSales: 70,
-    likes: 42,
-    messages: 10,
-  },
-];
-
-const ProjectCard = ({ project, onPress }) => {
+const ProductScreen = ({ navigation, route }) => {
+  const { sellerId } = route.params || {};
+  const [products, setProducts] = useState([]);
+  const [verifiedCount, setVerifiedCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
 
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.projectName}>{project.name}</Text>
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const allProducts = await fetchProducts();
+        
+        // Filter products by seller ID
+        const sellerProducts = allProducts.filter(
+          product => product.user_seller === sellerId
+        );
+        
+        setProducts(sellerProducts);
+        
+        // Get verified products count
+        const count = await getVerifiedProductsCount(sellerId);
+        setVerifiedCount(count);
+      } catch (error) {
+        console.error('Error loading seller products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [sellerId]);
+
+  const handleProductPress = (product) => {
+    navigation.navigate('ProductDetails', { productId: product.product_id });
+  };
+
+  const renderProductItem = ({ item }) => (
+    <TouchableOpacity 
+      style={[styles.productCard, item.verified ? styles.verifiedCard : null]} 
+      onPress={() => handleProductPress(item)}
+    >
+      <View style={styles.productHeader}>
+        <Text style={styles.productName}>{item.product_name}</Text>
+        {item.verified && (
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
+        )}
       </View>
-
-      {/* Image */}
-      <Image source={{ uri: project.image }} style={styles.image} />
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <View>
-          <Text style={styles.unitPrice}>Unit Price: ${project.unitPrice}</Text>
-          <Text style={styles.totalSales}>Total Sales: {project.totalSales}</Text>
-        </View>
-
-        <View style={styles.footerIcons}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="heart" size={16} color={colors.primary} />
-            <Text style={styles.iconText}>{project.likes}</Text>
-          </View>
-
-          <View style={styles.iconContainer}>
-            <Ionicons name="chatbubble" size={16} color={colors.subtitle} />
-            <Text style={styles.iconText}>{project.messages}</Text>
-          </View>
-        </View>
+      
+      <View style={styles.productDetails}>
+        <Text style={styles.productPrice}>${item.cost}</Text>
+        <Text style={styles.productCategory}>{item.category || 'Uncategorized'}</Text>
       </View>
     </TouchableOpacity>
   );
-};
 
-const DetailsScreen = ({ route }) => {
-  const { project } = route.params;
-  const { colors } = useTheme();
-  const styles = getDynamicStyles(colors);
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.detailsContainer}>
-      <Text style={styles.detailsTitle}>{project.name}</Text>
-      <Image source={{ uri: project.image }} style={styles.detailsImage} />
-      <Text style={styles.detailsText}>Unit Price: ${project.unitPrice}</Text>
-      <Text style={styles.detailsText}>Total Sales: {project.totalSales}</Text>
-      <Text style={styles.detailsText}>Likes: {project.likes}</Text>
-      <Text style={styles.detailsText}>Messages: {project.messages}</Text>
+    <View style={styles.container}>
+      <View style={styles.statsContainer}>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{products.length}</Text>
+          <Text style={styles.statLabel}>Total Products</Text>
+        </View>
+        
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{verifiedCount}</Text>
+          <Text style={styles.statLabel}>Verified Products</Text>
+        </View>
+      </View>
+      
+      <FlatList
+        data={products}
+        renderItem={renderProductItem}
+        keyExtractor={(item) => item.product_id.toString()}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No products found</Text>
+        }
+      />
     </View>
   );
 };
 
-const ProductScreen = ({ navigation }) => {
-  const { colors } = useTheme();
-  const styles = getDynamicStyles(colors);
-
-  const handlePress = (project) => {
-    navigation.navigate('Details', { project });
-  };
-
-  return (
-    <FlatList
-      data={projects}
-      renderItem={({ item }) => (
-        <ProjectCard project={item} onPress={() => handlePress(item)} />
-      )}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
-    />
-  );
-};
-
-export default ProductScreen;
-
 const getDynamicStyles = (colors) => StyleSheet.create({
-  list: {
-    padding: 10,
+  container: {
+    flex: 1,
     backgroundColor: colors.background,
   },
-  card: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 15,
+    backgroundColor: colors.cardBackground,
+    marginBottom: 10,
+    borderRadius: 8,
+    marginHorizontal: 10,
+    marginTop: 10,
+    elevation: 2,
+  },
+  statBox: {
+    alignItems: 'center',
+    padding: 10,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: colors.subtitle,
+    marginTop: 4,
+  },
+  list: {
+    padding: 10,
+  },
+  productCard: {
     backgroundColor: colors.cardBackground,
     borderRadius: 8,
+    padding: 15,
     marginBottom: 10,
-    overflow: 'hidden',
-    elevation: 3,
+    elevation: 2,
   },
-  header: {
-    padding: 10,
-    backgroundColor: colors.cardHeaderBackground,
+  verifiedCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
   },
-  projectName: {
+  productHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  productName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
+    flex: 1,
   },
-  image: {
-    width: '100%',
-    height: 150,
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardHeaderBackground,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  footer: {
+  verifiedText: {
+    fontSize: 12,
+    marginLeft: 4,
+    color: colors.primary,
+  },
+  productDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 10,
-    backgroundColor: colors.cardHeaderBackground,
   },
-  unitPrice: {
-    fontSize: 14,
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
   },
-  totalSales: {
+  productCategory: {
     fontSize: 14,
     color: colors.subtitle,
   },
-  footerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  iconText: {
-    marginLeft: 4,
-    fontSize: 14,
-    color: colors.subtitle
-  },
-  detailsContainer: {
-    flex: 1,
-    padding: 20,
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  detailsTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: colors.text,
-  },
-  detailsImage: {
-    width: '100%',
-    height: 200,
-    marginBottom: 20,
-  },
-  detailsText: {
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
     fontSize: 16,
-    marginBottom: 5,
-    color: colors.text,
+    color: colors.subtitle,
   },
 });
+
+export default ProductScreen;
