@@ -26,7 +26,7 @@ const BaseContainer = ({ title, subtitle, titleIcon, children, footer }) => {
       )}
 
       {/* Content Section */}
-      <View style={[styles.content, { backgroundColor: "#1e40af" }]}>
+      <View style={[styles.content, { backgroundColor: "#cecedf" }]}>
         {children}
 
         {/* Footer Section */}

@@ -13,9 +13,6 @@ import {
   StatusBar,
   ImageBackground,
 } from "react-native";
-import ButtonSettings from "../components/ButtonSettings";
-import ButtonMain from "../components/ButtonMain";
-import ButtonIcon from "../components/ButtonIcon";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -41,9 +38,11 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  useFocusEffect(useCallback(() => {
-    loadData();
-  }, []));
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   const windowWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
@@ -61,20 +60,21 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar 
-        translucent={true} 
-        backgroundColor="transparent" 
-        barStyle="dark-content" 
+      <StatusBar
+        translucent={true}
+        backgroundColor="transparent"
+        barStyle="dark-content"
       />
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Header with Background */}
         <View style={styles.profileHeader}>
           <ImageBackground
-            source={{ uri: "https://images.unsplash.com/photo-1520333789090-1afc82db536a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80" }}
+            source={{
+              uri: "https://images.unsplash.com/photo-1520333789090-1afc82db536a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+            }}
             style={styles.headerBackground}
           >
             <LinearGradient
-              colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)']}
+              colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.7)"]}
               style={styles.gradient}
             />
             <View style={styles.headerContent}>
@@ -90,9 +90,7 @@ export default function ProfileScreen({ navigation }) {
           </ImageBackground>
         </View>
 
-        {/* Profile Content Card */}
         <View style={styles.profileContent}>
-          {/* Profile Info Section */}
           <View style={styles.profileInfoSection}>
             <View style={styles.nameSection}>
               <Text style={styles.profileName}>{seller.name}</Text>
@@ -102,29 +100,38 @@ export default function ProfileScreen({ navigation }) {
             </View>
 
             <View style={styles.actionsRow}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.editProfileButton}
                 onPress={() => navigation.navigate("Edit Profile")}
               >
                 <Text style={styles.editProfileText}>Edit Profile</Text>
               </TouchableOpacity>
-              
               <TouchableOpacity style={styles.shareButton}>
-                <Ionicons name="share-social-outline" size={20} color={colors.text} />
+                <Ionicons
+                  name="share-social-outline"
+                  size={20}
+                  color={colors.text}
+                />
               </TouchableOpacity>
             </View>
 
-            {/* Location & Language */}
             <View style={styles.locationContainer}>
               <View style={styles.infoItem}>
-                <Ionicons name="location-outline" size={18} color={colors.subtitle} />
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={colors.subtitle}
+                />
                 <Text style={styles.infoText}>
                   {seller.city}, {seller.country}
                 </Text>
               </View>
-              
               <View style={styles.infoItem}>
-                <Ionicons name="language-outline" size={18} color={colors.subtitle} />
+                <Ionicons
+                  name="language-outline"
+                  size={18}
+                  color={colors.subtitle}
+                />
                 <Text style={styles.infoText}>
                   {languages.length > 0 ? languages.join(", ") : "No languages set"}
                 </Text>
@@ -132,7 +139,6 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Stats Section */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{seller.campaigns.length}</Text>
@@ -150,13 +156,12 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Menu Buttons Section */}
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>Management</Text>
             <View style={styles.buttonsGrid}>
               <TouchableOpacity
                 style={styles.menuButton}
-                onPress={() => navigation.navigate("My Products")}
+                onPress={() => navigation.navigate("My Products", { sellerId: user.user_id })}
               >
                 <View style={styles.buttonIconContainer}>
                   <Ionicons name="grid-outline" size={24} color={colors.primary} />
@@ -192,6 +197,16 @@ export default function ProfileScreen({ navigation }) {
                   <Ionicons name="cube-outline" size={24} color={colors.primary} />
                 </View>
                 <Text style={styles.buttonText}>Orders</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => navigation.navigate("Notifications")}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons name="notifications-outline" size={24} color={colors.primary} />
+                </View>
+                <Text style={styles.buttonText}>Notifications</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

@@ -21,18 +21,17 @@ export default function ProjectCard({ item, onPress }) {
   const { addToCart } = useCart();
   const { user } = useAuth();
 
-  // Get a stable project id.
+  // Get a stable project id
   const projectId = getProjectId(item.project);
 
-  // Read the global like state.
+  // Read the global like state
   const isLiked = getLikes(projectId);
-  // Display like count: base count plus one if liked.
+  // Display like count: base count plus one if liked
   const displayedLikes = item.project.likes + (isLiked ? 1 : 0);
 
   const handleToggleLike = () => {
     toggleLike(projectId);
   };
-
 
   const handleAddToCart = () => {
     const buyerId = parseInt(user?.user_id); // logged-in buyer
@@ -50,105 +49,215 @@ export default function ProjectCard({ item, onPress }) {
     console.log("🛒 Final cart item:", JSON.stringify(cartItem));
     addToCart(cartItem);
   };
-  
-  
 
+  const styles = getStyles(colors);
+  
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.baseContainerBody }]}
+      style={styles.card}
       onPress={onPress}
+      activeOpacity={0.9}
     >
-      <View style={styles.cardHeader}>
-        <Image source={{ uri: item.creator.image }} style={styles.profileImage} />
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={[styles.creatorName, { color: colors.text }]}>
-            {item.creator.name}
-          </Text>
-          <Text style={[styles.category, { color: colors.subtitle }]}>
-            {item.category}
+      {/* Card Image Section */}
+      <View style={styles.imageContainer}>
+        <Image 
+          source={{ uri: item.project.image }} 
+          style={styles.projectImage} 
+          resizeMode="cover"
+        />
+        
+        {/* Price Tag */}
+        <View style={styles.priceTag}>
+          <Text style={styles.priceText}>
+            ${parseFloat(item.project.price).toFixed(2)}
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={handleAddToCart}
-          style={[styles.button, { backgroundColor: colors.buttonBackground }]}
+        
+        {/* Like Button */}
+        <TouchableOpacity 
+          onPress={handleToggleLike} 
+          style={styles.likeButton}
         >
-          <Text style={styles.buttonText}>Add to Cart</Text>
+          <Ionicons
+            name={isLiked ? "heart" : "heart-outline"}
+            size={22}
+            color={isLiked ? colors.error : colors.background}
+          />
         </TouchableOpacity>
       </View>
-
-      <Image source={{ uri: item.project.image }} style={styles.projectImage} />
-
-      <View style={styles.cardFooter}>
-        <Text style={[styles.projectName, { color: colors.text }]}>
+      
+      {/* Card Content */}
+      <View style={styles.cardContent}>
+        {/* Category Tag */}
+        <View style={styles.categoryTag}>
+          <Text style={styles.categoryText}>{item.category}</Text>
+        </View>
+        
+        {/* Project Name */}
+        <Text 
+          style={styles.projectName}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
           {item.project.name}
         </Text>
+        
+        {/* Project Description */}
         <Text
-          numberOfLines={1}
-          style={[styles.projectDescription, { color: colors.subtitle }]}
+          numberOfLines={2}
+          style={styles.projectDescription}
+          ellipsizeMode="tail"
         >
           {item.project.description}
         </Text>
-        <Text style={[styles.projectPrice, { color: colors.text }]}>
-          {item.project.price}
-        </Text>
-
-        <View style={styles.cardActions}>
-          <TouchableOpacity onPress={handleToggleLike} style={styles.actionButton}>
-            <Ionicons
-              name={isLiked ? "heart" : "heart-outline"}
-              size={20}
-              color={isLiked ? colors.error : colors.text}
-            />
-            <Text style={[styles.actionText, { color: colors.text }]}>
-              {displayedLikes}
+        
+        {/* Creator Info Row */}
+        <View style={styles.creatorRow}>
+          <Image source={{ uri: item.creator.image }} style={styles.creatorImage} />
+          <Text style={styles.creatorName}>{item.creator.name}</Text>
+          
+          {/* Cart Button */}
+          <TouchableOpacity
+            onPress={handleAddToCart}
+            style={styles.cartButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="cart-outline" size={20} color={colors.background} />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Action Bar */}
+        <View style={styles.actionBar}>
+          <View style={styles.statItem}>
+            <Ionicons name="heart" size={16} color={colors.primary} />
+            <Text style={styles.statText}>{displayedLikes}</Text>
+          </View>
+          
+          <View style={styles.statItem}>
+            <Ionicons name="location-outline" size={16} color={colors.subtitle} />
+            <Text style={styles.statText}>
+              {item.project.city ? `${item.project.city}, ${item.project.country}` : item.project.country || "Global"}
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="share-social-outline" size={20} color={colors.text} />
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   card: {
-    margin: 10,
-    borderRadius: 10,
+    borderRadius: 16,
     overflow: "hidden",
-    width: Platform.OS === "web" ? 300 : undefined,
+    backgroundColor: colors.background,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    width: Platform.OS === "web" ? "100%" : undefined,
   },
-  cardHeader: {
-    flexDirection: "row",
-    padding: 10,
+  imageContainer: {
+    position: "relative",
+    width: "100%",
+    height: 180,
   },
-  button: {
-    height: Platform.OS === "web" ? 35 : undefined,
-    paddingVertical: Platform.OS === "web" ? 12 : 11,
+  projectImage: {
+    width: "100%",
+    height: "100%",
+  },
+  priceTag: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  priceText: {
+    color: colors.background,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  likeButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    padding: 8,
+    borderRadius: 20,
+  },
+  cardContent: {
+    padding: 16,
+  },
+  categoryTag: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.baseContainerBody,
     paddingHorizontal: 10,
-    borderRadius: 30,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  categoryText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  projectName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 6,
+  },
+  projectDescription: {
+    fontSize: 14,
+    color: colors.subtitle,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  creatorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  creatorImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 8,
+  },
+  creatorName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text,
+  },
+  cartButton: {
+    backgroundColor: colors.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
     alignItems: "center",
   },
-  buttonText: {
-    color: "white",
-    fontSize: Platform.OS === "web" ? 10 : 13,
-    fontWeight: "bold",
+  actionBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.baseContainerBody,
   },
-  profileImage: { width: 40, height: 40, borderRadius: 20 },
-  creatorName: { fontSize: 16, fontWeight: "bold" },
-  category: { fontSize: 12 },
-  projectImage: { width: "100%", height: 200 },
-  cardFooter: { padding: 10 },
-  projectName: { fontSize: 18, fontWeight: "bold" },
-  projectDescription: { fontSize: 14 },
-  projectPrice: { fontSize: 16, marginVertical: 5 },
-  cardActions: { flexDirection: "row", justifyContent: "space-between" },
-  actionButton: { flexDirection: "row", alignItems: "center" },
-  actionText: { marginLeft: 5, fontSize: 14 },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statText: {
+    marginLeft: 4,
+    fontSize: 12,
+    color: colors.subtitle,
+  }
 });

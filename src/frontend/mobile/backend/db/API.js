@@ -23,6 +23,37 @@ export const apiLogin = async (email, password) => {
   });
 };
 
+export const requestOtp = async (email) => {
+  const res = await fetch(`${BASE_URL}/auth/request-reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Failed to send OTP");
+  return res.json();
+};
+
+export const verifyOtp = async (email, otp) => {
+  const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+  if (!res.ok) throw new Error("Invalid or expired OTP");
+  return res.json();
+};
+
+export const resetPassword = async (email, new_password) => {
+  const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, new_password }),
+  });
+  if (!res.ok) throw new Error("Failed to reset password");
+  return res.json();
+};
+
+
 export const createOrder = async (buyerId, orderData) => {
   try {
     console.log(`Creating order at: ${BASE_URL}/users/${buyerId}/orders/create`);
@@ -159,6 +190,54 @@ export const createProduct = async (productData) => {
   return response.json();
 };
 
+export const verifyProduct = async (productId, productName) => {
+  try {
+    // Make sure productId is a number
+    const id = parseInt(productId, 10);
+    
+    // Log the verification attempt
+    console.log(`Attempting to verify product with ID: ${id}, Name: ${productName || 'Not specified'}`);
+    
+    // API endpoint URL - adjusted to match your server structure
+    const apiUrl = `${BASE_URL}/verify-product/${id}`;
+    
+    // Make the API request with proper headers and method
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Include both verification flag and product name to handle duplicates
+      body: JSON.stringify({
+        verified: true,
+        productName: productName
+      }),
+    });
+    
+    // Check if the request was successful
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+    
+    // Parse the JSON response
+    const data = await response.json();
+    
+    // Verify the response indicates success
+    if (!data.success) {
+      throw new Error(`API returned failure: ${data.message || 'Unknown error'}`);
+    }
+    
+    // Log success
+    console.log('Product verified successfully:', data);
+    
+    return data;
+  } catch (error) {
+    console.error('Error in verifyProduct:', error);
+    throw error; // Re-throw to allow handling in the UI
+  }
+};
+
+
 export const updateProduct = async (id, productData) => {
   const response = await fetch(`${BASE_URL}/products/${id}`, {
     method: "PUT",
@@ -175,11 +254,163 @@ export const deleteProduct = async (id) => {
   return response.json();
 };
 
-// REVIEWS
-export const fetchReviews = async () => {
-  const response = await fetch(`${BASE_URL}/reviews`);
-  if (!response.ok) throw new Error("Failed to fetch reviews");
+// Function to find product ID by name
+export const findProductIdByName = async (productName) => {
+  if (!productName) return null;
+  
+  try {
+    // Fetch all products from the API
+    const products = await fetchProducts();
+    
+    if (!Array.isArray(products)) {
+      console.error("Products data is not an array:", products);
+      return null;
+    }
+    
+    // First try exact name match
+    let matchedProduct = products.find(
+      p => p.product_name?.toLowerCase() === productName.toLowerCase()
+    );
+    
+    // If no exact match, try partial match
+    if (!matchedProduct) {
+      matchedProduct = products.find(
+        p => p.product_name?.toLowerCase().includes(productName.toLowerCase()) ||
+             productName.toLowerCase().includes(p.product_name?.toLowerCase())
+      );
+    }
+    
+    if (matchedProduct) {
+      console.log(`Found product match: ${matchedProduct.product_name} (ID: ${matchedProduct.product_id})`);
+      return matchedProduct.product_id;
+    }
+    
+    console.log(`No product found matching name: ${productName}`);
+    return null;
+  } catch (error) {
+    console.error("Error finding product by name:", error);
+    return null;
+  }
+};
+
+export const getSellerProducts = async (sellerId) => {
+  const response = await fetch(`${BASE_URL}/seller/${sellerId}/products`);
+  if (!response.ok) throw new Error("Failed to fetch seller products");
   return response.json();
+};
+
+export const getVerifiedProductsCount = async (sellerId) => {
+  try {
+    // Fetch all products from the API
+    const products = await fetchProducts();
+    
+    if (!Array.isArray(products)) {
+      console.error("Products data is not an array:", products);
+      return 0;
+    }
+    
+    // Filter products by seller ID and verified status
+    const verifiedProducts = products.filter(
+      product => product.user_seller === sellerId && product.verified === true
+    );
+    
+    return verifiedProducts.length;
+  } catch (error) {
+    console.error("Error counting verified products:", error);
+    return 0;
+  }
+};
+
+// REVIEWS
+export const fetchReviews = async (productId) => {
+  try {
+    // If product ID is provided, fetch reviews for that specific product
+    const url = productId 
+      ? `${BASE_URL}/reviews?product_id=${productId}` 
+      : `${BASE_URL}/reviews`;
+      
+    console.log(`Fetching reviews from: ${url}`);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch reviews: ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    
+    // Double-check filtering on client side if productId was specified
+    if (productId && Array.isArray(data)) {
+      // Make sure we only return reviews that match this exact product ID
+      const filteredData = data.filter(review => 
+        Number(review.product_id) === Number(productId)
+      );
+      
+      console.log(`Filtered ${data.length} reviews to ${filteredData.length} for product ${productId}`);
+      return filteredData;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    return [];
+  }
+};
+
+export const createReview = async (reviewData) => {
+  try {
+    console.log('Creating review with data:', reviewData);
+    
+    const response = await fetch(`${BASE_URL}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reviewData),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create review: ${response.status} - ${errorText}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error('Error creating review:', error);
+    throw error;
+  }
+};
+
+export const updateReview = async (reviewId, reviewData) => {
+  try {
+    const response = await fetch(`${BASE_URL}/reviews/${reviewId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reviewData),
+    });
+    
+    if (!response.ok) throw new Error(`Failed to update review ${reviewId}`);
+    return response.json();
+  } catch (error) {
+    console.error('Error updating review:', error);
+    throw error;
+  }
+};
+
+export const deleteReview = async (reviewId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/reviews/${reviewId}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) throw new Error(`Failed to delete review ${reviewId}`);
+    return response.json();
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    throw error;
+  }
 };
 
 // MESSAGES
@@ -195,6 +426,120 @@ export const fetchMessages = async () => {
   } catch (error) {
     console.error("Fetch messages error:", error);
     return [];
+  }
+};
+
+// Fetch messages between two users
+export const fetchMessagesBetweenUsers = async (user1Id, user2Id) => {
+  try {
+    const response = await fetch(`${BASE_URL}/messages/between/${user1Id}/${user2Id}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch messages: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching messages between users:", error);
+    return [];
+  }
+};
+
+// Fetch all conversations for a user
+export const fetchUserConversations = async (userId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/messages/conversations/${userId}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch conversations: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching user conversations:", error);
+    return [];
+  }
+};
+
+// Send a new message
+export const sendMessage = async (messageData) => {
+  try {
+    const response = await fetch(`${BASE_URL}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...messageData,
+        date_timestamp_sent: new Date().toISOString(),
+        is_read: false,
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to send message: ${response.status}`);
+    }
+    
+    return new Promise((resolve) => {
+      console.log("Mock sendMessage called", messageData);
+      setTimeout(() => resolve({ status: 'ok' }), 500);
+    });
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+// Mark a message as read
+export const markMessageAsRead = async (messageId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/messages/${messageId}/read`, {
+      method: 'PUT',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to mark message as read: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error marking message as read:", error);
+    return false;
+  }
+};
+
+// Mark all messages from a specific user as read
+export const markAllMessagesAsRead = async (fromUserId, toUserId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/messages/mark-all-read/${fromUserId}/${toUserId}`, {
+      method: 'PUT',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to mark messages as read: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error marking all messages as read:", error);
+    return false;
+  }
+};
+
+// Get unread messages count
+export const getUnreadMessagesCount = async (userId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/messages/unread-count/${userId}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get unread count: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.count;
+  } catch (error) {
+    console.error("Error getting unread messages count:", error);
+    return 0;
   }
 };
 

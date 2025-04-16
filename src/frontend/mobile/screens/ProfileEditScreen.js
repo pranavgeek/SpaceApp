@@ -25,12 +25,19 @@ export default function ProfileEditScreen({ navigation }) {
   const [twitter, setTwitter] = useState("");
   const [linkedIn, setLinkedIn] = useState("");
   const [website, setWebsite] = useState("");
+  // New state variables for gender and age
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
+
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
   const { user, setUser } = useAuth();
 
   useEffect(() => {
+    console.log("Current user data:", JSON.stringify(user, null, 2));
+    
     if (user) {
+      // Set the form values from user data
       setName(user.name || "");
       setDescription(user.about_us || "");
       setCity(user.city || "");
@@ -38,6 +45,13 @@ export default function ProfileEditScreen({ navigation }) {
       setTwitter(user.social_media_x || "");
       setLinkedIn(user.social_media_linkedin || "");
       setWebsite(user.social_media_website || "");
+      
+      // Check if gender and age exist and log their values
+      console.log("Gender property exists:", user.hasOwnProperty('gender'));
+      console.log("Age property exists:", user.hasOwnProperty('age'));
+      
+      setGender(user.gender || "");
+      setAge(user.age !== undefined ? String(user.age) : "");
     }
   }, [user]);
 
@@ -52,6 +66,8 @@ export default function ProfileEditScreen({ navigation }) {
         social_media_x: twitter,
         social_media_linkedin: linkedIn,
         social_media_website: website,
+        gender,
+        age: parseInt(age, 10),
       };
 
       const response = await updateUser(user.user_id, updatedUser);
@@ -79,13 +95,7 @@ export default function ProfileEditScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Input Fields */}
-      {/*<View style={styles.inputContainer}>
-        <InputMain placeholder='Name' label='Name'/>
-        <InputMain placeholder='Description' label='Description' numberOfLines={3}/>
-        <InputMain placeholder='City' label='City'/>
-        <InputMain placeholder='Country' label='Country'/>
-      </View>*/}
+      {/* Personal Profile Section */}
       <BaseContainer title={"Personal Profile"}>
         <InputSetting
           placeholder="Name"
@@ -112,16 +122,24 @@ export default function ProfileEditScreen({ navigation }) {
           value={country}
           onChangeText={setCountry}
         />
+        {/* New Fields for Gender and Age */}
+        <InputSetting
+          placeholder="Gender"
+          label="Gender"
+          value={gender}
+          onChangeText={setGender}
+        />
+        <InputSetting
+          placeholder="Age"
+          label="Age"
+          value={age}
+          onChangeText={setAge}
+          keyboardType="numeric"
+        />
       </BaseContainer>
 
-      {/* Social Media Links */}
-      {/*<View style={styles.inputContainer}>
-        <Text style={styles.sectionTitle}>Social Media Links</Text>
-        <InputMain placeholder='account@' label='X'/>
-        <InputMain placeholder='www.LinkedIn.com/In/name' label='LinkedIn'/>
-        <InputMain placeholder='www.website.com' label='Website'/>
-      </View>*/}
-      <BaseContainer title={"Social Media"}>
+      {/* Social Media Section */}
+      {/* <BaseContainer title={"Social Media"}>
         <InputSetting
           placeholder="account@"
           label="X"
@@ -140,7 +158,7 @@ export default function ProfileEditScreen({ navigation }) {
           value={website}
           onChangeText={setWebsite}
         />
-      </BaseContainer>
+      </BaseContainer> */}
 
       {/* Save Button */}
       <View style={styles.inputContainer}>

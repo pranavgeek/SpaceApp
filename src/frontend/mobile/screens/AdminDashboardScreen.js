@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   Linking,
   SafeAreaView,
   StatusBar,
+  Modal,
   ActivityIndicator,
   Dimensions,
   Alert,
@@ -20,6 +22,7 @@ import {
   fetchPendingTrackingLinks,
   approveTrackingLink,
   createNotification,
+  verifyProduct,
 } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,6 +37,8 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("approvals");
   const [processingAction, setProcessingAction] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);
 
   useEffect(() => {
     loadAdminDashboard();
@@ -64,43 +69,118 @@ export default function AdminDashboardScreen() {
     // Call updateUser and updateAdminStatus here (to be implemented)
   };
 
+  const handleProductVerify = async (productId, productName) => {
+    try {
+      setProcessingAction(true);
+      console.log(
+        `Attempting to verify product: ID ${productId}, Name: "${productName}"`
+      );
+
+      // Call the API to verify the product, passing both ID and name
+      const response = await verifyProduct(productId, productName);
+      console.log("API Response:", response);
+
+      if (!response.success) {
+        throw new Error(response.message || "Verification failed");
+      }
+
+      // Refresh products data
+      const allProducts = await fetchProducts();
+
+      // Verify that the product was actually updated
+      const verifiedProduct = allProducts.find(
+        (p) =>
+          p.product_id === productId &&
+          p.product_name === productName &&
+          p.verified === true
+      );
+
+      if (!verifiedProduct) {
+        console.warn(
+          "Product may not have been verified. Product not showing as verified in database."
+        );
+        setProducts(allProducts);
+        Alert.alert(
+          "Verification Issue",
+          "The product appears to have verification issues. Please check the database.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      // Successfully verified, notify the seller
+      const seller = users.find(
+        (u) => u.user_id === verifiedProduct.user_seller
+      );
+
+      if (seller) {
+        await createNotification({
+          user_id: seller.user_id,
+          message: `✅ Your product "${verifiedProduct.product_name}" has been verified and is now live!`,
+          date_timestamp: new Date().toISOString(),
+        });
+        console.log(
+          `Notification sent to seller ${seller.name} (ID: ${seller.user_id})`
+        );
+      }
+
+      // Update the local products state
+      setProducts(allProducts);
+
+      Alert.alert(
+        "Success",
+        `Product "${productName}" verified successfully and is now live on the platform.`
+      );
+    } catch (error) {
+      console.error("Error verifying product:", error);
+      Alert.alert("Error", `Failed to verify product: ${error.message}`);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   const handleTrackingApprove = async (order) => {
     try {
       setProcessingAction(true);
       console.log(`✅ Approving tracking for order ${order.order_id}`);
-      
+
       // 1. Call the API to approve the tracking link
       await approveTrackingLink(order.order_id, order.pending_tracking_link);
-      
+
       // 2. Find the buyer and seller details
-      const buyer = users.find(u => u.user_id === order.buyer_id);
-      const seller = users.find(u => u.user_id === order.seller_id);
-      
+      const buyer = users.find((u) => u.user_id === order.buyer_id);
+      const seller = users.find((u) => u.user_id === order.seller_id);
+
       if (!buyer) {
         throw new Error(`Buyer with ID ${order.buyer_id} not found`);
       }
-      
+
       // 3. Create a notification for the buyer
       const notificationData = {
         user_id: order.buyer_id,
-        message: `Your tracking link for order #${order.order_id} is now available. ${seller ? `Sent by ${seller.name}` : ''}`,
+        message: `Your tracking link for order #${order.order_id} is now available. ${seller ? `Sent by ${seller.name}` : ""}`,
         date_timestamp: new Date().toISOString(),
         link: order.pending_tracking_link,
-        order_id: order.order_id
+        order_id: order.order_id,
       };
-      
+
       await createNotification(notificationData);
-      
+
       // 4. Update local state to remove the approved tracking
-      setPendingTrackings(pendingTrackings.filter(t => t.order_id !== order.order_id));
-      
+      setPendingTrackings(
+        pendingTrackings.filter((t) => t.order_id !== order.order_id)
+      );
+
       Alert.alert(
-        "Success", 
+        "Success",
         `Tracking link approved and notification sent to ${buyer.name}.`
       );
     } catch (error) {
       console.error("Error approving tracking:", error);
-      Alert.alert("Error", "Failed to approve tracking link. Please try again.");
+      Alert.alert(
+        "Error",
+        "Failed to approve tracking link. Please try again."
+      );
     } finally {
       setProcessingAction(false);
     }
@@ -110,9 +190,11 @@ export default function AdminDashboardScreen() {
     try {
       setProcessingAction(true);
       // Implementation for rejecting tracking link would go here
-      
+
       // For now, just remove from the list
-      setPendingTrackings(pendingTrackings.filter(t => t.order_id !== orderId));
+      setPendingTrackings(
+        pendingTrackings.filter((t) => t.order_id !== orderId)
+      );
       Alert.alert("Success", "Tracking link rejected.");
     } catch (error) {
       console.error("Error rejecting tracking:", error);
@@ -122,13 +204,15 @@ export default function AdminDashboardScreen() {
     }
   };
 
-  const pendingApprovals = adminData.filter(a => a.status === "pending");
-  const confirmedAccounts = adminData.filter(a => a.status === "confirmed");
+  const pendingApprovals = adminData.filter((a) => a.status === "pending");
+  const confirmedAccounts = adminData.filter((a) => a.status === "confirmed");
 
   const renderDashboardStats = () => (
     <View style={styles.statsContainer}>
       <View style={styles.statCard}>
-        <View style={[styles.statIconContainer, { backgroundColor: '#e0f2fe' }]}>
+        <View
+          style={[styles.statIconContainer, { backgroundColor: "#e0f2fe" }]}
+        >
           <Ionicons name="people-outline" size={24} color="#0284c7" />
         </View>
         <View style={styles.statInfo}>
@@ -138,7 +222,9 @@ export default function AdminDashboardScreen() {
       </View>
 
       <View style={styles.statCard}>
-        <View style={[styles.statIconContainer, { backgroundColor: '#dcfce7' }]}>
+        <View
+          style={[styles.statIconContainer, { backgroundColor: "#dcfce7" }]}
+        >
           <Ionicons name="cart-outline" size={24} color="#16a34a" />
         </View>
         <View style={styles.statInfo}>
@@ -148,7 +234,9 @@ export default function AdminDashboardScreen() {
       </View>
 
       <View style={styles.statCard}>
-        <View style={[styles.statIconContainer, { backgroundColor: '#fef3c7' }]}>
+        <View
+          style={[styles.statIconContainer, { backgroundColor: "#fef3c7" }]}
+        >
           <Ionicons name="time-outline" size={24} color="#d97706" />
         </View>
         <View style={styles.statInfo}>
@@ -161,42 +249,40 @@ export default function AdminDashboardScreen() {
 
   const renderTabs = () => (
     <View style={styles.tabContainer}>
-      <TouchableOpacity 
-        style={[
-          styles.tab, 
-          activeTab === 'approvals' && styles.activeTab
-        ]} 
-        onPress={() => setActiveTab('approvals')}
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "approvals" && styles.activeTab]}
+        onPress={() => setActiveTab("approvals")}
       >
-        <Ionicons 
-          name="checkmark-circle-outline" 
-          size={20} 
-          color={activeTab === 'approvals' ? colors.primary : colors.subtitle} 
+        <Ionicons
+          name="checkmark-circle-outline"
+          size={20}
+          color={activeTab === "approvals" ? colors.primary : colors.subtitle}
         />
-        <Text style={[
-          styles.tabText, 
-          activeTab === 'approvals' && styles.activeTabText
-        ]}>
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === "approvals" && styles.activeTabText,
+          ]}
+        >
           Approvals
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={[
-          styles.tab, 
-          activeTab === 'tracking' && styles.activeTab
-        ]} 
-        onPress={() => setActiveTab('tracking')}
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "tracking" && styles.activeTab]}
+        onPress={() => setActiveTab("tracking")}
       >
-        <Ionicons 
-          name="navigate-outline" 
-          size={20} 
-          color={activeTab === 'tracking' ? colors.primary : colors.subtitle} 
+        <Ionicons
+          name="navigate-outline"
+          size={20}
+          color={activeTab === "tracking" ? colors.primary : colors.subtitle}
         />
-        <Text style={[
-          styles.tabText, 
-          activeTab === 'tracking' && styles.activeTabText
-        ]}>
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === "tracking" && styles.activeTabText,
+          ]}
+        >
           Tracking
         </Text>
         {pendingTrackings.length > 0 && (
@@ -206,42 +292,40 @@ export default function AdminDashboardScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={[
-          styles.tab, 
-          activeTab === 'accounts' && styles.activeTab
-        ]} 
-        onPress={() => setActiveTab('accounts')}
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "accounts" && styles.activeTab]}
+        onPress={() => setActiveTab("accounts")}
       >
-        <Ionicons 
-          name="person-outline" 
-          size={20} 
-          color={activeTab === 'accounts' ? colors.primary : colors.subtitle} 
+        <Ionicons
+          name="person-outline"
+          size={20}
+          color={activeTab === "accounts" ? colors.primary : colors.subtitle}
         />
-        <Text style={[
-          styles.tabText, 
-          activeTab === 'accounts' && styles.activeTabText
-        ]}>
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === "accounts" && styles.activeTabText,
+          ]}
+        >
           Accounts
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={[
-          styles.tab, 
-          activeTab === 'products' && styles.activeTab
-        ]} 
-        onPress={() => setActiveTab('products')}
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "products" && styles.activeTab]}
+        onPress={() => setActiveTab("products")}
       >
-        <Ionicons 
-          name="cube-outline" 
-          size={20} 
-          color={activeTab === 'products' ? colors.primary : colors.subtitle} 
+        <Ionicons
+          name="cube-outline"
+          size={20}
+          color={activeTab === "products" ? colors.primary : colors.subtitle}
         />
-        <Text style={[
-          styles.tabText, 
-          activeTab === 'products' && styles.activeTabText
-        ]}>
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === "products" && styles.activeTabText,
+          ]}
+        >
           Products
         </Text>
       </TouchableOpacity>
@@ -275,7 +359,9 @@ export default function AdminDashboardScreen() {
                     </Text>
                   </View>
                   <View>
-                    <Text style={styles.userName}>{requestUser?.name || "Unknown User"}</Text>
+                    <Text style={styles.userName}>
+                      {requestUser?.name || "Unknown User"}
+                    </Text>
                     <Text style={styles.userAction}>{item.action}</Text>
                   </View>
                 </View>
@@ -283,13 +369,11 @@ export default function AdminDashboardScreen() {
                   <Text style={styles.statusText}>Pending</Text>
                 </View>
               </View>
-              
+
               <View style={styles.divider} />
-              
+
               <View style={styles.cardFooter}>
-                <TouchableOpacity
-                  style={styles.rejectButton}
-                >
+                <TouchableOpacity style={styles.rejectButton}>
                   <Text style={styles.rejectButtonText}>Reject</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -298,11 +382,18 @@ export default function AdminDashboardScreen() {
                     handleApprove(
                       item.admin_id,
                       item.user_id,
-                      item.action.includes("influencer") ? "Influencer" : "Seller"
+                      item.action.includes("influencer")
+                        ? "Influencer"
+                        : "Seller"
                     )
                   }
                 >
-                  <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 4 }} />
+                  <Ionicons
+                    name="checkmark"
+                    size={18}
+                    color="#fff"
+                    style={{ marginRight: 4 }}
+                  />
                   <Text style={styles.approveButtonText}>Approve</Text>
                 </TouchableOpacity>
               </View>
@@ -329,9 +420,9 @@ export default function AdminDashboardScreen() {
         </View>
       ) : (
         pendingTrackings.map((item) => {
-          const buyer = users.find(u => u.user_id === item.buyer_id);
-          const seller = users.find(u => u.user_id === item.seller_id);
-          
+          const buyer = users.find((u) => u.user_id === item.buyer_id);
+          const seller = users.find((u) => u.user_id === item.seller_id);
+
           return (
             <View key={item.order_id} style={styles.card}>
               <View style={styles.trackingHeader}>
@@ -343,22 +434,22 @@ export default function AdminDashboardScreen() {
                   <Text style={styles.statusText}>Pending</Text>
                 </View>
               </View>
-              
+
               <View style={styles.orderDetails}>
                 <Text style={styles.orderDetailLabel}>Product:</Text>
                 <Text style={styles.orderDetailText}>{item.product_name}</Text>
-                
+
                 <Text style={styles.orderDetailLabel}>Buyer:</Text>
                 <Text style={styles.orderDetailText}>
                   {buyer ? buyer.name : `ID: ${item.buyer_id}`}
                 </Text>
-                
+
                 <Text style={styles.orderDetailLabel}>Seller:</Text>
                 <Text style={styles.orderDetailText}>
                   {seller ? seller.name : `ID: ${item.seller_id}`}
                 </Text>
               </View>
-              
+
               <View style={styles.trackingLinkContainer}>
                 <Ionicons name="link-outline" size={20} color="#6b7280" />
                 {item.pending_tracking_link ? (
@@ -371,12 +462,14 @@ export default function AdminDashboardScreen() {
                     {item.pending_tracking_link}
                   </Text>
                 ) : (
-                  <Text style={styles.noTrackingText}>No tracking link provided</Text>
+                  <Text style={styles.noTrackingText}>
+                    No tracking link provided
+                  </Text>
                 )}
               </View>
-              
+
               <View style={styles.divider} />
-              
+
               <View style={styles.cardFooter}>
                 <TouchableOpacity
                   style={styles.rejectButton}
@@ -388,14 +481,26 @@ export default function AdminDashboardScreen() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.approveButton, processingAction && styles.disabledButton]}
+                  style={[
+                    styles.approveButton,
+                    processingAction && styles.disabledButton,
+                  ]}
                   onPress={() => handleTrackingApprove(item)}
                   disabled={processingAction}
                 >
                   {processingAction ? (
-                    <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                    <ActivityIndicator
+                      size="small"
+                      color="#fff"
+                      style={{ marginRight: 8 }}
+                    />
                   ) : (
-                    <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 4 }} />
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color="#fff"
+                      style={{ marginRight: 4 }}
+                    />
                   )}
                   <Text style={styles.approveButtonText}>
                     {processingAction ? "Processing..." : "Approve"}
@@ -430,23 +535,34 @@ export default function AdminDashboardScreen() {
             <View key={item.admin_id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={styles.userInfo}>
-                  <View style={[styles.userIconContainer, { backgroundColor: "#e0f2fe" }]}>
+                  <View
+                    style={[
+                      styles.userIconContainer,
+                      { backgroundColor: "#e0f2fe" },
+                    ]}
+                  >
                     <Text style={[styles.userInitial, { color: "#0284c7" }]}>
                       {requestUser?.name?.charAt(0).toUpperCase() || "U"}
                     </Text>
                   </View>
                   <View>
-                    <Text style={styles.userName}>{requestUser?.name || "Unknown User"}</Text>
+                    <Text style={styles.userName}>
+                      {requestUser?.name || "Unknown User"}
+                    </Text>
                     <Text style={styles.userAction}>{item.action}</Text>
                   </View>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: "#dcfce7" }]}>
-                  <Text style={[styles.statusText, { color: "#16a34a" }]}>Confirmed</Text>
+                <View
+                  style={[styles.statusBadge, { backgroundColor: "#dcfce7" }]}
+                >
+                  <Text style={[styles.statusText, { color: "#16a34a" }]}>
+                    Confirmed
+                  </Text>
                 </View>
               </View>
-              
+
               <View style={styles.divider} />
-              
+
               <View style={styles.cardFooter}>
                 <TouchableOpacity
                   style={[styles.revokeButton]}
@@ -454,11 +570,18 @@ export default function AdminDashboardScreen() {
                     handleApprove(
                       item.admin_id,
                       item.user_id,
-                      item.action.includes("influencer") ? "Influencer" : "Seller"
+                      item.action.includes("influencer")
+                        ? "Influencer"
+                        : "Seller"
                     )
                   }
                 >
-                  <Ionicons name="close" size={18} color="#fff" style={{ marginRight: 4 }} />
+                  <Ionicons
+                    name="close"
+                    size={18}
+                    color="#fff"
+                    style={{ marginRight: 4 }}
+                  />
                   <Text style={styles.revokeButtonText}>Revoke Access</Text>
                 </TouchableOpacity>
               </View>
@@ -469,61 +592,211 @@ export default function AdminDashboardScreen() {
     </View>
   );
 
-  const renderProducts = () => (
-    <View style={styles.sectionContainer}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Product Verification</Text>
-        <View style={styles.badgeContainer}>
-          <Text style={styles.badgeText}>{products.length}</Text>
-        </View>
-      </View>
+  renderProducts = () => {
+    // Enhance product display by handling duplicates more intelligently
+    const displayProducts = products.reduce((acc, product) => {
+      // Skip products that are null or missing critical data
+      if (!product || !product.product_name) return acc;
 
-      {products.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="cube" size={50} color="#f59e0b" />
-          <Text style={styles.emptyStateText}>No products available</Text>
+      // Create a unique key that accounts for both ID and name
+      const uniqueKey = `${product.product_id}-${product.product_name}`;
+
+      // If this unique product already exists in our accumulator
+      if (acc.some((p) => `${p.product_id}-${p.product_name}` === uniqueKey)) {
+        // Keep the verified version if it exists
+        if (product.verified) {
+          // Replace the existing one with this verified one
+          return acc.map((p) =>
+            `${p.product_id}-${p.product_name}` === uniqueKey ? product : p
+          );
+        }
+        // Otherwise keep the existing one
+        return acc;
+      }
+
+      // No duplicate, add to the list
+      return [...acc, product];
+    }, []);
+
+    // Sort products: unverified first to prioritize verification actions
+    const sortedProducts = [...displayProducts].sort((a, b) => {
+      // Unverified products first
+      if (a.verified && !b.verified) return 1;
+      if (!a.verified && b.verified) return -1;
+
+      // Then by creation date (newest first)
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+    return (
+      <View style={styles.sectionContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Product Verification</Text>
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{sortedProducts.length}</Text>
+          </View>
         </View>
-      ) : (
-        products.map((product) => (
-          <View key={product.product_id} style={styles.card}>
-            <View style={styles.productHeader}>
-              <View style={styles.productImagePlaceholder}>
-                <Ionicons name="cube-outline" size={24} color="#f59e0b" />
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>{product.product_name}</Text>
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{product.category}</Text>
+
+        {sortedProducts.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="cube" size={50} color="#f59e0b" />
+            <Text style={styles.emptyStateText}>No products available</Text>
+          </View>
+        ) : (
+          sortedProducts.map((product, index) => (
+            <View
+            key={`product-${product.product_id}-${encodeURIComponent(product.product_name)}-${index}`} 
+            style={styles.card}
+            >
+              <View style={styles.productHeader}>
+                <View style={styles.productImagePlaceholder}>
+                  <Ionicons name="cube-outline" size={24} color="#f59e0b" />
+                </View>
+                <View style={styles.productInfo}>
+                  <Text style={styles.productName}>{product.product_name}</Text>
+                  <View style={styles.productDetails}>
+                    {product.category ? (
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryText}>
+                          {product.category}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {product.verified ? (
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          { backgroundColor: "#dcfce7", marginLeft: 8 },
+                        ]}
+                      >
+                        <Text style={[styles.statusText, { color: "#16a34a" }]}>
+                          Verified
+                        </Text>
+                      </View>
+                    ) : (
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          { backgroundColor: "#fee2e2", marginLeft: 8 },
+                        ]}
+                      >
+                        <Text style={[styles.statusText, { color: "#ef4444" }]}>
+                          Unverified
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.productFooter}>
+                <TouchableOpacity
+                  style={styles.detailsButton}
+                  onPress={() => {
+                    setSelectedProduct(product);
+                    setShowProductModal(true);
+                  }}
+                >
+                  <Text style={styles.detailsButtonText}>View Details</Text>
+                </TouchableOpacity>
+                {!product.verified && (
+                  <TouchableOpacity
+                    style={styles.verifyButton}
+                    onPress={() =>
+                      handleProductVerify(
+                        product.product_id,
+                        product.product_name
+                      )
+                    }
+                    disabled={processingAction}
+                  >
+                    {processingAction ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#fff"
+                        style={{ marginRight: 8 }}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="shield-checkmark"
+                        size={18}
+                        color="#fff"
+                        style={{ marginRight: 4 }}
+                      />
+                    )}
+                    <Text style={styles.verifyButtonText}>
+                      {processingAction ? "Processing..." : "Verify Product"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.productFooter}>
-              <TouchableOpacity style={styles.detailsButton}>
-                <Text style={styles.detailsButtonText}>View Details</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.verifyButton}>
-                <Ionicons name="shield-checkmark" size={18} color="#fff" style={{ marginRight: 4 }} />
-                <Text style={styles.verifyButtonText}>Verify Product</Text>
-              </TouchableOpacity>
+          ))
+        )}
+
+        {/* Modal remains the same */}
+        {showProductModal && selectedProduct && (
+          <Modal
+            visible={showProductModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowProductModal(false)}
+          >
+            <View style={modalStyles.modalOverlay}>
+              <View style={modalStyles.modalContent}>
+                <Text style={modalStyles.modalTitle}>
+                  {selectedProduct.product_name}
+                </Text>
+                <ScrollView>
+                  <Text style={modalStyles.modalText}>
+                    Category: {selectedProduct.category || "Not specified"}
+                  </Text>
+                  <Text style={modalStyles.modalText}>
+                    Price: ${selectedProduct.cost}
+                  </Text>
+                  <Text style={modalStyles.modalText}>
+                    Summary: {selectedProduct.summary || "No summary provided"}
+                  </Text>
+                  <Text style={modalStyles.modalText}>Description:</Text>
+                  <Text style={modalStyles.modalText}>
+                    {selectedProduct.description}
+                  </Text>
+                  {selectedProduct.product_image && (
+                    <Image
+                      source={{
+                        uri: selectedProduct.product_image.startsWith("http")
+                          ? selectedProduct.product_image
+                          : `http://10.0.0.25:5001/${selectedProduct.product_image}`,
+                      }}
+                      style={modalStyles.modalImage}
+                    />
+                  )}
+                </ScrollView>
+                <TouchableOpacity
+                  onPress={() => setShowProductModal(false)}
+                  style={modalStyles.closeButton}
+                >
+                  <Text style={{ color: "#fff" }}>Close</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ))
-      )}
-    </View>
-  );
+          </Modal>
+        )}
+      </View>
+    );
+  };
 
   const renderActiveTabContent = () => {
     switch (activeTab) {
-      case 'approvals':
+      case "approvals":
         return renderPendingApprovals();
-      case 'tracking':
+      case "tracking":
         return renderPendingTrackings();
-      case 'accounts':
+      case "accounts":
         return renderConfirmedAccounts();
-      case 'products':
+      case "products":
         return renderProducts();
       default:
         return renderPendingApprovals();
@@ -533,20 +806,19 @@ export default function AdminDashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Admin Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Manage approvals and verifications</Text>
+          <Text style={styles.headerSubtitle}>
+            Manage approvals and verifications
+          </Text>
         </View>
-        <TouchableOpacity 
-          style={styles.logoutButton}
-          onPress={logout}
-        >
+        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
           <Ionicons name="log-out-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
-      
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -563,7 +835,49 @@ export default function AdminDashboardScreen() {
   );
 }
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
+
+const modalStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxHeight: "80%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+    color: "#111827",
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 8,
+  },
+  modalImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  closeButton: {
+    marginTop: 16,
+    backgroundColor: "#ef4444",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -848,9 +1162,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  orderInfo: {
-    
-  },
+  orderInfo: {},
   orderLabel: {
     fontSize: 12,
     color: "#6b7280",
@@ -916,6 +1228,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#111827",
     marginBottom: 4,
+  },
+  productDetails: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   categoryBadge: {
     backgroundColor: "#f3f4f6",

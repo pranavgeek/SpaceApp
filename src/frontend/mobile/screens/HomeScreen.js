@@ -31,10 +31,15 @@ import AccountSwitchOverlay from "../components/AccountSwitchOverlay.js";
 export default function HomeScreen({ navigation }) {
   // Search query state
   const [searchQuery, setSearchQuery] = useState("");
+  // Fetched projects state
+  const [fetchedProjects, setFetchedProjects] = useState([]);
 
   // Filtering states
   const [selectedFilter, setSelectedFilter] = useState("");
   const [selectedPriceRanges, setSelectedPriceRanges] = useState([]);
+  // Modal visibility state
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   // Country and City filter states
   const [selectedCountry, setSelectedCountry] = useState("");
@@ -75,15 +80,6 @@ export default function HomeScreen({ navigation }) {
 
   const isFocused = useIsFocused();
 
-  // Modal state for filters (for mobile)
-  const [showModal, setShowModal] = useState(false);
-  useEffect(() => {
-    if (showModal) {
-      setModalCountry(selectedCountry);
-      setModalCity(selectedCity);
-    }
-  }, [showModal, selectedCountry, selectedCity]);
-
   // Modal state for Price Ranges, etc.
   const [modalPriceRanges, setModalPriceRanges] = useState([]);
   const [showPanel, setShowPanel] = useState(false);
@@ -109,43 +105,26 @@ export default function HomeScreen({ navigation }) {
   const panelAnim = useRef(new Animated.Value(-FILTER_PANEL_WIDTH)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
 
-  // Bottom sheet animation (mobile)
+  // Bottom sheet animation (mobile) with improved animation
   const BOTTOM_SHEET_HEIGHT = windowHeight * 0.8;
   const slideUpAnim = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT)).current;
-
-  // Use separate state for the modal country dropdown to avoid naming conflicts.
+  const modalOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Use separate state for the modal country dropdown to avoid naming conflicts
   const [modalCountryOpen, setModalCountryOpen] = useState(false);
+  
+  // State to control the modal dismissal flow
+  const [modalDismissing, setModalDismissing] = useState(false);
 
-  // Load the user's default country from AsyncStorage and update city dropdown accordingly.
-  // useEffect(() => {
-  //   const loadUserCountry = async () => {
-  //     try {
-  //       const country = await AsyncStorage.getItem("userCountry");
-  //       console.log("Loaded userCountry:", country);
-  //       if (country) {
-  //         setSelectedCountry(country);
-  //         setModalCountry(country);
-  //         // Build city dropdown items by filtering mockCities based on the country.
-  //         const filteredCities = mockCities.filter((cityStr) => {
-  //           const parts = cityStr.split(",");
-  //           const cityCountry = parts[1]?.trim() || "";
-  //           return cityCountry === country;
-  //         });
-  //         const dropdownItems = filteredCities.map((cityStr) => {
-  //           const cityName = cityStr.split(",")[0].trim();
-  //           return { label: cityName, value: cityName };
-  //         });
-  //         setCityItems([{ label: "All Cities", value: "" }, ...dropdownItems]);
-  //       }
-  //     } catch (error) {
-  //       console.error("Error loading userCountry:", error);
-  //     }
-  //   };
-
-  //   if (isFocused) {
-  //     loadUserCountry();
-  //   }
-  // }, [isFocused]);
+  // Sync modal values with selected values when opening
+  useEffect(() => {
+    if (filterModalVisible) {
+      setModalCountry(selectedCountry);
+      setModalCity(selectedCity);
+      setModalPriceRanges([...selectedPriceRanges]);
+      setCategoryValue(selectedFilter);
+    }
+  }, [filterModalVisible, selectedCountry, selectedCity, selectedPriceRanges, selectedFilter]);
 
   // Also update cityItems whenever the applied country changes.
   useEffect(() => {
@@ -162,10 +141,37 @@ export default function HomeScreen({ navigation }) {
       setCityItems([{ label: "All Cities", value: "" }, ...dropdownItems]);
     } else {
       setCityItems([{ label: "All Cities", value: "" }]);
+      // Clear the selected city when country is cleared
+      setSelectedCity("");
     }
   }, [selectedCountry]);
 
-  // Animations for desktop panel and mobile bottom sheet.
+  // Effect for opening modal
+  useEffect(() => {
+    if (filterModalVisible && !modalDismissing) {
+      setShowModal(true);
+      // Reset animation values for opening
+      slideUpAnim.setValue(BOTTOM_SHEET_HEIGHT);
+      modalOpacity.setValue(0);
+      
+      // Opening animation sequence
+      Animated.parallel([
+        Animated.timing(modalOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideUpAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 65,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [filterModalVisible, modalDismissing, modalOpacity, slideUpAnim]);
+
+  // Animations for desktop panel and mobile bottom sheet
   useEffect(() => {
     if (isDesktopWeb) {
       Animated.parallel([
@@ -181,20 +187,26 @@ export default function HomeScreen({ navigation }) {
         }),
       ]).start();
     }
-    if (isMobileWeb || isNativeMobile) {
-      Animated.timing(slideUpAnim, {
-        toValue: showModal ? 0 : BOTTOM_SHEET_HEIGHT,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+    
+    // Closing animation sequence for modal
+    if (modalDismissing) {
+      Animated.parallel([
+        Animated.timing(modalOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideUpAnim, {
+          toValue: BOTTOM_SHEET_HEIGHT,
+          duration: 280,
+          easing: (t) => 1 - Math.pow(1 - t, 3), // cubic ease-out
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-  }, [showPanel, showModal]);
+  }, [showPanel, modalDismissing, isDesktopWeb, panelAnim, contentAnim, modalOpacity, slideUpAnim]);
 
-  // --------------------------
-  // Fetch products using the provided API function and map to expected structure
-  // --------------------------
-  const [fetchedProjects, setFetchedProjects] = useState([]);
-
+  // Mapping fetched products to add country and city properties
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -202,35 +214,76 @@ export default function HomeScreen({ navigation }) {
           fetchProducts(),
           fetchUsers(),
         ]);
-
+        const verifiedProducts = products.filter(p => p.verified === true);
         // Map seller ID to their actual name
         const sellerMap = {};
         users.forEach((user) => {
           sellerMap[user.user_id] = user.name;
         });
 
-        const mappedProjects = products.map((product) => ({
-          id: product.product_id.toString(),
-          category: product.category,
-          project: {
-            name: product.product_name,
-            description: product.description,
-            image: product.product_image.startsWith("http")
-              ? product.product_image
-              : `http://10.0.0.25:5001/${product.product_image}`,
-            price: product.cost,
-            likes: 0,
-            summary: product.summary,
-            user_seller: product.user_seller, // seller_id passed to cart
-          },
-          creator: {
-            name:
-              sellerMap[product.user_seller] || `Seller ${product.user_seller}`,
-            image: "https://via.placeholder.com/150",
-          },
-        }));
+        const mappedProjects = verifiedProducts.map((product, index) => {
+          // Extract country from user data if available or use a default
+          let productCountry = "";
+          let productCity = "";
+          
+          // Try to determine country/city from seller location if available
+          const seller = users.find(user => user.user_id === product.user_seller);
+          if (seller && seller.location) {
+            const locationParts = seller.location.split(',');
+            if (locationParts.length > 1) {
+              productCity = locationParts[0].trim();
+              productCountry = locationParts[1].trim();
+            } else if (locationParts.length === 1) {
+              productCountry = locationParts[0].trim();
+            }
+          }
+          
+          // If product has location data, use that instead
+          if (product.country) productCountry = product.country;
+          if (product.city) productCity = product.city;
+          
+          // Generate random country/city for demo purposes if none exists
+          if (!productCountry) {
+            const randomCountryIndex = Math.floor(Math.random() * countryItems.length);
+            // Skip the first "All Countries" item
+            productCountry = countryItems[randomCountryIndex > 0 ? randomCountryIndex : 1].value;
+          }
+          
+          return {
+            id: `${product.product_id}_${index}`,
+            category: product.category,
+            project: {
+              name: product.product_name,
+              description: product.description,
+              image: product.product_image.startsWith("http")
+                ? product.product_image
+                : `http://10.0.0.25:5001/${product.product_image}`,
+              price: product.cost,
+              likes: 0,
+              summary: product.summary,
+              user_seller: product.user_seller,
+              country: productCountry,
+              city: productCity
+            },
+            creator: {
+              name:
+                sellerMap[product.user_seller] || `Seller ${product.user_seller}`,
+              image: "https://via.placeholder.com/150",
+            },
+          };
+        });
 
         setFetchedProjects(mappedProjects);
+        
+        // Debug log
+        console.log("Products loaded with country/city:", 
+          mappedProjects.map(p => ({
+            id: p.id, 
+            name: p.project.name,
+            country: p.project.country,
+            city: p.project.city
+          }))
+        );
       } catch (error) {
         console.error("Error loading products or users:", error);
       }
@@ -238,8 +291,6 @@ export default function HomeScreen({ navigation }) {
 
     loadData();
   }, []);
-
-  // --------------------------
 
   // Price ranges (example)
   const priceRanges = [
@@ -264,32 +315,56 @@ export default function HomeScreen({ navigation }) {
     checkAccountSwitch();
   }, []);
 
-  // Filtering logic now checks category, price, country, and city.
+  // Filter products based on selected criteria
+  const filteredProjects = React.useMemo(() => {
+    if (!fetchedProjects || fetchedProjects.length === 0) {
+      return [];
+    }
+    
+    return fetchedProjects.filter((project) => {
+      // Make sure we have project and its properties before filtering
+      if (!project || !project.project) return false;
+      
+      const categoryMatch =
+        !selectedFilter || project.category === selectedFilter;
+      
+      const priceMatch =
+        selectedPriceRanges.length === 0 ||
+        selectedPriceRanges.some((range) =>
+          checkPriceRange(range, project.project.price)
+        );
+      
+      // Country matching - use the country property from project
+      const countryMatch =
+        !selectedCountry || 
+        selectedCountry === "" || 
+        (project.project.country && project.project.country === selectedCountry);
+      
+      // City matching - use the city property from project
+      const cityMatch =
+        !selectedCity || 
+        selectedCity === "" || 
+        (project.project.city && project.project.city === selectedCity);
+      
+      const searchMatch =
+        !searchQuery ||
+        searchQuery === "" ||
+        project.project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project.project.description &&
+          project.project.description
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()));
+      
+      return (
+        categoryMatch && priceMatch && countryMatch && cityMatch && searchMatch
+      );
+    });
+  }, [fetchedProjects, selectedFilter, selectedPriceRanges, selectedCountry, selectedCity, searchQuery]);
+
+  // Filtering logic checks category, price, country, and city
   function checkPriceRange(range, price) {
     return price >= range.min && price <= range.max;
   }
-  const filteredProjects = fetchedProjects.filter((project) => {
-    const categoryMatch =
-      !selectedFilter || project.category === selectedFilter;
-    const priceMatch =
-      selectedPriceRanges.length === 0 ||
-      selectedPriceRanges.some((range) =>
-        checkPriceRange(range, project.project.price)
-      );
-    const countryMatch =
-      selectedCountry === "" || project.project.country === selectedCountry;
-    const cityMatch =
-      selectedCity === "" || project.project.city === selectedCity;
-    const searchMatch =
-      searchQuery === "" ||
-      project.project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.project.description
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-    return (
-      categoryMatch && priceMatch && countryMatch && cityMatch && searchMatch
-    );
-  });
 
   // Handle filter button press
   const handleFilterPress = () => {
@@ -299,8 +374,23 @@ export default function HomeScreen({ navigation }) {
       setModalPriceRanges([...selectedPriceRanges]);
       setModalCountry(selectedCountry);
       setModalCity(selectedCity);
-      setShowModal(true);
+      setCategoryValue(selectedFilter);
+      setFilterModalVisible(true);
     }
+  };
+  
+  // Handle modal close with animation
+  const handleCloseModal = () => {
+    // Start dismissing animation
+    setModalDismissing(true);
+    
+    // This delay matches the animation duration before actually removing the modal
+    setTimeout(() => {
+      setFilterModalVisible(false);
+      setShowModal(false);
+      // Reset dismissing state after modal is fully closed
+      setModalDismissing(false);
+    }, 300);
   };
 
   // Web-only checkboxes for price ranges
@@ -333,6 +423,7 @@ export default function HomeScreen({ navigation }) {
                   );
                 }
               }}
+              style={styles.checkbox}
             />
             <Text style={styles.checkboxLabel}>{displayValue}</Text>
           </View>
@@ -367,6 +458,7 @@ export default function HomeScreen({ navigation }) {
                   );
                 }
               }}
+              style={styles.checkbox}
             />
             <Text style={styles.checkboxLabel}>{option.display}</Text>
           </View>
@@ -374,6 +466,25 @@ export default function HomeScreen({ navigation }) {
       })}
     </View>
   );
+
+  // Update modal city items when modal country changes
+  useEffect(() => {
+    if (modalCountry) {
+      const filteredCities = mockCities.filter((cityStr) => {
+        const parts = cityStr.split(",");
+        const cityCountry = parts[1]?.trim() || "";
+        return cityCountry === modalCountry;
+      });
+      const dropdownItems = filteredCities.map((cityStr) => {
+        const cityName = cityStr.split(",")[0].trim();
+        return { label: cityName, value: cityName };
+      });
+      setCityItems([{ label: "All Cities", value: "" }, ...dropdownItems]);
+    } else {
+      setCityItems([{ label: "All Cities", value: "" }]);
+      setModalCity("");
+    }
+  }, [modalCountry]);
 
   return (
     <>
@@ -394,13 +505,12 @@ export default function HomeScreen({ navigation }) {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.headerTitle} />
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={styles.cartIconContainer}>
             <TouchableOpacity
-              style={styles.cartIconContainer}
+              style={styles.cartButton}
               onPress={() => navigation.navigate("CartScreen")}
             >
-              <Icon name="shoppingcart" size={26} color={colors.subtitle} />
+              <Icon name="shoppingcart" size={22} color={colors.background} />
               {totalItems > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{totalItems}</Text>
@@ -412,20 +522,91 @@ export default function HomeScreen({ navigation }) {
 
         {/* SEARCH BAR */}
         <View style={styles.searchBarContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search..."
-            placeholderTextColor={colors.subtitle}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+          <View style={styles.searchInputWrap}>
+            <Ionicons name="search-outline" size={18} color={colors.subtitle} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="What are you looking for?"
+              placeholderTextColor={colors.placeholderText}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
           <TouchableOpacity
-            style={styles.filterIcon}
+            style={styles.filterButton}
             onPress={handleFilterPress}
           >
-            <Ionicons name="filter" size={20} color={colors.text} />
+            <Ionicons name="options-outline" size={20} color={colors.background} />
           </TouchableOpacity>
         </View>
+
+        {/* ACTIVE FILTERS DISPLAY */}
+        {(selectedFilter || selectedCountry || selectedCity || selectedPriceRanges.length > 0) && (
+          <View style={styles.activeFiltersContainer}>
+            <Text style={styles.activeFiltersTitle}>Active Filters:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {selectedFilter && (
+                <View style={styles.activeFilterTag}>
+                  <Text style={styles.activeFilterText}>Category: {selectedFilter}</Text>
+                  <TouchableOpacity onPress={() => setSelectedFilter("")}>
+                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {selectedCountry && (
+                <View style={styles.activeFilterTag}>
+                  <Text style={styles.activeFilterText}>Country: {selectedCountry}</Text>
+                  <TouchableOpacity onPress={() => setSelectedCountry("")}>
+                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {selectedCity && (
+                <View style={styles.activeFilterTag}>
+                  <Text style={styles.activeFilterText}>City: {selectedCity}</Text>
+                  <TouchableOpacity onPress={() => setSelectedCity("")}>
+                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {selectedPriceRanges.map((range, index) => (
+                <View key={index} style={styles.activeFilterTag}>
+                  <Text style={styles.activeFilterText}>Price: {range.display}</Text>
+                  <TouchableOpacity 
+                    onPress={() => 
+                      setSelectedPriceRanges(
+                        selectedPriceRanges.filter((_, i) => i !== index)
+                      )
+                    }
+                  >
+                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* MOBILE CATEGORY PILLS */}
+        {/* {!isDesktopWeb && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPills}>
+            <TouchableOpacity 
+              style={[styles.pill, selectedFilter === "" && styles.pillActive]} 
+              onPress={() => setSelectedFilter("")}
+            >
+              <Text style={[styles.pillText, selectedFilter === "" && styles.pillTextActive]}>All</Text>
+            </TouchableOpacity>
+            {categoryItems.slice(1).map(item => (
+              <TouchableOpacity 
+                key={item.value} 
+                style={[styles.pill, selectedFilter === item.value && styles.pillActive]} 
+                onPress={() => setSelectedFilter(item.value)}
+              >
+                <Text style={[styles.pillText, selectedFilter === item.value && styles.pillTextActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )} */}
 
         {/* DESKTOP WEB LAYOUT */}
         {isDesktopWeb ? (
@@ -438,18 +619,11 @@ export default function HomeScreen({ navigation }) {
             >
               <Text style={styles.webFilterTitle}>Filter Options</Text>
               <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Category:</Text>
+                <Text style={styles.filterLabel}>Category</Text>
                 <select
                   value={selectedFilter}
                   onChange={(e) => setSelectedFilter(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: 10,
-                    fontSize: 16,
-                    border: "1px solid #ccc",
-                    borderRadius: 4,
-                    marginBottom: 10,
-                  }}
+                  style={styles.webDropdown}
                 >
                   <option value="">All Categories</option>
                   <option value="Software">Software</option>
@@ -462,7 +636,7 @@ export default function HomeScreen({ navigation }) {
                 </select>
               </View>
               <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Price Range:</Text>
+                <Text style={styles.filterLabel}>Price Range</Text>
                 {renderWebCheckboxes(
                   priceRanges,
                   selectedPriceRanges,
@@ -470,17 +644,11 @@ export default function HomeScreen({ navigation }) {
                 )}
               </View>
               <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Country:</Text>
+                <Text style={styles.filterLabel}>Country</Text>
                 <select
                   value={selectedCountry}
                   onChange={(e) => setSelectedCountry(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: 10,
-                    fontSize: 16,
-                    border: "1px solid #ccc",
-                    borderRadius: 4,
-                  }}
+                  style={styles.webDropdown}
                 >
                   {countryItems.map((item) => (
                     <option key={item.value} value={item.value}>
@@ -490,17 +658,11 @@ export default function HomeScreen({ navigation }) {
                 </select>
               </View>
               <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>City:</Text>
+                <Text style={styles.filterLabel}>City</Text>
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: 10,
-                    fontSize: 16,
-                    border: "1px solid #ccc",
-                    borderRadius: 4,
-                  }}
+                  style={styles.webDropdown}
                 >
                   {cityItems.map((item) => (
                     <option key={item.value} value={item.value}>
@@ -516,6 +678,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.applyButtonText}>Apply Filters</Text>
               </TouchableOpacity>
             </Animated.View>
+
             <Animated.View
               style={[
                 styles.webContentContainer,
@@ -538,7 +701,10 @@ export default function HomeScreen({ navigation }) {
                     </View>
                   ))}
                   {filteredProjects.length === 0 && (
-                    <Text style={{ margin: 16 }}>No items found.</Text>
+                    <View style={styles.emptyState}>
+                      <Ionicons name="search-outline" size={50} color={colors.subtitle} />
+                      <Text style={styles.emptyStateText}>No items found. Try adjusting your filters.</Text>
+                    </View>
                   )}
                 </View>
               </ScrollView>
@@ -547,56 +713,77 @@ export default function HomeScreen({ navigation }) {
         ) : (
           // MOBILE LAYOUT
           <View style={styles.content}>
-            <FlatList
-              data={filteredProjects}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ProjectCard
-                  item={item}
-                  onPress={() =>
-                    navigation.navigate("Project", {
-                      project: item.project,
-                      creator: item.creator,
-                    })
-                  }
-                />
-              )}
-              ListEmptyComponent={
-                <Text style={{ margin: 16 }}>No items found.</Text>
-              }
-            />
+            {filteredProjects.length > 0 ? (
+              <FlatList
+                data={filteredProjects}
+                keyExtractor={(item, index) => `${item.id}_${index}`}
+                renderItem={({ item }) => (
+                  <ProjectCard
+                    item={item}
+                    onPress={() =>
+                      navigation.navigate("Project", {
+                        project: item.project,
+                        creator: item.creator,
+                      })
+                    }
+                  />
+                )}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.mobileListContent}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={50} color={colors.subtitle} />
+                <Text style={styles.emptyStateText}>No items found. Try adjusting your filters.</Text>
+              </View>
+            )}
           </View>
         )}
 
         {/* MODAL for mobile filter options */}
-        {(isMobileWeb || isNativeMobile) && (
-          <Modal transparent={true} visible={showModal} animationType="none">
-            <TouchableWithoutFeedback onPress={() => setShowModal(false)}>
-              <View
+        {(showModal || modalDismissing) && (
+          <Modal transparent={true} visible={true} animationType="none">
+            <TouchableWithoutFeedback onPress={handleCloseModal}>
+              <Animated.View
                 style={[
                   StyleSheet.absoluteFill,
-                  { backgroundColor: "rgba(0,0,0,0.5)" },
+                  { 
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                    opacity: modalOpacity 
+                  },
                 ]}
               />
             </TouchableWithoutFeedback>
             <Animated.View
               style={[
                 styles.bottomSheetContainer,
-                { transform: [{ translateY: slideUpAnim }] },
+                { 
+                  transform: [{ translateY: slideUpAnim }],
+                },
               ]}
             >
+              {/* Handle for dragging */}
+              <View style={styles.sheetHandle} />
+              
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Filter Options</Text>
-                <TouchableOpacity onPress={() => setShowModal(false)}>
-                  <Ionicons name="close" size={24} color={colors.text} />
+                <TouchableOpacity 
+                  style={styles.closeButton} 
+                  onPress={handleCloseModal}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="close" size={22} color={colors.background} />
                 </TouchableOpacity>
               </View>
-              <ScrollView
-                style={{ flex: 1 }}
+              
+              {/* <ScrollView
+                style={styles.modalScrollView}
                 keyboardShouldPersistTaps="handled"
-              >
+                showsVerticalScrollIndicator={false}
+              > */}
+                {/* Category filter section */}
                 <View style={[styles.filterSection, { zIndex: 3000 }]}>
-                  <Text style={styles.filterLabel}>Category:</Text>
+                  <Text style={styles.filterLabel}>Category</Text>
                   <DropDownPicker
                     open={categoryOpen}
                     value={categoryValue || ""}
@@ -609,31 +796,33 @@ export default function HomeScreen({ navigation }) {
                     setValue={setCategoryValue}
                     setItems={setCategoryItems}
                     placeholder="Select a category"
-                    style={{
-                      borderColor: "#ccc",
-                      borderWidth: 1,
-                      borderRadius: 4,
-                    }}
-                    dropDownContainerStyle={{
-                      borderColor: "#ccc",
-                      borderWidth: 1,
-                    }}
-                    containerStyle={{ overflow: "visible", zIndex: 3000 }}
+                    style={styles.dropdownStyle}
+                    dropDownContainerStyle={styles.dropdownContainer}
+                    textStyle={styles.dropdownText}
+                    containerStyle={styles.dropdownWrap}
                     zIndex={3000}
                     zIndexInverse={1000}
+                    onOpen={() => {
+                      setCityOpen(false);
+                      setModalCountryOpen(false);
+                    }}
                   />
                 </View>
 
-                {/* Horizontal container for Country and City dropdowns */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginBottom: 20,
-                  }}
-                >
-                  <View style={{ flex: 1, marginRight: 5 }}>
-                    <Text style={styles.filterLabel}>Country:</Text>
+                {/* Price Range section */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Price Range</Text>
+                  {renderMobilePriceCheckboxes(
+                    priceRanges,
+                    modalPriceRanges,
+                    setModalPriceRanges
+                  )}
+                </View>
+
+                {/* Country and City dropdowns - moved below price range to fix overlap */}
+                <View style={styles.doubleDropdownContainer}>
+                  <View style={[styles.halfDropdown, { zIndex: 2000 }]}>
+                    <Text style={styles.filterLabel}>Country</Text>
                     <DropDownPicker
                       open={modalCountryOpen}
                       value={modalCountry || ""}
@@ -646,22 +835,20 @@ export default function HomeScreen({ navigation }) {
                       setValue={setModalCountry}
                       setItems={setCountryItems}
                       placeholder="Country"
-                      style={{
-                        borderColor: "#ccc",
-                        borderWidth: 1,
-                        borderRadius: 4,
-                      }}
-                      dropDownContainerStyle={{
-                        borderColor: "#ccc",
-                        borderWidth: 1,
-                      }}
-                      containerStyle={{ overflow: "visible" }}
+                      style={styles.dropdownStyle}
+                      dropDownContainerStyle={styles.dropdownContainer}
+                      textStyle={styles.dropdownText}
+                      containerStyle={styles.dropdownWrap}
                       zIndex={2000}
-                      zIndexInverse={900}
+                      zIndexInverse={2000}
+                      onOpen={() => {
+                        setCategoryOpen(false);
+                        setCityOpen(false);
+                      }}
                     />
                   </View>
-                  <View style={{ flex: 1, marginLeft: 5 }}>
-                    <Text style={styles.filterLabel}>City:</Text>
+                  <View style={[styles.halfDropdown, { zIndex: 1000 }]}>
+                    <Text style={styles.filterLabel}>City</Text>
                     <DropDownPicker
                       open={cityOpen}
                       value={modalCity || ""}
@@ -674,39 +861,30 @@ export default function HomeScreen({ navigation }) {
                       setValue={setModalCity}
                       setItems={setCityItems}
                       placeholder="City"
-                      style={{
-                        borderColor: "#ccc",
-                        borderWidth: 1,
-                        borderRadius: 4,
-                      }}
-                      dropDownContainerStyle={{
-                        borderColor: "#ccc",
-                        borderWidth: 1,
-                      }}
-                      containerStyle={{ overflow: "visible" }}
+                      style={styles.dropdownStyle}
+                      dropDownContainerStyle={styles.dropdownContainer}
+                      textStyle={styles.dropdownText}
+                      containerStyle={styles.dropdownWrap}
                       zIndex={1000}
-                      zIndexInverse={800}
+                      zIndexInverse={1000}
+                      onOpen={() => {
+                        setCategoryOpen(false);
+                        setModalCountryOpen(false);
+                      }}
                     />
                   </View>
                 </View>
-
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Price Range:</Text>
-                  {renderMobilePriceCheckboxes(
-                    priceRanges,
-                    modalPriceRanges,
-                    setModalPriceRanges
-                  )}
-                </View>
-              </ScrollView>
+              {/* </ScrollView> */}
+              
               <TouchableOpacity
                 style={styles.applyButton}
+                activeOpacity={0.8}
                 onPress={() => {
                   setSelectedPriceRanges([...modalPriceRanges]);
                   setSelectedCountry(modalCountry);
                   setSelectedCity(modalCity);
                   setSelectedFilter(categoryValue);
-                  setShowModal(false);
+                  handleCloseModal();
                 }}
               >
                 <Text style={styles.applyButtonText}>Apply Filters</Text>
@@ -719,7 +897,7 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-// Example dynamic styles (adjust as needed)
+// Redesigned dynamic styles
 const getDynamicStyles = (colors) =>
   StyleSheet.create({
     safeArea: {
@@ -728,76 +906,137 @@ const getDynamicStyles = (colors) =>
     },
     customHeader: {
       flexDirection: "row",
+      justifyContent: "space-between",
       alignItems: "center",
-      paddingHorizontal: 15,
+      paddingHorizontal: 16,
       height: 60,
-      backgroundColor: 'transparent',
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.baseContainerBody,
     },
     headerLeft: {
-      marginRight: 10,
+      flexDirection: "row",
+      alignItems: "center",
     },
     logo: {
-      width: 100,
+      width: 110,
       height: 100,
     },
-    headerTitle: {
-      flex: 1,
-      textAlign: "left",
-      fontSize: 24,
-      fontWeight: "bold",
-      color: colors.text,
-    },
     cartIconContainer: {
-      marginRight: 15,
       position: "relative",
+    },
+    cartButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 50,
+      width: 46,
+      height: 46,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 3,
     },
     badge: {
       position: "absolute",
-      top: -8,
-      right: -8,
-      backgroundColor: "red",
-      borderRadius: 10,
-      width: 20,
+      top: -5,
+      right: -5,
+      backgroundColor: colors.error || "red",
+      borderRadius: 12,
+      minWidth: 20,
       height: 20,
       justifyContent: "center",
       alignItems: "center",
+      borderWidth: 1.5,
+      borderColor: colors.background,
     },
     badgeText: {
       color: "white",
-      fontSize: 12,
+      fontSize: 10,
+      fontWeight: "bold",
+      paddingHorizontal: 4,
     },
     searchBarContainer: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 15,
-      paddingVertical: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.background,
+      justifyContent: "space-between",
+    },
+    searchInputWrap: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
       backgroundColor: colors.baseContainerBody,
-      margin: 10,
-      borderRadius: 8,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.4,
-      shadowRadius: 4,
-      elevation: 3,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      marginRight: 10,
+      height: 46,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    searchIcon: {
+      marginRight: 8,
     },
     searchInput: {
       flex: 1,
-      fontSize: 16,
-      padding: 10,
+      fontSize: 15,
       color: colors.text,
+      height: "100%",
     },
-    filterIcon: {
+    placeholderText: {
+      color: colors.subtitle,
+      opacity: 0.7,
+    },
+    filterButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      width: 46,
+      height: 46,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 3,
+    },
+    categoryPills: {
+      paddingHorizontal: 16,
+      marginBottom: 8,
+      flexGrow: 0,
+    },
+    pill: {
+      paddingHorizontal: 16,
       paddingVertical: 8,
-      paddingHorizontal: 12,
-      backgroundColor: colors.baseContainerBody,
       borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.subtitle,
-      alignSelf: "flex-start",
+      backgroundColor: colors.baseContainerBody,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+    pillActive: {
+      backgroundColor: colors.primary,
+    },
+    pillText: {
+      color: colors.text,
+      fontSize: 14,
+    },
+    pillTextActive: {
+      color: colors.background,
+      fontWeight: "600",
     },
     content: {
       flex: 1,
-      paddingTop: 10,
+      backgroundColor: colors.background,
+    },
+    mobileListContent: {
+      paddingHorizontal: 16,
+      paddingBottom: 20,
     },
     webContainer: {
       flex: 1,
@@ -811,58 +1050,70 @@ const getDynamicStyles = (colors) =>
       height: "100%",
       backgroundColor: colors.baseContainerBody,
       borderRightWidth: 1,
-      borderRightColor: colors.subtitle,
-      padding: 15,
-      paddingTop: 20,
+      borderRightColor: "rgba(0,0,0,0.05)",
+      padding: 24,
+      paddingTop: 30,
       zIndex: 5,
+      shadowColor: "#000",
+      shadowOffset: { width: 2, height: 0 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
     },
     webContentContainer: {
       flex: 1,
       paddingLeft: 0,
+      backgroundColor: colors.background,
     },
     webFilterTitle: {
-      fontSize: 18,
-      fontWeight: "bold",
+      fontSize: 20,
+      fontWeight: "700",
       color: colors.text,
-      marginBottom: 20,
+      marginBottom: 30,
     },
     horizontalCardContainer: {
       flexDirection: "row",
       flexWrap: "wrap",
       justifyContent: "flex-start",
       alignItems: "flex-start",
-      padding: 5,
+      padding: 16,
     },
     webCardWrapper: {
       flexGrow: 1,
       flexShrink: 1,
       flexBasis: 300,
-      minWidth: 250,
+      minWidth: 280,
       maxWidth: 400,
-      margin: 10,
+      margin: 12,
+      borderRadius: 16,
+      overflow: "hidden",
     },
     webCheckboxContainer: {
       marginTop: 10,
     },
     mobileCheckboxContainer: {
-      marginTop: 10,
+      marginTop: 8,
     },
     checkboxRow: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 10,
+      marginBottom: 12,
+    },
+    checkbox: {
+      borderRadius: 4,
+      margin: 0,
     },
     checkboxLabel: {
-      marginLeft: 8,
+      marginLeft: 12,
       color: colors.text,
+      fontSize: 15,
     },
     filterSection: {
-      marginBottom: 20,
+      marginBottom: 24,
     },
     filterLabel: {
       fontSize: 16,
-      fontWeight: "500",
-      marginBottom: 10,
+      fontWeight: "600",
+      marginBottom: 12,
       color: colors.text,
     },
     bottomSheetContainer: {
@@ -871,16 +1122,28 @@ const getDynamicStyles = (colors) =>
       left: 0,
       right: 0,
       height: "80%",
-      backgroundColor: colors.baseContainerBody,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 20,
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingTop: 16,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: -3 },
-      shadowOpacity: 0.1,
-      shadowRadius: 5,
-      elevation: 5,
-      overflow: "visible",
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    sheetHandle: {
+      width: 40,
+      height: 5,
+      backgroundColor: "rgba(0,0,0,0.2)",
+      borderRadius: 3,
+      alignSelf: "center",
+      marginBottom: 16,
+    },
+    modalScrollView: {
+      flex: 1,
+      marginBottom: 8,
     },
     modalHeader: {
       flexDirection: "row",
@@ -889,20 +1152,118 @@ const getDynamicStyles = (colors) =>
       marginBottom: 20,
     },
     modalTitle: {
-      fontSize: 18,
-      fontWeight: "bold",
+      fontSize: 20,
+      fontWeight: "700",
       color: colors.text,
+    },
+    closeButton: {
+      backgroundColor: colors.primary,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: "center",
+      alignItems: "center",
     },
     applyButton: {
       backgroundColor: colors.primary,
-      padding: 14,
-      borderRadius: 8,
+      padding: 16,
+      borderRadius: 12,
       alignItems: "center",
-      marginTop: 10,
+      marginTop: 16,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
     },
     applyButtonText: {
       color: colors.background,
-      fontWeight: "bold",
+      fontWeight: "700",
       fontSize: 16,
     },
+    doubleDropdownContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 24,
+      position: "relative",
+      zIndex: 2000,
+    },
+    halfDropdown: {
+      width: "48%",
+      position: "relative",
+    },
+    dropdownStyle: {
+      borderColor: "rgba(0,0,0,0.1)",
+      borderWidth: 1,
+      borderRadius: 12,
+      minHeight: 46,
+      paddingHorizontal: 12,
+      backgroundColor: colors.baseContainerBody,
+    },
+    dropdownContainer: {
+      borderColor: "rgba(0,0,0,0.1)",
+      borderWidth: 1,
+      borderTopWidth: 0,
+      borderBottomLeftRadius: 12,
+      borderBottomRightRadius: 12,
+    },
+    dropdownText: {
+      color: colors.text,
+      fontSize: 14,
+    },
+    dropdownWrap: {
+      overflow: "visible",
+    },
+    webDropdown: {
+      width: "100%",
+      padding: 12,
+      fontSize: 15,
+      border: "1px solid rgba(0,0,0,0.1)",
+      borderRadius: 12,
+      marginBottom: 8,
+      backgroundColor: "transparent",
+      color: colors.text,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 40,
+      minHeight: 300,
+    },
+    emptyStateText: {
+      color: colors.subtitle,
+      fontSize: 16,
+      marginTop: 16,
+      textAlign: "center",
+      maxWidth: 250,
+    },
+    activeFiltersContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.baseContainerBody,
+    },
+    activeFiltersTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.text,
+      marginBottom: 8,
+    },
+    activeFilterTag: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      marginRight: 8,
+      marginBottom: 4,
+    },
+    activeFilterText: {
+      color: colors.background,
+      fontSize: 12,
+      fontWeight: "500",
+      marginRight: 6,
+    }
   });
