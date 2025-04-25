@@ -2,7 +2,7 @@
   "users": [
     {
       "user_id": 99,
-      "name": "KSpace Admin",
+      "name": "Space kAdmin",
       "about_us": "System administrator",
       "address": "Admin HQ",
       "city": "Ottawa",
@@ -30,7 +30,7 @@
       "age": 30,
       "email": "john@example.com",
       "password": "123456789",
-      "account_type": "Buyer",
+      "account_type": "Seller",
       "products_purchased": [
         {
           "product_id": 101,
