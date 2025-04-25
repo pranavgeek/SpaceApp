@@ -23,6 +23,8 @@ import {
   approveTrackingLink,
   createNotification,
   verifyProduct,
+  updateAdminStatus,
+  updateUserRole,
 } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -61,6 +63,134 @@ export default function AdminDashboardScreen() {
       Alert.alert("Error", "Failed to load dashboard data. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add these console logs to your handleInfluencerApproval function in AdminDashboardScreen.js
+  // to identify where any issues might be occurring
+
+  const handleInfluencerApproval = async (adminId, userId, details) => {
+    try {
+      setProcessingAction(true);
+      console.log(`✅ Approving influencer application for user ${userId}`);
+
+      // Parse the application details
+      let applicationDetails = {};
+      try {
+        applicationDetails = JSON.parse(details);
+        console.log(
+          "Successfully parsed application details:",
+          applicationDetails
+        );
+      } catch (error) {
+        console.error("Error parsing application details:", error);
+        throw new Error("Invalid application details format");
+      }
+
+      // 1. Update the admin action status to approved
+      console.log("Step 1: Updating admin action status");
+      await updateAdminStatus(adminId, "approved");
+      console.log("✓ Admin action status updated successfully");
+
+      // 2. Update the user role to influencer with the selected tier
+      console.log("Step 2: Updating user role to influencer");
+      const selectedTier = applicationDetails.selectedTier || "Starter Tier";
+
+      // Make sure we're passing the correct parameters to updateUserRole
+      await updateUserRole(userId, "influencer", selectedTier);
+      console.log(
+        `✓ User ${userId} role updated to influencer with tier: ${selectedTier}`
+      );
+
+      // 3. Create a notification for the user
+      console.log("Step 3: Creating notification for user");
+      const notificationData = {
+        user_id: userId,
+        message: `Congratulations! Your application to become an influencer has been approved. Welcome to the ${selectedTier} program.`,
+        date_timestamp: new Date().toISOString(),
+      };
+
+      await createNotification(notificationData);
+      console.log(`✓ Notification created for user ${userId}`);
+
+      // 4. Refresh admin data to update the UI
+      console.log("Step 4: Refreshing admin dashboard data");
+      await loadAdminDashboard();
+      console.log("✓ Admin dashboard refreshed");
+
+      // Verify the user was updated correctly
+      const updatedUsers = await fetchUsers();
+      const updatedUser = updatedUsers.find((u) => u.user_id === userId);
+
+      console.log("User after approval:", updatedUser);
+
+      if (
+        updatedUser &&
+        (updatedUser.role === "influencer" ||
+          updatedUser.account_type === "Influencer")
+      ) {
+        console.log(`✅ Confirmed: User ${userId} is now an influencer`);
+      } else {
+        console.warn(
+          `⚠️ Warning: User ${userId} role may not have updated properly. Current role: ${updatedUser?.role}, account type: ${updatedUser?.account_type}`
+        );
+      }
+
+      Alert.alert(
+        "Success",
+        `${updatedUser?.name || "User"}'s influencer application has been approved. They now have influencer access.`
+      );
+    } catch (error) {
+      console.error("Error approving influencer application:", error);
+      Alert.alert(
+        "Error",
+        `Failed to approve influencer application: ${error.message}`
+      );
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleInfluencerRejection = async (adminId, userId) => {
+    try {
+      setProcessingAction(true);
+      console.log(`❌ Rejecting influencer application for user ${userId}`);
+
+      // 1. Update the admin status to rejected
+      await updateAdminStatus(adminId, "rejected");
+
+      // 2. Find the user to get their name
+      const applicant = users.find((u) => u.user_id === userId);
+
+      if (!applicant) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // 3. Create a notification for the user
+      const notificationData = {
+        user_id: userId,
+        message:
+          "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+        date_timestamp: new Date().toISOString(),
+      };
+
+      await createNotification(notificationData);
+
+      // 4. Refresh admin data to update the UI
+      await loadAdminDashboard();
+
+      Alert.alert(
+        "Success",
+        `${applicant.name}'s influencer application has been rejected.`
+      );
+    } catch (error) {
+      console.error("Error rejecting influencer application:", error);
+      Alert.alert(
+        "Error",
+        "Failed to reject influencer application. Please try again."
+      );
+    } finally {
+      setProcessingAction(false);
     }
   };
 
@@ -205,7 +335,9 @@ export default function AdminDashboardScreen() {
   };
 
   const pendingApprovals = adminData.filter((a) => a.status === "pending");
-  const confirmedAccounts = adminData.filter((a) => a.status === "confirmed");
+  const confirmedAccounts = adminData.filter(
+    (a) => a.status === "confirmed" || a.status === "approved"
+  );
 
   const renderDashboardStats = () => (
     <View style={styles.statsContainer}>
@@ -216,7 +348,10 @@ export default function AdminDashboardScreen() {
           <Ionicons name="people-outline" size={24} color="#0284c7" />
         </View>
         <View style={styles.statInfo}>
-          <Text style={styles.statValue}>{users.length}</Text>
+          <Text style={styles.statValue}>
+            {" "}
+            {users.filter((u) => u.account_type !== "admin").length}
+          </Text>
           <Text style={styles.statLabel}>Total Users</Text>
         </View>
       </View>
@@ -349,6 +484,18 @@ export default function AdminDashboardScreen() {
       ) : (
         pendingApprovals.map((item) => {
           const requestUser = users.find((u) => u.user_id === item.user_id);
+          const isInfluencerApplication =
+            item.action && item.action.toLowerCase().includes("influencer");
+
+          let applicationDetails = {};
+          if (isInfluencerApplication && item.details) {
+            try {
+              applicationDetails = JSON.parse(item.details);
+            } catch (error) {
+              console.error("Error parsing application details:", error);
+            }
+          }
+
           return (
             <View key={item.admin_id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -370,31 +517,137 @@ export default function AdminDashboardScreen() {
                 </View>
               </View>
 
+              {isInfluencerApplication &&
+                Object.keys(applicationDetails).length > 0 && (
+                  <View style={styles.applicationDetails}>
+                    <Text style={styles.applicationSection}>
+                      Application Details:
+                    </Text>
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>Name:</Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.fullName}
+                      </Text>
+                    </View>
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>Email:</Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.email}
+                      </Text>
+                    </View>
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>Phone:</Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.phone}
+                      </Text>
+                    </View>
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>Social Media:</Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.socialMediaHandles}
+                      </Text>
+                    </View>
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>Followers:</Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.followers}
+                      </Text>
+                    </View>
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>Tier:</Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.selectedTier || "Starter Tier"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>
+                        Why Collaborate:
+                      </Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.whyCollaborate}
+                      </Text>
+                    </View>
+
+                    {applicationDetails.priorExperience && (
+                      <View style={styles.applicationItem}>
+                        <Text style={styles.applicationLabel}>Experience:</Text>
+                        <Text style={styles.applicationValue}>
+                          {applicationDetails.priorExperience}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.applicationItem}>
+                      <Text style={styles.applicationLabel}>Contact Via:</Text>
+                      <Text style={styles.applicationValue}>
+                        {applicationDetails.preferredContact}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
               <View style={styles.divider} />
 
               <View style={styles.cardFooter}>
-                <TouchableOpacity style={styles.rejectButton}>
-                  <Text style={styles.rejectButtonText}>Reject</Text>
+                <TouchableOpacity
+                  style={styles.rejectButton}
+                  onPress={() =>
+                    isInfluencerApplication
+                      ? handleInfluencerRejection(item.admin_id, item.user_id)
+                      : handleApprove(item.admin_id, item.user_id, "reject")
+                  }
+                  disabled={processingAction}
+                >
+                  <Text style={styles.rejectButtonText}>
+                    {processingAction ? "Processing..." : "Reject"}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.approveButton}
+                  style={[
+                    styles.approveButton,
+                    processingAction && styles.disabledButton,
+                  ]}
                   onPress={() =>
-                    handleApprove(
-                      item.admin_id,
-                      item.user_id,
-                      item.action.includes("influencer")
-                        ? "Influencer"
-                        : "Seller"
-                    )
+                    isInfluencerApplication
+                      ? handleInfluencerApproval(
+                          item.admin_id,
+                          item.user_id,
+                          item.details
+                        )
+                      : handleApprove(
+                          item.admin_id,
+                          item.user_id,
+                          item.action.includes("influencer")
+                            ? "Influencer"
+                            : "Seller"
+                        )
                   }
+                  disabled={processingAction}
                 >
-                  <Ionicons
-                    name="checkmark"
-                    size={18}
-                    color="#fff"
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={styles.approveButtonText}>Approve</Text>
+                  {processingAction ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#fff"
+                      style={{ marginRight: 8 }}
+                    />
+                  ) : (
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color="#fff"
+                      style={{ marginRight: 4 }}
+                    />
+                  )}
+                  <Text style={styles.approveButtonText}>
+                    {processingAction ? "Processing..." : "Approve"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -556,7 +809,7 @@ export default function AdminDashboardScreen() {
                   style={[styles.statusBadge, { backgroundColor: "#dcfce7" }]}
                 >
                   <Text style={[styles.statusText, { color: "#16a34a" }]}>
-                    Confirmed
+                    {item.status === "approved" ? "Approved" : "Confirmed"}
                   </Text>
                 </View>
               </View>
@@ -592,7 +845,7 @@ export default function AdminDashboardScreen() {
     </View>
   );
 
-  renderProducts = () => {
+  const renderProducts = () => {
     // Enhance product display by handling duplicates more intelligently
     const displayProducts = products.reduce((acc, product) => {
       // Skip products that are null or missing critical data
@@ -645,8 +898,8 @@ export default function AdminDashboardScreen() {
         ) : (
           sortedProducts.map((product, index) => (
             <View
-            key={`product-${product.product_id}-${encodeURIComponent(product.product_name)}-${index}`} 
-            style={styles.card}
+              key={`product-${product.product_id}-${encodeURIComponent(product.product_name)}-${index}`}
+              style={styles.card}
             >
               <View style={styles.productHeader}>
                 <View style={styles.productImagePlaceholder}>

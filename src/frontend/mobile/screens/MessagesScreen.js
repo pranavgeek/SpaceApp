@@ -10,7 +10,8 @@ import {
   SafeAreaView,
   Animated,
   Dimensions,
-  StatusBar
+  StatusBar,
+  TextInput
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -185,6 +186,8 @@ export default function MessagesScreen({ navigation }) {
   const [messagesData, setMessagesData] = useState([]);
   const [collabRequests, setCollabRequests] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (!currentUser || !currentUser.name) return;
@@ -294,6 +297,17 @@ export default function MessagesScreen({ navigation }) {
     );
   }, [messagesData, currentUser]);
 
+  // Filter chat partners based on search query
+  const filteredChatPartners = useMemo(() => {
+    if (!searchQuery.trim()) return chatPartners;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return chatPartners.filter(partner => 
+      partner.chatName.toLowerCase().includes(query) || 
+      partner.shortMessage.toLowerCase().includes(query)
+    );
+  }, [chatPartners, searchQuery]);
+
   const handleChatOpen = (chatName) => {
     if (currentUser.account_type !== "Seller") {
       navigation.navigate("Chat", {
@@ -379,6 +393,13 @@ export default function MessagesScreen({ navigation }) {
     }
   };
 
+  const toggleSearch = () => {
+    setIsSearching(!isSearching);
+    if (isSearching) {
+      setSearchQuery('');
+    }
+  };
+
   if (!currentUser || !currentUser.name) return null;
 
   return (
@@ -388,26 +409,52 @@ export default function MessagesScreen({ navigation }) {
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Chats</Text>
-          
-          {currentUser.account_type === "Seller" && (
-            <TouchableOpacity
-              onPress={() => Alert.alert(
-                "Reset Data",
-                "Are you sure you want to reset all collaboration data?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { 
-                    text: "Reset", 
-                    style: "destructive",
-                    onPress: clearAllCollabData
-                  }
-                ]
-              )}
-              style={styles.resetButton}
-            >
-              <Ionicons name="refresh-outline" size={20} color={colors.primary} />
-            </TouchableOpacity>
+          {isSearching ? (
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color={colors.subtitle} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search messages..."
+                placeholderTextColor={colors.subtitle}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+                returnKeyType="search"
+              />
+              <TouchableOpacity style={styles.clearSearchButton} onPress={toggleSearch}>
+                <Ionicons name="close-circle" size={20} color={colors.subtitle} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.headerTitle}>Chats</Text>
+              
+              <View style={styles.headerButtons}>
+                <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
+                  <Ionicons name="search" size={22} color={colors.primary} />
+                </TouchableOpacity>
+                
+                {/* {currentUser.account_type === "Seller" && (
+                  <TouchableOpacity
+                    onPress={() => Alert.alert(
+                      "Reset Data",
+                      "Are you sure you want to reset all collaboration data?",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { 
+                          text: "Reset", 
+                          style: "destructive",
+                          onPress: clearAllCollabData
+                        }
+                      ]
+                    )}
+                    style={styles.headerButton}
+                  >
+                    <Ionicons name="refresh-outline" size={22} color={colors.primary} />
+                  </TouchableOpacity>
+                )} */}
+              </View>
+            </>
           )}
         </View>
         
@@ -421,7 +468,7 @@ export default function MessagesScreen({ navigation }) {
         
         {/* Conversations List */}
         <FlatList
-          data={chatPartners}
+          data={filteredChatPartners}
           renderItem={({ item }) => (
             <ConversationItem 
               chat={item}
@@ -431,19 +478,28 @@ export default function MessagesScreen({ navigation }) {
             />
           )}
           keyExtractor={(item, index) => `${item.chatName}-${index}`}
-          contentContainerStyle={styles.conversationsList}
+          contentContainerStyle={[
+            styles.conversationsList,
+            filteredChatPartners.length === 0 && styles.emptyListContent
+          ]}
           refreshing={refreshing}
           onRefresh={fetchAllData}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <MaterialCommunityIcons 
-                name="message-text-outline" 
+                name={searchQuery ? "magnify-close" : "message-text-outline"} 
                 size={80} 
                 color={colors.subtitle + '50'} 
               />
-              <Text style={styles.emptyText}>No conversations yet</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery 
+                  ? "No matching conversations" 
+                  : "No conversations yet"}
+              </Text>
               <Text style={styles.emptySubtext}>
-                Messages from sellers and collaborators will appear here
+                {searchQuery
+                  ? "Try a different search term"
+                  : "Messages from sellers and collaborators will appear here"}
               </Text>
             </View>
           }
@@ -474,10 +530,35 @@ const getDynamicStyles = (colors) => StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
   },
-  resetButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
     padding: 8,
+    marginLeft: 8,
     borderRadius: 20,
     backgroundColor: colors.cardBackground,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+    color: colors.text,
+  },
+  clearSearchButton: {
+    padding: 4,
   },
   infoBanner: {
     backgroundColor: colors.primary,
@@ -493,6 +574,10 @@ const getDynamicStyles = (colors) => StyleSheet.create({
   },
   conversationsList: {
     flexGrow: 1,
+  },
+  emptyListContent: {
+    flex: 1,
+    justifyContent: 'center',
   },
   conversationItem: {
     flexDirection: 'row',
@@ -582,7 +667,6 @@ const getDynamicStyles = (colors) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
     paddingHorizontal: 30,
   },
   emptyText: {

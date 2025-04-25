@@ -12,7 +12,7 @@ import {
   Alert,
   Pressable,
   StatusBar,
-  SafeAreaView
+  SafeAreaView,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,7 +20,10 @@ import { useTheme } from "../theme/ThemeContext";
 import { fetchMessages, sendMessage } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
 import { processMessage, WARNING_MESSAGE } from "../Utils/messageFilter";
-import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler";
+import {
+  GestureHandlerRootView,
+  Swipeable,
+} from "react-native-gesture-handler";
 
 // ErrorBoundary to catch render and lifecycle errors.
 class ErrorBoundary extends React.Component {
@@ -47,7 +50,9 @@ export default function ChatScreen({ navigation, route }) {
   const [inputText, setInputText] = useState("");
   const [images, setImages] = useState([]);
   const [canSendMessages, setCanSendMessages] = useState(true);
-  const [requestStatus, setRequestStatus] = useState(initialRequestStatus || null);
+  const [requestStatus, setRequestStatus] = useState(
+    initialRequestStatus || null
+  );
   const [warningVisible, setWarningVisible] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState({});
@@ -59,20 +64,32 @@ export default function ChatScreen({ navigation, route }) {
 
   // Generate a profile color based on the chat partner's name.
   const getProfileColor = (name) => {
-    const profileColors = ['#1abc9c', '#3498db', '#9b59b6', '#e74c3c', '#f39c12'];
-    const charSum = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const profileColors = [
+      "#1abc9c",
+      "#3498db",
+      "#9b59b6",
+      "#e74c3c",
+      "#f39c12",
+    ];
+    const charSum = name
+      .split("")
+      .reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return profileColors[charSum % profileColors.length];
   };
   const profileColor = getProfileColor(chatPartner);
 
   // Get initials from name.
   const getInitials = (name) => {
-    return name.split(" ").map((n) => n[0]).join("").toUpperCase();
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
   };
 
   useEffect(() => {
     Animated.timing(sendButtonPosition, {
-      toValue: (inputText.trim() !== "" || images.length > 0) ? 0 : 100,
+      toValue: inputText.trim() !== "" || images.length > 0 ? 0 : 100,
       duration: 200,
       useNativeDriver: true,
     }).start();
@@ -91,17 +108,20 @@ export default function ChatScreen({ navigation, route }) {
     const messageDateNoTime = new Date(messageDate);
     messageDateNoTime.setHours(0, 0, 0, 0);
     if (messageDateNoTime.getTime() === todayDate.getTime()) return "Today";
-    if (messageDateNoTime.getTime() === yesterdayDate.getTime()) return "Yesterday";
+    if (messageDateNoTime.getTime() === yesterdayDate.getTime())
+      return "Yesterday";
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
   // Helper: format time.
   const formatMessageTime = (date) => {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }).toLowerCase();
+    return date
+      .toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .toLowerCase();
   };
 
   // Process messages to include date separators.
@@ -111,7 +131,11 @@ export default function ChatScreen({ navigation, route }) {
     let lastDateLabel = null;
     messageList.forEach((message, index) => {
       if (lastDateLabel !== message.date) {
-        result.push({ id: `date-${message.date}-${index}`, type: "date", date: message.date });
+        result.push({
+          id: `date-${message.date}-${index}`,
+          type: "date",
+          date: message.date,
+        });
         lastDateLabel = message.date;
       }
       result.push(message);
@@ -140,11 +164,20 @@ export default function ChatScreen({ navigation, route }) {
       const stored = await AsyncStorage.getItem("collaborationRequests");
       const requests = stored ? JSON.parse(stored) : [];
       let request = null;
-      if (currentUser.account_type === "Influencer" || currentUser.account_type === "Seller") {
+      if (
+        currentUser.account_type === "Influencer" ||
+        currentUser.account_type === "Seller"
+      ) {
         request = requests.find(
           (req) =>
-            req.influencerName === (currentUser.account_type === "Influencer" ? currentUser.name : chatPartner) &&
-            req.sellerName === (currentUser.account_type === "Seller" ? currentUser.name : chatPartner)
+            req.influencerName ===
+              (currentUser.account_type === "Influencer"
+                ? currentUser.name
+                : chatPartner) &&
+            req.sellerName ===
+              (currentUser.account_type === "Seller"
+                ? currentUser.name
+                : chatPartner)
         );
       }
       if (request?.status) setRequestStatus(request.status);
@@ -172,11 +205,14 @@ export default function ChatScreen({ navigation, route }) {
       const filtered = deduplicatedMessages
         .filter(
           (msg) =>
-            (msg.user_from === currentUser.name && msg.user_to === chatPartner) ||
+            (msg.user_from === currentUser.name &&
+              msg.user_to === chatPartner) ||
             (msg.user_to === currentUser.name && msg.user_from === chatPartner)
         )
         .map((msg) => {
-          const messageDate = new Date(msg.date_timestamp_sent || msg.timestamp || Date.now());
+          const messageDate = new Date(
+            msg.date_timestamp_sent || msg.timestamp || Date.now()
+          );
           return {
             id: msg.message_id.toString(),
             text: msg.message_content || msg.content,
@@ -267,10 +303,14 @@ export default function ChatScreen({ navigation, route }) {
       if (swipeableRefs.current[messageId]) {
         swipeableRefs.current[messageId].close();
       }
-      setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== messageId));
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg.id !== messageId)
+      );
       const stored = await AsyncStorage.getItem("messages");
       const all = stored ? JSON.parse(stored) : [];
-      const filteredMessages = all.filter((msg) => msg.message_id.toString() !== messageId);
+      const filteredMessages = all.filter(
+        (msg) => msg.message_id.toString() !== messageId
+      );
       await AsyncStorage.setItem("messages", JSON.stringify(filteredMessages));
     } catch (error) {
       console.error("Failed to delete message:", error);
@@ -283,11 +323,15 @@ export default function ChatScreen({ navigation, route }) {
       const stored = await AsyncStorage.getItem("collaborationRequests");
       const all = stored ? JSON.parse(stored) : [];
       const updated = all.map((req) =>
-        req.influencerName === chatPartner && req.sellerName === currentUser.name
+        req.influencerName === chatPartner &&
+        req.sellerName === currentUser.name
           ? { ...req, status: "Accepted" }
           : req
       );
-      await AsyncStorage.setItem("collaborationRequests", JSON.stringify(updated));
+      await AsyncStorage.setItem(
+        "collaborationRequests",
+        JSON.stringify(updated)
+      );
       setRequestStatus("Accepted");
       setCanSendMessages(true);
     } catch (error) {
@@ -300,9 +344,16 @@ export default function ChatScreen({ navigation, route }) {
       const stored = await AsyncStorage.getItem("collaborationRequests");
       const all = stored ? JSON.parse(stored) : [];
       const updated = all.filter(
-        (req) => !(req.influencerName === chatPartner && req.sellerName === currentUser.name)
+        (req) =>
+          !(
+            req.influencerName === chatPartner &&
+            req.sellerName === currentUser.name
+          )
       );
-      await AsyncStorage.setItem("collaborationRequests", JSON.stringify(updated));
+      await AsyncStorage.setItem(
+        "collaborationRequests",
+        JSON.stringify(updated)
+      );
       setRequestStatus("Declined");
       setCanSendMessages(false);
     } catch (error) {
@@ -352,14 +403,19 @@ export default function ChatScreen({ navigation, route }) {
           style: "destructive",
           onPress: async () => {
             try {
-              const updatedMessages = messages.filter((msg) => !selectedMessages[msg.id]);
+              const updatedMessages = messages.filter(
+                (msg) => !selectedMessages[msg.id]
+              );
               setMessages(updatedMessages);
               const stored = await AsyncStorage.getItem("messages");
               const all = stored ? JSON.parse(stored) : [];
               const filteredMessages = all.filter(
                 (msg) => !selectedIds.includes(msg.message_id?.toString())
               );
-              await AsyncStorage.setItem("messages", JSON.stringify(filteredMessages));
+              await AsyncStorage.setItem(
+                "messages",
+                JSON.stringify(filteredMessages)
+              );
               setIsSelecting(false);
               setSelectedMessages({});
             } catch (error) {
@@ -379,8 +435,16 @@ export default function ChatScreen({ navigation, route }) {
       extrapolate: "clamp",
     });
     return (
-      <TouchableOpacity style={styles.deleteAction} onPress={() => handleDeleteMessage(item.id)}>
-        <Animated.View style={[styles.deleteActionContent, { transform: [{ translateX: trans }] }]}>
+      <TouchableOpacity
+        style={styles.deleteAction}
+        onPress={() => handleDeleteMessage(item.id)}
+      >
+        <Animated.View
+          style={[
+            styles.deleteActionContent,
+            { transform: [{ translateX: trans }] },
+          ]}
+        >
           <Ionicons name="trash-outline" size={24} color="#fff" />
         </Animated.View>
       </TouchableOpacity>
@@ -423,14 +487,18 @@ export default function ChatScreen({ navigation, route }) {
                   selectedMessages[item.id] && styles.checkboxSelected,
                 ]}
               >
-                {selectedMessages[item.id] && <Ionicons name="checkmark" size={12} color="#fff" />}
+                {selectedMessages[item.id] && (
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                )}
               </View>
             </View>
           )}
           <Text style={styles.messageText}>{item.text}</Text>
           <View style={styles.messageFooter}>
             <Text style={styles.messageTimestamp}>{item.timestamp}</Text>
-            {item.isFiltered && <Text style={styles.filteredWarning}>Filtered</Text>}
+            {item.isFiltered && (
+              <Text style={styles.filteredWarning}>Filtered</Text>
+            )}
           </View>
         </Pressable>
       </View>
@@ -439,7 +507,9 @@ export default function ChatScreen({ navigation, route }) {
       return (
         <Swipeable
           ref={(ref) => (swipeableRefs.current[item.id] = ref)}
-          renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, item)}
+          renderRightActions={(progress, dragX) =>
+            renderRightActions(progress, dragX, item)
+          }
           overshootRight={false}
         >
           <MessageContent />
@@ -463,12 +533,22 @@ export default function ChatScreen({ navigation, route }) {
             <View style={styles.header}>
               <SafeAreaView>
                 <View style={styles.headerContent}>
-                  <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={styles.backButton}
+                  >
                     <Ionicons name="chevron-back" size={24} color="#fff" />
                   </TouchableOpacity>
                   <View style={styles.profilePreview}>
-                    <View style={[styles.profileImage, { backgroundColor: profileColor }]}>
-                      <Text style={styles.profileInitials}>{getInitials(chatPartner)}</Text>
+                    <View
+                      style={[
+                        styles.profileImage,
+                        { backgroundColor: profileColor },
+                      ]}
+                    >
+                      <Text style={styles.profileInitials}>
+                        {getInitials(chatPartner)}
+                      </Text>
                     </View>
                     <View style={styles.nameContainer}>
                       <Text style={styles.profileName} numberOfLines={1}>
@@ -479,7 +559,10 @@ export default function ChatScreen({ navigation, route }) {
                   </View>
                   {isSelecting ? (
                     <View style={styles.selectionActions}>
-                      <TouchableOpacity style={styles.selectionActionButton} onPress={handleCancelSelection}>
+                      <TouchableOpacity
+                        style={styles.selectionActionButton}
+                        onPress={handleCancelSelection}
+                      >
                         <Ionicons name="close" size={24} color="#fff" />
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -491,7 +574,10 @@ export default function ChatScreen({ navigation, route }) {
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <TouchableOpacity style={styles.menuButton} onPress={() => {}}>
+                    <TouchableOpacity
+                      style={styles.menuButton}
+                      onPress={() => {}}
+                    >
                       <MaterialIcons name="more-vert" size={24} color="#fff" />
                     </TouchableOpacity>
                   )}
@@ -518,30 +604,45 @@ export default function ChatScreen({ navigation, route }) {
               contentContainerStyle={styles.messageListContent}
               initialNumToRender={20}
               onContentSizeChange={() => {
-                if (processedMessages.length > 0 && flatListRef.current && flatListRef.current.scrollToEnd) {
+                if (
+                  processedMessages.length > 0 &&
+                  flatListRef.current &&
+                  flatListRef.current.scrollToEnd
+                ) {
                   flatListRef.current.scrollToEnd({ animated: false });
                 }
               }}
             />
-            {requestStatus === "Pending" && currentUser.account_type === "Seller" && (
-              <View style={styles.pendingActions}>
-                <Text style={styles.pendingText}>Accept this collaboration request?</Text>
-                <View style={styles.pendingButtons}>
-                  <TouchableOpacity style={[styles.actionButton, styles.acceptButton]} onPress={handleAccept}>
-                    <Text style={styles.actionButtonText}>Accept</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionButton, styles.declineButton]} onPress={handleDecline}>
-                    <Text style={styles.actionButtonText}>Decline</Text>
-                  </TouchableOpacity>
+            {requestStatus === "Pending" &&
+              currentUser.account_type === "Seller" && (
+                <View style={styles.pendingActions}>
+                  <Text style={styles.pendingText}>
+                    Accept this collaboration request?
+                  </Text>
+                  <View style={styles.pendingButtons}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.acceptButton]}
+                      onPress={handleAccept}
+                    >
+                      <Text style={styles.actionButtonText}>Accept</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.declineButton]}
+                      onPress={handleDecline}
+                    >
+                      <Text style={styles.actionButtonText}>Decline</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
             <View style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={[styles.input, { opacity: canSendMessages ? 1 : 0.5 }]}
                   placeholder={
-                    canSendMessages ? "Type a message..." : "Collab request not accepted yet..."
+                    canSendMessages
+                      ? "Type a message..."
+                      : "Collab request not accepted yet..."
                   }
                   value={inputText}
                   onChangeText={setInputText}
@@ -549,19 +650,22 @@ export default function ChatScreen({ navigation, route }) {
                   placeholderTextColor={colors.subtitle}
                   multiline
                 />
-                <TouchableOpacity style={styles.attachButton} onPress={() => {}} disabled={!canSendMessages}>
-                  <Ionicons name="attach" size={24} color={colors.primary} />
-                </TouchableOpacity>
               </View>
-              {inputText.trim() !== "" && canSendMessages ? (
-                <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-                  <Ionicons name="send" size={20} color="#fff" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.micButton} onPress={() => {}} disabled={!canSendMessages}>
-                  <Ionicons name="mic" size={24} color={colors.primary} />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={handleSend}
+                disabled={!canSendMessages || inputText.trim() === ""}
+              >
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color="#fff"
+                  style={{
+                    opacity:
+                      !canSendMessages || inputText.trim() === "" ? 0.5 : 1,
+                  }}
+                />
+              </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>

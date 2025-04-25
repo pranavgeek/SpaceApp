@@ -14,6 +14,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { getSellerReceivedOrders } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../theme/ThemeContext";
 
 const SellerOrderScreen = () => {
   const [orders, setOrders] = useState([]);
@@ -21,6 +22,8 @@ const SellerOrderScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
   const navigation = useNavigation();
+  const { colors, isDarkMode } = useTheme();
+  const styles = getDynamicStyles(colors, isDarkMode);
 
   const fetchOrders = async () => {
     try {
@@ -46,7 +49,7 @@ const SellerOrderScreen = () => {
 
   const renderItem = ({ item, index }) => {
     // Calculate a status color based on the order ID (just for UI variation)
-    const statusColors = ['#10b981', '#f59e0b', '#3b82f6'];
+    const statusColors = [colors.success, colors.warning, colors.info];
     const statusColor = statusColors[index % statusColors.length];
     
     return (
@@ -119,11 +122,15 @@ const SellerOrderScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor={isDarkMode ? colors.background : "#fff"}
+        translucent={false}
+      />
       
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading your orders...</Text>
         </View>
       ) : (
@@ -137,8 +144,8 @@ const SellerOrderScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={["#3b82f6"]}
-              tintColor="#3b82f6"
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
           ListEmptyComponent={renderEmptyComponent}
@@ -149,10 +156,10 @@ const SellerOrderScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colors.background,
   },
   container: {
     padding: 16,
@@ -164,12 +171,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#111827",
+    color: colors.text,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: "#6b7280",
+    color: colors.subtitle,
   },
   cardContainer: {
     marginBottom: 16,
@@ -177,15 +184,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: "#000",
+    shadowColor: colors.shadowColor,
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDarkMode ? 0.2 : 0.1,
     shadowRadius: 3.84,
     elevation: 5,
   },
@@ -203,16 +210,16 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: colors.text,
     flex: 1,
   },
   date: {
     fontSize: 14,
-    color: "#6b7280",
+    color: colors.subtitle,
   },
   divider: {
     height: 1,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: isDarkMode ? colors.border : "#e5e7eb",
     marginHorizontal: 16,
   },
   cardContent: {
@@ -227,7 +234,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: "#f3f4f6",
+    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : "#f3f4f6",
   },
   productImage: {
     width: '100%',
@@ -240,18 +247,18 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
+    color: colors.text,
     marginBottom: 4,
   },
   quantity: {
     fontSize: 14,
-    color: "#4b5563",
+    color: colors.subtitle,
     marginBottom: 4,
   },
   price: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: colors.text,
   },
   statusContainer: {
     flexDirection: "row",
@@ -260,7 +267,7 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: 14,
-    color: "#4b5563",
+    color: colors.subtitle,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -274,30 +281,30 @@ const styles = StyleSheet.create({
   cardFooter: {
     flexDirection: "row",
     padding: 16,
-    backgroundColor: "#f9fafb",
+    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : "#f9fafb",
     borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
+    borderTopColor: isDarkMode ? colors.border : "#f3f4f6",
   },
   viewDetailsButton: {
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : "#f3f4f6",
     marginRight: 8,
     alignItems: "center",
   },
   viewDetailsText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4b5563",
+    color: colors.subtitle,
   },
   editButton: {
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: "#3b82f6",
+    backgroundColor: colors.primary,
     marginLeft: 8,
     alignItems: "center",
   },
@@ -314,7 +321,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#6b7280",
+    color: colors.subtitle,
   },
   emptyContainer: {
     padding: 24,
@@ -325,17 +332,17 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     marginBottom: 24,
-    opacity: 0.7,
+    opacity: isDarkMode ? 0.4 : 0.7,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111827",
+    color: colors.text,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: "#6b7280",
+    color: colors.subtitle,
     textAlign: "center",
     lineHeight: 24,
   },

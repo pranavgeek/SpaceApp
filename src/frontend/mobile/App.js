@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer, useNavigation } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { Modalize } from "react-native-modalize";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuth, AuthProvider } from "./context/AuthContext";
@@ -26,10 +28,16 @@ import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import CreatePostScreen from "./screens/CreatePostScreen"; // Import CreatePostScreen
 import { CartProvider } from "./context/CartContext";
 import SignUpScreen from "./screens/SignUpScreen";
-import AdminDashboard from "./screens/AdminDashboardScreen";
+import LoginScreen from "./screens/LoginScreen";
 import AdminNavigator from "./navigation/AdminNavigator";
 import { ForgetPasswordProvider } from "./context/ForgetPasswordContext";
 import ProfileRouter from "./components/ProfileRouter";
+import { WishlistProvider } from "./context/WishlistContext";
+import AdminDashboardScreen from "./screens/AdminDashboardScreen";
+import UserTrackingScreen from "./screens/UserTrackingScreen";
+import InfluencerProgramScreen from "./screens/InfluencerProgramScreen";
+import InfluencerApplicationScreen from "./screens/InfluencerApplicationScreen.js";
+import CollaborationModal from "./components/CollaborationModal.js";
 
 console.log("AuthProvider:", AuthProvider);
 console.log("useAuth:", useAuth);
@@ -41,16 +49,33 @@ console.log("MessagesStackNavigator:", MessagesStackNavigator);
 console.log("CreatePostScreen:", CreatePostScreen);
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+// Create an auth stack for login, signup, and influencer flows
+const AuthStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen
+        name="Influencer Program"
+        component={InfluencerProgramScreen}
+      />
+      <Stack.Screen
+        name="Influencer Form"
+        component={InfluencerApplicationScreen}
+      />
+    </Stack.Navigator>
+  );
+};
 
 const AppNavigator = () => {
   const { user } = useAuth();
 
-  if (!user) return <SignUpScreen />;
-
+  if (!user) return <AuthStack />;
   // Admin check (can be email or a flag in your data)
-  if (user.email === "kspace@example.com") {
-    return <AdminNavigator />;
-  }
+  // if (user.email === "kspace@example.com") {
+  //   return <AdminNavigator />;
+  // }
 
   return <AppContent />;
 };
@@ -58,15 +83,17 @@ const AppNavigator = () => {
 const App = () => (
   <AuthProvider>
     <LikeProvider>
-      <ThemeProvider>
-        <CartProvider>
-          <ForgetPasswordProvider>
-            <NavigationContainer>
-              <AppNavigator />
-            </NavigationContainer>
-          </ForgetPasswordProvider>
-        </CartProvider>
-      </ThemeProvider>
+      <WishlistProvider>
+        <ThemeProvider>
+          <CartProvider>
+            <ForgetPasswordProvider>
+              <NavigationContainer>
+                <AppNavigator />
+              </NavigationContainer>
+            </ForgetPasswordProvider>
+          </CartProvider>
+        </ThemeProvider>
+      </WishlistProvider>
     </LikeProvider>
   </AuthProvider>
 );
@@ -79,11 +106,15 @@ const AppContent = () => {
     user && (user.role === "buyer" || user.account_type === "Buyer");
   const isInfluencer =
     user && (user.role === "influencer" || user.account_type === "Influencer");
+  const isAdmin = user.role === "admin" || user.account_type === "admin";
 
   const modalizeRef = useRef(null);
   const promotionsModalRef = useRef(null);
+  const collaborationModalRef = useRef(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isPromotionsModalVisible, setIsPromotionsModalVisible] =
+    useState(false);
+  const [isCollaborationModalVisible, setIsCollaborationModalVisible] =
     useState(false);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const { colors } = useTheme();
@@ -100,6 +131,13 @@ const AppContent = () => {
     if (isSeller) {
       setIsModalVisible(true);
       modalizeRef.current?.open();
+    }
+  };
+
+  const navigateToDashboard = () => {
+    console.log("Navigating to Dashboard");
+    if (isAdmin) {
+      navigation.navigate("Dashboard");
     }
   };
 
@@ -132,6 +170,20 @@ const AppContent = () => {
     setIsDropdownVisible(!isDropdownVisible);
   };
 
+  // Open the collaboration modal for influencers
+  const openCollaborationView = () => {
+    if (isInfluencer) {
+      setIsCollaborationModalVisible(true);
+      collaborationModalRef.current?.open();
+    }
+  };
+
+  // Close the collaboration modal
+  const closeCollaborationModal = () => {
+    setIsCollaborationModalVisible(false);
+    collaborationModalRef.current?.close();
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
@@ -150,6 +202,10 @@ const AppContent = () => {
                 iconName = focused ? "chatbubbles" : "chatbubbles-outline";
               } else if (route.name === "Profile") {
                 iconName = focused ? "person" : "person-outline";
+              } else if (route.name === "Dashboard") {
+                iconName = focused ? "grid" : "grid-outline";
+              } else if (route.name === "Tracker") {
+                iconName = focused ? "stats-chart" : "stats-chart-outline";
               }
               return <Ionicons name={iconName} size={24} color={color} />;
             },
@@ -170,13 +226,34 @@ const AppContent = () => {
         >
           <Tab.Screen name="Home" component={HomeStack} />
           <Tab.Screen name="Messages" component={MessagesStackNavigator} />
+
+          {/* Middle button - conditionally rendered based on user role */}
           <Tab.Screen
-            name="Create"
-            component={CreatePostScreen}
+            name={isAdmin ? "Dashboard" : "Create"}
+            component={isAdmin ? AdminDashboardScreen : CreatePostScreen}
             options={{
               tabBarButton: (props) => {
-                // Different buttons based on user role
-                if (isSeller) {
+                console.log("Rendering middle button");
+                // Admin gets dashboard button
+                if (isAdmin) {
+                  console.log("Admin role detected");
+                  return (
+                    <TouchableOpacity
+                      style={styles.middleButton}
+                      {...props}
+                      onPress={navigateToDashboard}
+                    >
+                      <Ionicons
+                        name="grid-outline"
+                        size={40}
+                        color={colors.text}
+                      />
+                    </TouchableOpacity>
+                  );
+                }
+                // Seller gets add button
+                else if (isSeller) {
+                  console.log("Seller role detected");
                   return (
                     <TouchableOpacity
                       style={styles.middleButton}
@@ -190,27 +267,50 @@ const AppContent = () => {
                       />
                     </TouchableOpacity>
                   );
-                } else if (isBuyer || isInfluencer) {
+                }
+                // Buyer and Influencer get gift button
+                else if (isBuyer) {
                   return (
                     <TouchableOpacity
                       style={styles.middleButton}
                       {...props}
                       onPress={openPromotionsView}
                     >
-                      <Ionicons name="gift-outline" size={40} color="#FF6B6B" />
+                      <Ionicons
+                        style={{ marginBottom: 5 }}
+                        name="gift-outline"
+                        size={30}
+                        color="#FF6B6B"
+                      />
                     </TouchableOpacity>
                   );
-                } else {
-                  // Fallback for any other unspecified role
+                } else if (isInfluencer) {
+                  return (
+                    <TouchableOpacity
+                      style={styles.middleButton}
+                      {...props}
+                      onPress={openCollaborationView}
+                    >
+                      <FontAwesome5
+                        style={{ marginBottom: 5 }}
+                        name="handshake"
+                        size={30}
+                        color="#4d429a"
+                      />
+                    </TouchableOpacity>
+                  );
+                }
+                // Fallback for other account types
+                else {
                   return (
                     <TouchableOpacity
                       style={[styles.middleButton, { opacity: 0.5 }]}
-                      disabled
                       {...props}
                     >
                       <Ionicons
-                        name="help-circle-outline"
-                        size={40}
+                        style={{ marginBottom: 5 }}
+                        name="add-circle-outline"
+                        size={30}
                         color="#aaa"
                       />
                     </TouchableOpacity>
@@ -219,7 +319,11 @@ const AppContent = () => {
               },
             }}
           />
-          <Tab.Screen name="Profile" component={ProfileRouter} />
+
+          <Tab.Screen
+            name={isAdmin ? "Tracker" : "Profile"}
+            component={isAdmin ? UserTrackingScreen : ProfileRouter}
+          />
           <Tab.Screen name="Settings" component={SettingsStack} />
         </Tab.Navigator>
 
@@ -317,9 +421,6 @@ const AppContent = () => {
                       List your hardware or IoT device
                     </Text>
                   </View>
-                  <View style={styles.comingSoonBadge}>
-                    <Text style={styles.comingSoonText}>COMING SOON</Text>
-                  </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -327,8 +428,7 @@ const AppContent = () => {
         )}
 
         {/* Promotions & Discounts Modal (only for buyers and influencers) */}
-        {/* Promotions & Discounts Modal (only for buyers and influencers) */}
-        {(isBuyer || isInfluencer) && (
+        {isBuyer && (
           <Modalize
             ref={promotionsModalRef}
             snapPoint={500}
@@ -471,52 +571,25 @@ const AppContent = () => {
                     <Text style={styles.comingSoonText}>COMING SOON</Text>
                   </View>
                 </View>
-
-                {isInfluencer && (
-                  <View
-                    style={[
-                      styles.optionCard,
-                      {
-                        borderLeftWidth: 4,
-                        borderLeftColor: "#9C27B0",
-                        opacity: 0.7,
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.optionIconContainer,
-                        { backgroundColor: "#9C27B020" },
-                      ]}
-                    >
-                      <Ionicons name="star-outline" size={28} color="#9C27B0" />
-                    </View>
-                    <View style={styles.optionTextContainer}>
-                      <Text style={styles.optionTitle}>
-                        Influencer Exclusive
-                      </Text>
-                      <Text style={styles.optionDescription}>
-                        Special perks for promoting our products
-                      </Text>
-                    </View>
-                    <View style={styles.comingSoonBadge}>
-                      <Text style={styles.comingSoonText}>COMING SOON</Text>
-                    </View>
-                  </View>
-                )}
               </View>
 
               {/* Information about upcoming promotions */}
-              <View style={styles.tipsContainer}>
+              {/* <View style={styles.tipsContainer}>
                 <Text style={styles.tipsTitle}>Stay Tuned!</Text>
                 <Text style={styles.tipText}>
                   We're preparing some amazing deals and offers that will be
                   available soon. Check back regularly to take advantage of
                   exclusive promotions!
                 </Text>
-              </View>
+              </View> */}
             </View>
           </Modalize>
+        )}
+        {isInfluencer && (
+          <CollaborationModal
+            modalRef={collaborationModalRef}
+            isVisible={isCollaborationModalVisible}
+          />
         )}
       </View>
     </GestureHandlerRootView>

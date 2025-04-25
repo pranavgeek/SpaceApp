@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../theme/ThemeContext"; // Adjust path as needed
 import { useAuth } from "../context/AuthContext";
@@ -18,11 +19,18 @@ export default function InfluencerProgramScreen({ navigation }) {
   const isDesktopWeb = Platform.OS === "web" && width >= 768;
   const { colors } = useTheme();
   const { user, updateRole } = useAuth();
+  const [isSignupFlow, setIsSignupFlow] = useState(false);
+
+  const insets = useSafeAreaInsets();
+
+    useEffect(() => {
+      navigation.setOptions({ headerShown: !isSignupFlow });
+    }, [navigation, isSignupFlow]);
 
   const plans = [
     {
       title: "Starter Tier",
-      price: "$0/mo base",
+      price: "",
       bullets: [
         "Less than 5,000 followers",
         "1.5% engagement rate",
@@ -62,50 +70,73 @@ export default function InfluencerProgramScreen({ navigation }) {
     },
   ];
 
-  const handleSelectTier = async (tier) => {
-    // Only buyer accounts can switch to influencer
-    if (!user || user.role !== "buyer") {
-      Alert.alert(
-        "Access Denied",
-        "Only buyer accounts are eligible to switch to an influencer account."
-      );
-      navigation.navigate("Home");
-      return;
-    }
-
-    // Buyer selecting the free Starter Tier will have their role switched to influencer immediately.
-    if (tier === "Starter Tier") {
-      try {
-        await updateRole("influencer"); // 🔁 API call, AsyncStorage update, and context state update
-        await AsyncStorage.setItem("switchedRole", "Influencer");
-        Alert.alert("Success", "Your account has been switched to Influencer.");
-        // Short delay before resetting navigation
-        setTimeout(() => {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "Home" }],
-          });
-        }, 100);
-      } catch (err) {
-        console.error("Switch to influencer failed:", err);
-        Alert.alert("Error", "Unable to switch account. Try again.");
+  // Updated handleSelectTier function that checks for pending signup first
+const handleSelectTier = async (tier) => {
+  // Check for pending signup data first (this means we're in the signup flow)
+  try {
+    const pendingSignupData = await AsyncStorage.getItem("pendingInfluencerSignup");
+    
+    if (pendingSignupData) {
+      console.log("Found pending signup data, proceeding to form", pendingSignupData);
+      // This is a new user in the signup flow - proceed directly to the form
+      if (tier === "Starter Tier") {
+        navigation.navigate("Influencer Form", { tier });
+        return;
+      } else {
+        // For paid tiers during signup
+        Alert.alert(
+          "Paid Tier",
+          "This tier requires payment. Please complete payment first.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Proceed",
+              onPress: () => {
+                // For now, just navigate to the form
+                navigation.navigate("Influencer Form", { tier });
+              },
+            },
+          ]
+        );
+        return;
       }
-    } else {
-      // For all paid tiers, show the payment alert
-      Alert.alert(
-        "Paid Tier",
-        "This tier requires payment. Please complete payment first.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Proceed",
-            onPress: () =>
-              navigation.navigate("PaymentProcess", { tier }),
-          },
-        ]
-      );
     }
-  };
+  } catch (error) {
+    console.log("Error checking for pending signup:", error);
+  }
+  
+  // If we get here, we're in the normal flow with an existing user
+  
+  // Only buyer accounts can switch to influencer
+  if (!user || user.role !== "buyer") {
+    Alert.alert(
+      "Access Denied",
+      "Only buyer accounts are eligible to switch to an influencer account."
+    );
+    navigation.navigate("Home");
+    return;
+  }
+
+  // Existing user flow for buyer selecting a tier
+  if (tier === "Starter Tier") {
+    navigation.navigate("Influencer Form", { tier });
+  } else {
+    // For all paid tiers, show the payment alert
+    Alert.alert(
+      "Paid Tier",
+      "This tier requires payment. Please complete payment first.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Proceed",
+          onPress: () => {
+            navigation.navigate("Influencer Form", { tier });
+          },
+        },
+      ]
+    );
+  }
+};
 
   return (
     <ScrollView

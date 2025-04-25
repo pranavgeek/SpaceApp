@@ -18,6 +18,9 @@ import { useTheme } from "../theme/ThemeContext";
 import { useCart } from "../context/CartContext";
 import { useLikeContext } from "../theme/LikeContext";
 import { getProjectId } from "../context/projectIdHelper";
+import { useWishlist } from "../context/WishlistContext";
+import { useAuth } from "../context/AuthContext";
+
 import {
   fetchProductById,
   fetchProducts,
@@ -29,26 +32,33 @@ import {
 const ProjectScreen = ({ route, navigation }) => {
   const { project, creator } = route.params;
   const { toggleLike, getLikes } = useLikeContext();
+  const { toggleWishlistItem, isInWishlist } = useWishlist();
   const { colors } = useTheme();
   const { addToCart } = useCart();
-  
+  const { user } = useAuth();
+
   // Get window dimensions for responsive layout
   const { width } = Dimensions.get("window");
-  
+
   // Define breakpoints for responsive design
   const isWeb = Platform.OS === "web";
   const isDesktop = isWeb && width >= 1024;
   const isTablet = isWeb && width >= 768 && width < 1024;
   const isMobile = !isWeb || width < 768;
-  
+
   // Apply appropriate styles based on device/screen size
-  const styles = getDynamicStyles(colors, { isWeb, isDesktop, isTablet, isMobile });
+  const styles = getDynamicStyles(colors, {
+    isWeb,
+    isDesktop,
+    isTablet,
+    isMobile,
+  });
 
   // For image gallery
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollViewRef = useRef(null);
   const imageCount = 3; // adjust if needed
-  
+
   // Animation values
   const scrollY = useRef(new Animated.Value(0)).current;
   const heartScale = useRef(new Animated.Value(1)).current;
@@ -69,15 +79,33 @@ const ProjectScreen = ({ route, navigation }) => {
   // Use a stable project ID
   const projectId = getProjectId(project);
   const isLiked = getLikes(projectId);
+  const isFavorite = isInWishlist(projectId);
+
+  const handleToggleWishlist = () => {
+    toggleWishlistItem({ project, creator, category: project.category });
+    Animated.sequence([
+      Animated.timing(heartScale, {
+        toValue: 1.3,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heartScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   // Helper function to dynamically get product ID
   const getProductId = async () => {
     // Try direct ID sources first
     if (project?.product_id) return Number(project.product_id);
-    if (productDetail?.product_id && productDetail.product_id !== null) return Number(productDetail.product_id);
+    if (productDetail?.product_id && productDetail.product_id !== null)
+      return Number(productDetail.product_id);
     if (project?.id) return Number(project.id);
     if (project?.productId) return Number(project.productId);
-    
+
     // Try to get ID by product name
     const productName = project?.name || productDetail?.product_name;
     if (productName) {
@@ -85,19 +113,19 @@ const ProjectScreen = ({ route, navigation }) => {
       const foundId = await findProductIdByName(productName);
       if (foundId) {
         console.log(`Found product ID ${foundId} for product "${productName}"`);
-        
+
         // Save this ID to productDetail to avoid looking it up again
         if (productDetail) {
           setProductDetail({
             ...productDetail,
-            product_id: foundId
+            product_id: foundId,
           });
         }
-        
+
         return foundId;
       }
     }
-    
+
     return null;
   };
 
@@ -154,42 +182,64 @@ const ProjectScreen = ({ route, navigation }) => {
   }, [project]);
 
   // Fetch reviews
+  // Modified fetchProductReviews function that looks up user names
   useEffect(() => {
     const fetchProductReviews = async () => {
       try {
         // Don't fetch while initial product loading
         if (loading) return;
-        
+  
         setReviewsLoading(true);
         console.log("Project data:", project);
         console.log("Product detail:", productDetail);
-        
+  
         // Get product ID using our enhanced async function
         const prodId = await getProductId();
-        
+  
         if (prodId) {
           console.log(`Fetching reviews for product ID: ${prodId}`);
           const fetchedReviews = await fetchReviews(prodId);
           console.log("Fetched reviews by ID:", fetchedReviews);
-          
+  
           if (Array.isArray(fetchedReviews)) {
             // Filter reviews to make sure they belong to this specific product
-            const filteredReviews = fetchedReviews.filter(review => {
+            const filteredReviews = fetchedReviews.filter((review) => {
               // Convert both IDs to numbers to ensure reliable comparison
               return Number(review.product_id) === Number(prodId);
             });
-            
-            console.log(`After filtering: ${filteredReviews.length} reviews match product ${prodId}`);
-            
-            // Map reviews to the format used in the UI
-            const mappedReviews = filteredReviews.map((r) => ({
-              id: r.review_id,
-              name: `User ${r.user_id}`, 
-              date: new Date(r.date_timestamp || Date.now()).toLocaleDateString(),
-              rating: r.number_stars,
-              text: r.review,
-            }));
-            
+  
+            console.log(
+              `After filtering: ${filteredReviews.length} reviews match product ${prodId}`
+            );
+  
+            // Create a local map of user IDs to names
+            // This is hardcoded for now as a fallback since the API call is failing
+            const userMap = {
+              1: "John Doe",
+              2: "Sarah Smith",
+              3: "Mike Influencer"
+            };
+  
+            // Map reviews to the format used in the UI with actual reviewer names
+            const mappedReviews = filteredReviews.map((r) => {
+              // Use the local map to get the name, or fall back to the user_name from the review
+              // If neither is available, use generic "User X" format
+              const reviewerName = 
+                r.user_name || // Use user_name from review if it exists
+                userMap[r.user_id] || // Otherwise use our local map
+                `User ${r.user_id}`; // Last resort fallback
+              
+              return {
+                id: r.review_id,
+                name: reviewerName,
+                date: new Date(
+                  r.date_timestamp || Date.now()
+                ).toLocaleDateString(),
+                rating: r.number_stars,
+                text: r.review,
+              };
+            });
+  
             setReviews(mappedReviews);
           } else {
             console.log("No reviews found for this product");
@@ -206,7 +256,7 @@ const ProjectScreen = ({ route, navigation }) => {
         setReviewsLoading(false);
       }
     };
-
+  
     // Only fetch reviews if we have a project and loading is complete
     if (project && !loading) {
       fetchProductReviews();
@@ -220,23 +270,23 @@ const ProjectScreen = ({ route, navigation }) => {
         direction === "left"
           ? Math.max(prevIndex - 1, 0)
           : Math.min(prevIndex + 1, imageCount - 1);
-  
+
       scrollViewRef.current?.scrollTo({
         x: newIndex * (isDesktop ? styles.galleryImage.width : width - 32),
         y: 0,
         animated: true,
       });
-  
+
       return newIndex;
     });
   };
-  
+
   // Handle adding to cart
   const handleAddToCart = () => {
     const cartItem = { ...displayProduct, cartItemId: projectId };
     addToCart(cartItem);
     setAddedToCart(true);
-    
+
     // Reset after animation
     setTimeout(() => {
       setAddedToCart(false);
@@ -246,7 +296,7 @@ const ProjectScreen = ({ route, navigation }) => {
   // Handle like toggle with animation
   const handleToggleLike = () => {
     toggleLike(projectId);
-    
+
     // Animate heart when liked
     Animated.sequence([
       Animated.timing(heartScale, {
@@ -268,61 +318,69 @@ const ProjectScreen = ({ route, navigation }) => {
       Alert.alert("Missing Information", "Please enter your review text.");
       return;
     }
-
+  
     if (reviewRating === 0) {
       Alert.alert("Missing Rating", "Please select a rating (1-5 stars).");
       return;
     }
-
+  
     try {
       setReviewsLoading(true);
-      
+  
       // Get product ID using our enhanced function
       const prodId = await getProductId();
-      
+  
       if (!prodId) {
         Alert.alert(
-          "Error", 
+          "Error",
           "Cannot add review: Unable to determine product ID for this product."
         );
         return;
       }
-      
+  
       console.log(`Adding review for product ID: ${prodId}`);
-      
-      // Prepare review data
+  
+      // Use the actual logged-in user information from the AuthContext
+      // This avoids needing any API calls to get user info
+      const currentUserInfo = user || {
+        user_id: 3, // Default to Mike the Influencer if no user context
+        name: "Mike Influencer"
+      };
+  
+      // Prepare review data with user name
       const reviewData = {
         product_id: prodId,
-        user_id: 1, // In production, use the real user ID from authentication
+        user_id: currentUserInfo.user_id,
+        user_name: currentUserInfo.name, // Include the actual username
         number_stars: reviewRating,
         review: reviewText.trim(),
         date_timestamp: new Date().toISOString(),
       };
-
+  
       console.log("Submitting review data:", reviewData);
-
+  
       // Send review to API
       const createdReview = await createReview(reviewData);
       console.log("Created review:", createdReview);
-
+  
       if (createdReview) {
         // Update local state with the new review
         const newReview = {
           id: createdReview.review_id,
-          name: `User ${createdReview.user_id}`,
+          name: currentUserInfo.name, // Use the actual user name
           date: new Date(createdReview.date_timestamp).toLocaleDateString(),
           rating: createdReview.number_stars,
           text: createdReview.review,
         };
-
+  
         // Add the new review to the top of the list
         setReviews([newReview, ...reviews]);
-        
+  
         // Reset form
         setShowReviewForm(false);
         setReviewRating(0);
         setReviewText("");
-        
+  
         // Show success message
         Alert.alert("Success", "Your review has been submitted successfully!");
       } else {
@@ -376,10 +434,7 @@ const ProjectScreen = ({ route, navigation }) => {
   if (error) {
     return (
       <View
-        style={[
-          styles.errorContainer,
-          { backgroundColor: colors.background },
-        ]}
+        style={[styles.errorContainer, { backgroundColor: colors.background }]}
       >
         <Ionicons name="alert-circle" size={60} color={colors.error} />
         <Text style={[styles.errorText, { color: colors.error }]}>
@@ -402,7 +457,7 @@ const ProjectScreen = ({ route, navigation }) => {
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 200],
     outputRange: [0, 1],
-    extrapolate: 'clamp',
+    extrapolate: "clamp",
   });
 
   // Render the mobile layout
@@ -440,13 +495,10 @@ const ProjectScreen = ({ route, navigation }) => {
             ].map((img, index) => (
               <View
                 key={index}
-                style={[
-                  styles.imageCard,
-                  { width: width - 32, height: 350 },
-                ]}
+                style={[styles.imageCard, { width: width - 32, height: 350 }]}
               >
-                <Image 
-                  source={{ uri: img }} 
+                <Image
+                  source={{ uri: img }}
                   style={styles.galleryImage}
                   resizeMode="cover"
                 />
@@ -483,7 +535,9 @@ const ProjectScreen = ({ route, navigation }) => {
                   styles.paginationDot,
                   {
                     backgroundColor:
-                      dot === currentImageIndex ? colors.primary : colors.border,
+                      dot === currentImageIndex
+                        ? colors.primary
+                        : colors.border,
                     width: dot === currentImageIndex ? 20 : 8,
                   },
                 ]}
@@ -515,7 +569,7 @@ const ProjectScreen = ({ route, navigation }) => {
                 {displayProduct.currency} {displayProduct.price}
               </Text>
             </View>
-            
+
             <View style={styles.ratingContainer}>
               <View style={styles.starRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -523,9 +577,15 @@ const ProjectScreen = ({ route, navigation }) => {
                     key={star}
                     name="star"
                     size={16}
-                    color={star <= (reviews.length ? 
-                      reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length : 4) 
-                      ? "#FFD700" : "#E0E0E0"}
+                    color={
+                      star <=
+                      (reviews.length
+                        ? reviews.reduce((acc, r) => acc + r.rating, 0) /
+                          reviews.length
+                        : 4)
+                        ? "#FFD700"
+                        : "#E0E0E0"
+                    }
                   />
                 ))}
               </View>
@@ -542,38 +602,41 @@ const ProjectScreen = ({ route, navigation }) => {
           {/* Action Buttons - now with better UI */}
           <View style={styles.actionsContainer}>
             <TouchableOpacity
-              style={[styles.actionButton, isLiked && styles.actionButtonActive]}
-              onPress={handleToggleLike}
+              style={[
+                styles.actionButton,
+                isFavorite && styles.actionButtonActive,
+              ]}
+              onPress={handleToggleWishlist}
             >
               <Animated.View style={{ transform: [{ scale: heartScale }] }}>
                 <Ionicons
-                  name={isLiked ? "heart" : "heart-outline"}
+                  name={isFavorite ? "heart" : "heart-outline"}
                   size={24}
-                  color={isLiked ? colors.error : colors.subtitle}
+                  color={isFavorite ? colors.error : colors.subtitle}
                 />
               </Animated.View>
-              <Text 
-                style={[
-                  styles.actionText, 
-                  { color: isLiked ? colors.error : colors.subtitle }
-                ]}
-              >
-                {displayedLikes}
-              </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate("Messages")}
             >
-              <Ionicons name="chatbubble-outline" size={24} color={colors.subtitle} />
+              <Ionicons
+                name="chatbubble-outline"
+                size={24}
+                color={colors.subtitle}
+              />
               <Text style={[styles.actionText, { color: colors.subtitle }]}>
                 Message
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="share-social-outline" size={24} color={colors.subtitle} />
+              <Ionicons
+                name="share-social-outline"
+                size={24}
+                color={colors.subtitle}
+              />
               <Text style={[styles.actionText, { color: colors.subtitle }]}>
                 Share
               </Text>
@@ -585,13 +648,15 @@ const ProjectScreen = ({ route, navigation }) => {
             onPress={handleAddToCart}
             style={[
               styles.addToCartButton,
-              { backgroundColor: addedToCart ? colors.success : colors.primary },
+              {
+                backgroundColor: addedToCart ? colors.success : colors.primary,
+              },
             ]}
           >
-            <Ionicons 
-              name={addedToCart ? "checkmark-circle" : "cart"} 
-              size={24} 
-              color="white" 
+            <Ionicons
+              name={addedToCart ? "checkmark-circle" : "cart"}
+              size={24}
+              color="white"
               style={styles.cartIcon}
             />
             <Text style={styles.addToCartButtonText}>
@@ -616,23 +681,33 @@ const ProjectScreen = ({ route, navigation }) => {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Reviews
             </Text>
-            
+
             {!showReviewForm && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowReviewForm(true)}
-                style={[styles.writeReviewButton, { borderColor: colors.primary }]}
+                style={[
+                  styles.writeReviewButton,
+                  { borderColor: colors.primary },
+                ]}
               >
-                <Text style={[styles.writeReviewButtonText, { color: colors.primary }]}>
+                <Text
+                  style={[
+                    styles.writeReviewButtonText,
+                    { color: colors.primary },
+                  ]}
+                >
                   Write a Review
                 </Text>
               </TouchableOpacity>
             )}
           </View>
-          
+
           {reviewsLoading ? (
             <View style={styles.loadingReviewsContainer}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.loadingReviewsText, { color: colors.subtitle }]}>
+              <Text
+                style={[styles.loadingReviewsText, { color: colors.subtitle }]}
+              >
                 Loading reviews...
               </Text>
             </View>
@@ -642,7 +717,7 @@ const ProjectScreen = ({ route, navigation }) => {
                 key={index}
                 style={[
                   styles.reviewItem,
-                  { 
+                  {
                     backgroundColor: colors.cardSecondary,
                     borderLeftColor: colors.primary,
                   },
@@ -656,10 +731,14 @@ const ProjectScreen = ({ route, navigation }) => {
                       </Text>
                     </View>
                     <View>
-                      <Text style={[styles.reviewerName, { color: colors.text }]}>
+                      <Text
+                        style={[styles.reviewerName, { color: colors.text }]}
+                      >
                         {review.name}
                       </Text>
-                      <Text style={[styles.reviewDate, { color: colors.subtitle }]}>
+                      <Text
+                        style={[styles.reviewDate, { color: colors.subtitle }]}
+                      >
                         {review.date}
                       </Text>
                     </View>
@@ -682,26 +761,36 @@ const ProjectScreen = ({ route, navigation }) => {
             ))
           ) : (
             <View style={styles.noReviewsContainer}>
-              <Ionicons name="chatbox-outline" size={40} color={colors.subtitle} />
+              <Ionicons
+                name="chatbox-outline"
+                size={40}
+                color={colors.subtitle}
+              />
               <Text style={[styles.noReviewsText, { color: colors.subtitle }]}>
                 No reviews yet. Be the first to write a review!
               </Text>
             </View>
           )}
         </View>
-        
+
         {/* Review Form */}
         {showReviewForm && (
-          <View style={[styles.reviewFormCard, { backgroundColor: colors.card }]}>
+          <View
+            style={[styles.reviewFormCard, { backgroundColor: colors.card }]}
+          >
             <View style={styles.reviewFormHeader}>
               <Text style={[styles.reviewFormTitle, { color: colors.text }]}>
                 Write a Review
               </Text>
               <TouchableOpacity onPress={() => setShowReviewForm(false)}>
-                <Ionicons name="close-circle" size={24} color={colors.subtitle} />
+                <Ionicons
+                  name="close-circle"
+                  size={24}
+                  color={colors.subtitle}
+                />
               </TouchableOpacity>
             </View>
-            
+
             <Text style={[styles.ratingLabel, { color: colors.subtitle }]}>
               Rate this product:
             </Text>
@@ -720,12 +809,12 @@ const ProjectScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
               ))}
             </View>
-            
+
             <TextInput
               style={[
                 styles.reviewInput,
-                { 
-                  color: colors.text, 
+                {
+                  color: colors.text,
                   backgroundColor: colors.cardSecondary,
                   borderColor: colors.border,
                 },
@@ -736,21 +825,29 @@ const ProjectScreen = ({ route, navigation }) => {
               onChangeText={setReviewText}
               multiline
             />
-            
+
             <TouchableOpacity
               style={[
                 styles.submitReviewButton,
                 { backgroundColor: colors.primary },
-                (!reviewText.trim() || reviewRating === 0) && styles.disabledButton
+                (!reviewText.trim() || reviewRating === 0) &&
+                  styles.disabledButton,
               ]}
               onPress={handleAddReview}
-              disabled={reviewsLoading || !reviewText.trim() || reviewRating === 0}
+              disabled={
+                reviewsLoading || !reviewText.trim() || reviewRating === 0
+              }
             >
               {reviewsLoading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="send" size={20} color="#fff" style={styles.sendIcon} />
+                  <Ionicons
+                    name="send"
+                    size={20}
+                    color="#fff"
+                    style={styles.sendIcon}
+                  />
                   <Text style={styles.submitReviewButtonText}>
                     Submit Review
                   </Text>
@@ -759,7 +856,7 @@ const ProjectScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
         )}
-        
+
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
       </Animated.ScrollView>
@@ -800,12 +897,9 @@ const ProjectScreen = ({ route, navigation }) => {
                 displayProduct.image,
                 displayProduct.image,
               ].map((img, index) => (
-                <View
-                  key={index}
-                  style={styles.imageCard}
-                >
-                  <Image 
-                    source={{ uri: img }} 
+                <View key={index} style={styles.imageCard}>
+                  <Image
+                    source={{ uri: img }}
                     style={styles.galleryImage}
                     resizeMode="cover"
                   />
@@ -829,7 +923,11 @@ const ProjectScreen = ({ route, navigation }) => {
                 style={[styles.galleryArrow, styles.galleryArrowRight]}
                 onPress={() => handleScroll("right")}
               >
-                <Ionicons name="chevron-forward-circle" size={40} color="white" />
+                <Ionicons
+                  name="chevron-forward-circle"
+                  size={40}
+                  color="white"
+                />
               </TouchableOpacity>
             )}
 
@@ -842,7 +940,9 @@ const ProjectScreen = ({ route, navigation }) => {
                     styles.paginationDot,
                     {
                       backgroundColor:
-                        dot === currentImageIndex ? colors.primary : colors.border,
+                        dot === currentImageIndex
+                          ? colors.primary
+                          : colors.border,
                       width: dot === currentImageIndex ? 20 : 8,
                     },
                   ]}
@@ -877,7 +977,7 @@ const ProjectScreen = ({ route, navigation }) => {
                   {displayProduct.currency} {displayProduct.price}
                 </Text>
               </View>
-              
+
               <View style={styles.ratingContainer}>
                 <View style={styles.starRow}>
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -885,9 +985,15 @@ const ProjectScreen = ({ route, navigation }) => {
                       key={star}
                       name="star"
                       size={16}
-                      color={star <= (reviews.length ? 
-                        reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length : 4) 
-                        ? "#FFD700" : "#E0E0E0"}
+                      color={
+                        star <=
+                        (reviews.length
+                          ? reviews.reduce((acc, r) => acc + r.rating, 0) /
+                            reviews.length
+                          : 4)
+                          ? "#FFD700"
+                          : "#E0E0E0"
+                      }
                     />
                   ))}
                 </View>
@@ -904,7 +1010,10 @@ const ProjectScreen = ({ route, navigation }) => {
             {/* Action Buttons */}
             <View style={styles.actionsContainer}>
               <TouchableOpacity
-                style={[styles.actionButton, isLiked && styles.actionButtonActive]}
+                style={[
+                  styles.actionButton,
+                  isLiked && styles.actionButtonActive,
+                ]}
                 onPress={handleToggleLike}
               >
                 <Animated.View style={{ transform: [{ scale: heartScale }] }}>
@@ -914,28 +1023,36 @@ const ProjectScreen = ({ route, navigation }) => {
                     color={isLiked ? colors.error : colors.subtitle}
                   />
                 </Animated.View>
-                <Text 
+                <Text
                   style={[
-                    styles.actionText, 
-                    { color: isLiked ? colors.error : colors.subtitle }
+                    styles.actionText,
+                    { color: isLiked ? colors.error : colors.subtitle },
                   ]}
                 >
                   {displayedLikes}
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => navigation.navigate("Messages")}
               >
-                <Ionicons name="chatbubble-outline" size={24} color={colors.subtitle} />
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={24}
+                  color={colors.subtitle}
+                />
                 <Text style={[styles.actionText, { color: colors.subtitle }]}>
                   Message
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="share-social-outline" size={24} color={colors.subtitle} />
+                <Ionicons
+                  name="share-social-outline"
+                  size={24}
+                  color={colors.subtitle}
+                />
                 <Text style={[styles.actionText, { color: colors.subtitle }]}>
                   Share
                 </Text>
@@ -947,20 +1064,24 @@ const ProjectScreen = ({ route, navigation }) => {
               onPress={handleAddToCart}
               style={[
                 styles.addToCartButton,
-                { backgroundColor: addedToCart ? colors.success : colors.primary },
+                {
+                  backgroundColor: addedToCart
+                    ? colors.success
+                    : colors.primary,
+                },
               ]}
             >
-              <Ionicons 
-                name={addedToCart ? "checkmark-circle" : "cart"} 
-                size={24} 
-                color="white" 
+              <Ionicons
+                name={addedToCart ? "checkmark-circle" : "cart"}
+                size={24}
+                color="white"
                 style={styles.cartIcon}
               />
               <Text style={styles.addToCartButtonText}>
                 {addedToCart ? "Added to Cart" : "Add to Cart"}
               </Text>
             </TouchableOpacity>
-            
+
             {/* Summary Section - on desktop, this is part of the main product card */}
             <View style={styles.desktopSummarySection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -980,23 +1101,33 @@ const ProjectScreen = ({ route, navigation }) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Reviews
           </Text>
-          
+
           {!showReviewForm && (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setShowReviewForm(true)}
-              style={[styles.writeReviewButton, { borderColor: colors.primary }]}
+              style={[
+                styles.writeReviewButton,
+                { borderColor: colors.primary },
+              ]}
             >
-              <Text style={[styles.writeReviewButtonText, { color: colors.primary }]}>
+              <Text
+                style={[
+                  styles.writeReviewButtonText,
+                  { color: colors.primary },
+                ]}
+              >
                 Write a Review
               </Text>
             </TouchableOpacity>
           )}
         </View>
-        
+
         {reviewsLoading ? (
           <View style={styles.loadingReviewsContainer}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.loadingReviewsText, { color: colors.subtitle }]}>
+            <Text
+              style={[styles.loadingReviewsText, { color: colors.subtitle }]}
+            >
               Loading reviews...
             </Text>
           </View>
@@ -1007,7 +1138,7 @@ const ProjectScreen = ({ route, navigation }) => {
                 key={index}
                 style={[
                   styles.reviewItem,
-                  { 
+                  {
                     backgroundColor: colors.cardSecondary,
                     borderLeftColor: colors.primary,
                   },
@@ -1021,10 +1152,14 @@ const ProjectScreen = ({ route, navigation }) => {
                       </Text>
                     </View>
                     <View>
-                      <Text style={[styles.reviewerName, { color: colors.text }]}>
+                      <Text
+                        style={[styles.reviewerName, { color: colors.text }]}
+                      >
                         {review.name}
                       </Text>
-                      <Text style={[styles.reviewDate, { color: colors.subtitle }]}>
+                      <Text
+                        style={[styles.reviewDate, { color: colors.subtitle }]}
+                      >
                         {review.date}
                       </Text>
                     </View>
@@ -1048,14 +1183,18 @@ const ProjectScreen = ({ route, navigation }) => {
           </View>
         ) : (
           <View style={styles.noReviewsContainer}>
-            <Ionicons name="chatbox-outline" size={40} color={colors.subtitle} />
+            <Ionicons
+              name="chatbox-outline"
+              size={40}
+              color={colors.subtitle}
+            />
             <Text style={[styles.noReviewsText, { color: colors.subtitle }]}>
               No reviews yet. Be the first to write a review!
             </Text>
           </View>
         )}
       </View>
-      
+
       {/* Review Form */}
       {showReviewForm && (
         <View style={[styles.reviewFormCard, { backgroundColor: colors.card }]}>
@@ -1067,7 +1206,7 @@ const ProjectScreen = ({ route, navigation }) => {
               <Ionicons name="close-circle" size={24} color={colors.subtitle} />
             </TouchableOpacity>
           </View>
-          
+
           <Text style={[styles.ratingLabel, { color: colors.subtitle }]}>
             Rate this product:
           </Text>
@@ -1086,12 +1225,12 @@ const ProjectScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
-          
+
           <TextInput
             style={[
               styles.reviewInput,
-              { 
-                color: colors.text, 
+              {
+                color: colors.text,
                 backgroundColor: colors.cardSecondary,
                 borderColor: colors.border,
               },
@@ -1102,30 +1241,36 @@ const ProjectScreen = ({ route, navigation }) => {
             onChangeText={setReviewText}
             multiline
           />
-          
+
           <TouchableOpacity
             style={[
               styles.submitReviewButton,
               { backgroundColor: colors.primary },
-              (!reviewText.trim() || reviewRating === 0) && styles.disabledButton
+              (!reviewText.trim() || reviewRating === 0) &&
+                styles.disabledButton,
             ]}
             onPress={handleAddReview}
-            disabled={reviewsLoading || !reviewText.trim() || reviewRating === 0}
+            disabled={
+              reviewsLoading || !reviewText.trim() || reviewRating === 0
+            }
           >
             {reviewsLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Ionicons name="send" size={20} color="#fff" style={styles.sendIcon} />
-                <Text style={styles.submitReviewButtonText}>
-                  Submit Review
-                </Text>
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color="#fff"
+                  style={styles.sendIcon}
+                />
+                <Text style={styles.submitReviewButtonText}>Submit Review</Text>
               </>
             )}
           </TouchableOpacity>
         </View>
       )}
-      
+
       {/* Bottom spacing */}
       <View style={styles.bottomSpacing} />
     </Animated.ScrollView>
@@ -1173,7 +1318,7 @@ const getDynamicStyles = (colors, { isWeb, isDesktop, isTablet, isMobile }) =>
       fontWeight: "600",
       fontSize: 16,
     },
-    // Desktop Layout 
+    // Desktop Layout
     desktopLayout: {
       flexDirection: isDesktop || isTablet ? "row" : "column",
       paddingHorizontal: isDesktop ? 40 : isTablet ? 20 : 16,
@@ -1445,17 +1590,17 @@ const getDynamicStyles = (colors, { isWeb, isDesktop, isTablet, isMobile }) =>
       fontSize: 14,
     },
     reviewsGrid: {
-      flexDirection: isDesktop || isTablet ? 'row' : 'column',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
+      flexDirection: isDesktop || isTablet ? "row" : "column",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
     },
     reviewItem: {
       marginBottom: 16,
       borderRadius: 12,
       padding: 16,
       borderLeftWidth: 4,
-      width: isDesktop ? '48.5%' : isTablet ? '100%' : '100%',
-      marginRight: isDesktop ? '1.5%' : 0,
+      width: isDesktop ? "48.5%" : isTablet ? "100%" : "100%",
+      marginRight: isDesktop ? "1.5%" : 0,
     },
     reviewHeader: {
       flexDirection: "row",

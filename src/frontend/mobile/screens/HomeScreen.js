@@ -28,6 +28,8 @@ import { mockCities } from "../data/MockData.js";
 import { fetchProducts, fetchUsers } from "../backend/db/API.js";
 import AccountSwitchOverlay from "../components/AccountSwitchOverlay.js";
 
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+
 export default function HomeScreen({ navigation }) {
   // Search query state
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,9 +39,12 @@ export default function HomeScreen({ navigation }) {
   // Filtering states
   const [selectedFilter, setSelectedFilter] = useState("");
   const [selectedPriceRanges, setSelectedPriceRanges] = useState([]);
+  const [showBestSellersOnly, setShowBestSellersOnly] = useState(false);
+
   // Modal visibility state
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [modalShowBestSellers, setModalShowBestSellers] = useState(false);
 
   // Country and City filter states
   const [selectedCountry, setSelectedCountry] = useState("");
@@ -71,11 +76,6 @@ export default function HomeScreen({ navigation }) {
     { label: "All Categories", value: "" },
     { label: "Software", value: "Software" },
     { label: "Hardware", value: "Hardware" },
-    { label: "AI Tools", value: "AI Tools" },
-    { label: "Cloud", value: "Cloud" },
-    { label: "Feature", value: "Feature" },
-    { label: "Startups", value: "Startups" },
-    { label: "Creators", value: "Creators" },
   ]);
 
   const isFocused = useIsFocused();
@@ -109,10 +109,24 @@ export default function HomeScreen({ navigation }) {
   const BOTTOM_SHEET_HEIGHT = windowHeight * 0.8;
   const slideUpAnim = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT)).current;
   const modalOpacity = useRef(new Animated.Value(0)).current;
-  
+
+  const HEADER_MAX_HEIGHT = 140; // Full height (header + search)
+  const HEADER_MIN_HEIGHT = 60; // Just search bar height
+  const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+
+  // Create animation value for scroll position
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Create interpolation for header movement
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -60], // Hide only the logo part
+    extrapolate: "clamp",
+  });
+
   // Use separate state for the modal country dropdown to avoid naming conflicts
   const [modalCountryOpen, setModalCountryOpen] = useState(false);
-  
+
   // State to control the modal dismissal flow
   const [modalDismissing, setModalDismissing] = useState(false);
 
@@ -123,8 +137,16 @@ export default function HomeScreen({ navigation }) {
       setModalCity(selectedCity);
       setModalPriceRanges([...selectedPriceRanges]);
       setCategoryValue(selectedFilter);
+      setModalShowBestSellers(showBestSellersOnly); // Add this line
     }
-  }, [filterModalVisible, selectedCountry, selectedCity, selectedPriceRanges, selectedFilter]);
+  }, [
+    filterModalVisible,
+    selectedCountry,
+    selectedCity,
+    selectedPriceRanges,
+    selectedFilter,
+    showBestSellersOnly,
+  ]);
 
   // Also update cityItems whenever the applied country changes.
   useEffect(() => {
@@ -153,7 +175,7 @@ export default function HomeScreen({ navigation }) {
       // Reset animation values for opening
       slideUpAnim.setValue(BOTTOM_SHEET_HEIGHT);
       modalOpacity.setValue(0);
-      
+
       // Opening animation sequence
       Animated.parallel([
         Animated.timing(modalOpacity, {
@@ -187,7 +209,7 @@ export default function HomeScreen({ navigation }) {
         }),
       ]).start();
     }
-    
+
     // Closing animation sequence for modal
     if (modalDismissing) {
       Animated.parallel([
@@ -204,7 +226,15 @@ export default function HomeScreen({ navigation }) {
         }),
       ]).start();
     }
-  }, [showPanel, modalDismissing, isDesktopWeb, panelAnim, contentAnim, modalOpacity, slideUpAnim]);
+  }, [
+    showPanel,
+    modalDismissing,
+    isDesktopWeb,
+    panelAnim,
+    contentAnim,
+    modalOpacity,
+    slideUpAnim,
+  ]);
 
   // Mapping fetched products to add country and city properties
   useEffect(() => {
@@ -214,7 +244,7 @@ export default function HomeScreen({ navigation }) {
           fetchProducts(),
           fetchUsers(),
         ]);
-        const verifiedProducts = products.filter(p => p.verified === true);
+        const verifiedProducts = products.filter((p) => p.verified === true);
         // Map seller ID to their actual name
         const sellerMap = {};
         users.forEach((user) => {
@@ -225,11 +255,13 @@ export default function HomeScreen({ navigation }) {
           // Extract country from user data if available or use a default
           let productCountry = "";
           let productCity = "";
-          
+
           // Try to determine country/city from seller location if available
-          const seller = users.find(user => user.user_id === product.user_seller);
+          const seller = users.find(
+            (user) => user.user_id === product.user_seller
+          );
           if (seller && seller.location) {
-            const locationParts = seller.location.split(',');
+            const locationParts = seller.location.split(",");
             if (locationParts.length > 1) {
               productCity = locationParts[0].trim();
               productCountry = locationParts[1].trim();
@@ -237,18 +269,22 @@ export default function HomeScreen({ navigation }) {
               productCountry = locationParts[0].trim();
             }
           }
-          
+
           // If product has location data, use that instead
           if (product.country) productCountry = product.country;
           if (product.city) productCity = product.city;
-          
+
           // Generate random country/city for demo purposes if none exists
           if (!productCountry) {
-            const randomCountryIndex = Math.floor(Math.random() * countryItems.length);
+            const randomCountryIndex = Math.floor(
+              Math.random() * countryItems.length
+            );
             // Skip the first "All Countries" item
-            productCountry = countryItems[randomCountryIndex > 0 ? randomCountryIndex : 1].value;
+            productCountry =
+              countryItems[randomCountryIndex > 0 ? randomCountryIndex : 1]
+                .value;
           }
-          
+
           return {
             id: `${product.product_id}_${index}`,
             category: product.category,
@@ -263,25 +299,29 @@ export default function HomeScreen({ navigation }) {
               summary: product.summary,
               user_seller: product.user_seller,
               country: productCountry,
-              city: productCity
+              city: productCity,
+              best_seller:
+                product.is_best_seller || product.product_id % 3 === 0,
             },
             creator: {
               name:
-                sellerMap[product.user_seller] || `Seller ${product.user_seller}`,
+                sellerMap[product.user_seller] ||
+                `Seller ${product.user_seller}`,
               image: "https://via.placeholder.com/150",
             },
           };
         });
 
         setFetchedProjects(mappedProjects);
-        
+
         // Debug log
-        console.log("Products loaded with country/city:", 
-          mappedProjects.map(p => ({
-            id: p.id, 
+        console.log(
+          "Products loaded with country/city:",
+          mappedProjects.map((p) => ({
+            id: p.id,
             name: p.project.name,
             country: p.project.country,
-            city: p.project.city
+            city: p.project.city,
           }))
         );
       } catch (error) {
@@ -320,46 +360,64 @@ export default function HomeScreen({ navigation }) {
     if (!fetchedProjects || fetchedProjects.length === 0) {
       return [];
     }
-    
+
     return fetchedProjects.filter((project) => {
       // Make sure we have project and its properties before filtering
       if (!project || !project.project) return false;
-      
+
       const categoryMatch =
         !selectedFilter || project.category === selectedFilter;
-      
+
+      const bestSellerMatch =
+        !showBestSellersOnly || project.project.best_seller === true;
+
       const priceMatch =
         selectedPriceRanges.length === 0 ||
         selectedPriceRanges.some((range) =>
           checkPriceRange(range, project.project.price)
         );
-      
+
       // Country matching - use the country property from project
       const countryMatch =
-        !selectedCountry || 
-        selectedCountry === "" || 
-        (project.project.country && project.project.country === selectedCountry);
-      
+        !selectedCountry ||
+        selectedCountry === "" ||
+        (project.project.country &&
+          project.project.country === selectedCountry);
+
       // City matching - use the city property from project
       const cityMatch =
-        !selectedCity || 
-        selectedCity === "" || 
+        !selectedCity ||
+        selectedCity === "" ||
         (project.project.city && project.project.city === selectedCity);
-      
+
       const searchMatch =
         !searchQuery ||
         searchQuery === "" ||
-        project.project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.project.name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
         (project.project.description &&
           project.project.description
             .toLowerCase()
             .includes(searchQuery.toLowerCase()));
-      
+
       return (
-        categoryMatch && priceMatch && countryMatch && cityMatch && searchMatch
+        categoryMatch &&
+        priceMatch &&
+        countryMatch &&
+        cityMatch &&
+        searchMatch &&
+        bestSellerMatch
       );
     });
-  }, [fetchedProjects, selectedFilter, selectedPriceRanges, selectedCountry, selectedCity, searchQuery]);
+  }, [
+    fetchedProjects,
+    selectedFilter,
+    selectedPriceRanges,
+    selectedCountry,
+    selectedCity,
+    searchQuery,
+  ]);
 
   // Filtering logic checks category, price, country, and city
   function checkPriceRange(range, price) {
@@ -375,15 +433,16 @@ export default function HomeScreen({ navigation }) {
       setModalCountry(selectedCountry);
       setModalCity(selectedCity);
       setCategoryValue(selectedFilter);
+      setModalShowBestSellers(showBestSellersOnly);
       setFilterModalVisible(true);
     }
   };
-  
+
   // Handle modal close with animation
   const handleCloseModal = () => {
     // Start dismissing animation
     setModalDismissing(true);
-    
+
     // This delay matches the animation duration before actually removing the modal
     setTimeout(() => {
       setFilterModalVisible(false);
@@ -497,6 +556,13 @@ export default function HomeScreen({ navigation }) {
 
       <SafeAreaView style={styles.safeArea}>
         {/* CUSTOM HEADER */}
+        <Animated.View
+          style={[
+            styles.headerContainer,
+            { transform: [{ translateY: headerTranslateY }] },
+            { zIndex: 999 },
+          ]}
+        >
         <View style={styles.customHeader}>
           <View style={styles.headerLeft}>
             <Image
@@ -523,7 +589,12 @@ export default function HomeScreen({ navigation }) {
         {/* SEARCH BAR */}
         <View style={styles.searchBarContainer}>
           <View style={styles.searchInputWrap}>
-            <Ionicons name="search-outline" size={18} color={colors.subtitle} style={styles.searchIcon} />
+            <Ionicons
+              name="search-outline"
+              size={18}
+              color={colors.subtitle}
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="What are you looking for?"
@@ -536,50 +607,97 @@ export default function HomeScreen({ navigation }) {
             style={styles.filterButton}
             onPress={handleFilterPress}
           >
-            <Ionicons name="options-outline" size={20} color={colors.background} />
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={colors.background}
+            />
           </TouchableOpacity>
         </View>
+        </Animated.View>
 
         {/* ACTIVE FILTERS DISPLAY */}
-        {(selectedFilter || selectedCountry || selectedCity || selectedPriceRanges.length > 0) && (
+        {(selectedFilter ||
+          selectedCountry ||
+          selectedCity ||
+          selectedPriceRanges.length > 0 ||
+          showBestSellersOnly) && (
           <View style={styles.activeFiltersContainer}>
             <Text style={styles.activeFiltersTitle}>Active Filters:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {showBestSellersOnly && (
+                <View style={styles.activeFilterTag}>
+                  <Text style={styles.activeFilterText}>Best Sellers Only</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowBestSellersOnly(false)}
+                  >
+                    <Ionicons
+                      name="close-circle"
+                      size={16}
+                      color={colors.background}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
               {selectedFilter && (
                 <View style={styles.activeFilterTag}>
-                  <Text style={styles.activeFilterText}>Category: {selectedFilter}</Text>
+                  <Text style={styles.activeFilterText}>
+                    Category: {selectedFilter}
+                  </Text>
                   <TouchableOpacity onPress={() => setSelectedFilter("")}>
-                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                    <Ionicons
+                      name="close-circle"
+                      size={16}
+                      color={colors.background}
+                    />
                   </TouchableOpacity>
                 </View>
               )}
               {selectedCountry && (
                 <View style={styles.activeFilterTag}>
-                  <Text style={styles.activeFilterText}>Country: {selectedCountry}</Text>
+                  <Text style={styles.activeFilterText}>
+                    Country: {selectedCountry}
+                  </Text>
                   <TouchableOpacity onPress={() => setSelectedCountry("")}>
-                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                    <Ionicons
+                      name="close-circle"
+                      size={16}
+                      color={colors.background}
+                    />
                   </TouchableOpacity>
                 </View>
               )}
               {selectedCity && (
                 <View style={styles.activeFilterTag}>
-                  <Text style={styles.activeFilterText}>City: {selectedCity}</Text>
+                  <Text style={styles.activeFilterText}>
+                    City: {selectedCity}
+                  </Text>
                   <TouchableOpacity onPress={() => setSelectedCity("")}>
-                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                    <Ionicons
+                      name="close-circle"
+                      size={16}
+                      color={colors.background}
+                    />
                   </TouchableOpacity>
                 </View>
               )}
               {selectedPriceRanges.map((range, index) => (
                 <View key={index} style={styles.activeFilterTag}>
-                  <Text style={styles.activeFilterText}>Price: {range.display}</Text>
-                  <TouchableOpacity 
-                    onPress={() => 
+                  <Text style={styles.activeFilterText}>
+                    Price: {range.display}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() =>
                       setSelectedPriceRanges(
                         selectedPriceRanges.filter((_, i) => i !== index)
                       )
                     }
                   >
-                    <Ionicons name="close-circle" size={16} color={colors.background} />
+                    <Ionicons
+                      name="close-circle"
+                      size={16}
+                      color={colors.background}
+                    />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -628,11 +746,6 @@ export default function HomeScreen({ navigation }) {
                   <option value="">All Categories</option>
                   <option value="Software">Software</option>
                   <option value="Hardware">Hardware</option>
-                  <option value="AI Tools">AI Tools</option>
-                  <option value="Cloud">Cloud</option>
-                  <option value="Feature">Feature</option>
-                  <option value="Startups">Startups</option>
-                  <option value="Creators">Creators</option>
                 </select>
               </View>
               <View style={styles.filterSection}>
@@ -702,8 +815,14 @@ export default function HomeScreen({ navigation }) {
                   ))}
                   {filteredProjects.length === 0 && (
                     <View style={styles.emptyState}>
-                      <Ionicons name="search-outline" size={50} color={colors.subtitle} />
-                      <Text style={styles.emptyStateText}>No items found. Try adjusting your filters.</Text>
+                      <Ionicons
+                        name="search-outline"
+                        size={50}
+                        color={colors.subtitle}
+                      />
+                      <Text style={styles.emptyStateText}>
+                        No items found. Try adjusting your filters.
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -733,8 +852,14 @@ export default function HomeScreen({ navigation }) {
               />
             ) : (
               <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={50} color={colors.subtitle} />
-                <Text style={styles.emptyStateText}>No items found. Try adjusting your filters.</Text>
+                <Ionicons
+                  name="search-outline"
+                  size={50}
+                  color={colors.subtitle}
+                />
+                <Text style={styles.emptyStateText}>
+                  No items found. Try adjusting your filters.
+                </Text>
               </View>
             )}
           </View>
@@ -747,9 +872,9 @@ export default function HomeScreen({ navigation }) {
               <Animated.View
                 style={[
                   StyleSheet.absoluteFill,
-                  { 
+                  {
                     backgroundColor: "rgba(0,0,0,0.5)",
-                    opacity: modalOpacity 
+                    opacity: modalOpacity,
                   },
                 ]}
               />
@@ -757,125 +882,138 @@ export default function HomeScreen({ navigation }) {
             <Animated.View
               style={[
                 styles.bottomSheetContainer,
-                { 
+                {
                   transform: [{ translateY: slideUpAnim }],
                 },
               ]}
             >
               {/* Handle for dragging */}
               <View style={styles.sheetHandle} />
-              
+
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Filter Options</Text>
-                <TouchableOpacity 
-                  style={styles.closeButton} 
+                <TouchableOpacity
+                  style={styles.closeButton}
                   onPress={handleCloseModal}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="close" size={22} color={colors.background} />
                 </TouchableOpacity>
               </View>
-              
+
               {/* <ScrollView
                 style={styles.modalScrollView}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               > */}
-                {/* Category filter section */}
-                <View style={[styles.filterSection, { zIndex: 3000 }]}>
-                  <Text style={styles.filterLabel}>Category</Text>
+              {/* Category filter section */}
+              <View style={[styles.filterSection, { zIndex: 3000 }]}>
+                <Text style={styles.filterLabel}>Category</Text>
+                <DropDownPicker
+                  open={categoryOpen}
+                  value={categoryValue || ""}
+                  items={
+                    categoryItems && categoryItems.length > 0
+                      ? categoryItems
+                      : [{ label: "No Categories", value: "" }]
+                  }
+                  setOpen={setCategoryOpen}
+                  setValue={setCategoryValue}
+                  setItems={setCategoryItems}
+                  placeholder="Select a category"
+                  style={styles.dropdownStyle}
+                  dropDownContainerStyle={styles.dropdownContainer}
+                  textStyle={styles.dropdownText}
+                  containerStyle={styles.dropdownWrap}
+                  zIndex={3000}
+                  zIndexInverse={1000}
+                  onOpen={() => {
+                    setCityOpen(false);
+                    setModalCountryOpen(false);
+                  }}
+                />
+              </View>
+
+              {/* Best Seller filter for mobile */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Product Type</Text>
+                <View style={styles.checkboxRow}>
+                  <CheckBox
+                    value={modalShowBestSellers}
+                    onValueChange={setModalShowBestSellers}
+                    style={styles.checkbox}
+                  />
+                  <Text style={styles.checkboxLabel}>Best Sellers Only</Text>
+                </View>
+              </View>
+
+              {/* Price Range section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Price Range</Text>
+                {renderMobilePriceCheckboxes(
+                  priceRanges,
+                  modalPriceRanges,
+                  setModalPriceRanges
+                )}
+              </View>
+
+              {/* Country and City dropdowns - moved below price range to fix overlap */}
+              <View style={styles.doubleDropdownContainer}>
+                <View style={[styles.halfDropdown, { zIndex: 2000 }]}>
+                  <Text style={styles.filterLabel}>Country</Text>
                   <DropDownPicker
-                    open={categoryOpen}
-                    value={categoryValue || ""}
+                    open={modalCountryOpen}
+                    value={modalCountry || ""}
                     items={
-                      categoryItems && categoryItems.length > 0
-                        ? categoryItems
-                        : [{ label: "No Categories", value: "" }]
+                      countryItems && countryItems.length > 0
+                        ? countryItems
+                        : [{ label: "No Countries", value: "" }]
                     }
-                    setOpen={setCategoryOpen}
-                    setValue={setCategoryValue}
-                    setItems={setCategoryItems}
-                    placeholder="Select a category"
+                    setOpen={setModalCountryOpen}
+                    setValue={setModalCountry}
+                    setItems={setCountryItems}
+                    placeholder="Country"
                     style={styles.dropdownStyle}
                     dropDownContainerStyle={styles.dropdownContainer}
                     textStyle={styles.dropdownText}
                     containerStyle={styles.dropdownWrap}
-                    zIndex={3000}
+                    zIndex={2000}
+                    zIndexInverse={2000}
+                    onOpen={() => {
+                      setCategoryOpen(false);
+                      setCityOpen(false);
+                    }}
+                  />
+                </View>
+                <View style={[styles.halfDropdown, { zIndex: 1000 }]}>
+                  <Text style={styles.filterLabel}>City</Text>
+                  <DropDownPicker
+                    open={cityOpen}
+                    value={modalCity || ""}
+                    items={
+                      cityItems && cityItems.length > 0
+                        ? cityItems
+                        : [{ label: "No Cities", value: "" }]
+                    }
+                    setOpen={setCityOpen}
+                    setValue={setModalCity}
+                    setItems={setCityItems}
+                    placeholder="City"
+                    style={styles.dropdownStyle}
+                    dropDownContainerStyle={styles.dropdownContainer}
+                    textStyle={styles.dropdownText}
+                    containerStyle={styles.dropdownWrap}
+                    zIndex={1000}
                     zIndexInverse={1000}
                     onOpen={() => {
-                      setCityOpen(false);
+                      setCategoryOpen(false);
                       setModalCountryOpen(false);
                     }}
                   />
                 </View>
-
-                {/* Price Range section */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Price Range</Text>
-                  {renderMobilePriceCheckboxes(
-                    priceRanges,
-                    modalPriceRanges,
-                    setModalPriceRanges
-                  )}
-                </View>
-
-                {/* Country and City dropdowns - moved below price range to fix overlap */}
-                <View style={styles.doubleDropdownContainer}>
-                  <View style={[styles.halfDropdown, { zIndex: 2000 }]}>
-                    <Text style={styles.filterLabel}>Country</Text>
-                    <DropDownPicker
-                      open={modalCountryOpen}
-                      value={modalCountry || ""}
-                      items={
-                        countryItems && countryItems.length > 0
-                          ? countryItems
-                          : [{ label: "No Countries", value: "" }]
-                      }
-                      setOpen={setModalCountryOpen}
-                      setValue={setModalCountry}
-                      setItems={setCountryItems}
-                      placeholder="Country"
-                      style={styles.dropdownStyle}
-                      dropDownContainerStyle={styles.dropdownContainer}
-                      textStyle={styles.dropdownText}
-                      containerStyle={styles.dropdownWrap}
-                      zIndex={2000}
-                      zIndexInverse={2000}
-                      onOpen={() => {
-                        setCategoryOpen(false);
-                        setCityOpen(false);
-                      }}
-                    />
-                  </View>
-                  <View style={[styles.halfDropdown, { zIndex: 1000 }]}>
-                    <Text style={styles.filterLabel}>City</Text>
-                    <DropDownPicker
-                      open={cityOpen}
-                      value={modalCity || ""}
-                      items={
-                        cityItems && cityItems.length > 0
-                          ? cityItems
-                          : [{ label: "No Cities", value: "" }]
-                      }
-                      setOpen={setCityOpen}
-                      setValue={setModalCity}
-                      setItems={setCityItems}
-                      placeholder="City"
-                      style={styles.dropdownStyle}
-                      dropDownContainerStyle={styles.dropdownContainer}
-                      textStyle={styles.dropdownText}
-                      containerStyle={styles.dropdownWrap}
-                      zIndex={1000}
-                      zIndexInverse={1000}
-                      onOpen={() => {
-                        setCategoryOpen(false);
-                        setModalCountryOpen(false);
-                      }}
-                    />
-                  </View>
-                </View>
+              </View>
               {/* </ScrollView> */}
-              
+
               <TouchableOpacity
                 style={styles.applyButton}
                 activeOpacity={0.8}
@@ -884,6 +1022,7 @@ export default function HomeScreen({ navigation }) {
                   setSelectedCountry(modalCountry);
                   setSelectedCity(modalCity);
                   setSelectedFilter(categoryValue);
+                  setShowBestSellersOnly(modalShowBestSellers); // Add this line
                   handleCloseModal();
                 }}
               >
@@ -974,7 +1113,7 @@ const getDynamicStyles = (colors) =>
       paddingHorizontal: 12,
       marginRight: 10,
       height: 46,
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.1,
       shadowRadius: 2,
@@ -1265,5 +1404,5 @@ const getDynamicStyles = (colors) =>
       fontSize: 12,
       fontWeight: "500",
       marginRight: 6,
-    }
+    },
   });

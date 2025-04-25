@@ -17,9 +17,10 @@ import { getUserOrders, cancelOrder, fetchNotifications } from "../backend/db/AP
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../theme/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import userData from "../backend/db/data.json"; // Import the local data directly
 
-const BuyerOrderScreen = () => {
+const InfluencerOrderScreen = ({navigation}) => {
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,7 @@ const BuyerOrderScreen = () => {
         fetchNotifications(user.user_id)
       ]);
 
-      console.log(`Fetched ${orderData.length} orders and ${notificationData.length} notifications`);
+      console.log(`Fetched ${orderData.length} orders and ${notificationData.length} notifications for influencer`);
 
       // Create a map of order IDs to tracking links from notifications
       const trackingMap = {};
@@ -318,13 +319,13 @@ const BuyerOrderScreen = () => {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="basket-outline" size={80} color={isDarkMode ? "#444" : "#d1d5db"} />
+      <FontAwesome5 name="box-open" size={70} color={isDarkMode ? "#444" : "#d1d5db"} />
       <Text style={styles.emptyTitle}>No Orders Yet</Text>
       <Text style={styles.emptyText}>
-        When you place orders, they will appear here. Start shopping to see your orders!
+        This is where your orders will appear. Start browsing to find products to promote!
       </Text>
       <TouchableOpacity style={styles.shopNowButton}>
-        <Text style={styles.shopNowText}>Shop Now</Text>
+        <Text style={styles.shopNowText} onPress={() => navigation.navigate('Home')}>Browse Products</Text>
       </TouchableOpacity>
     </View>
   );
@@ -333,7 +334,7 @@ const BuyerOrderScreen = () => {
     <View style={styles.headerContainer}>
       <Text style={styles.headerTitle}>My Orders</Text>
       <Text style={styles.headerSubtitle}>
-        Track and manage your purchases
+        Track and manage your product orders
       </Text>
     </View>
   );
@@ -639,12 +640,6 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-  devInfo: {
-    padding: 4,
-    margin: 4,
-    backgroundColor: '#ffeeee',
-    borderRadius: 4,
-  },
 });
 
-export default BuyerOrderScreen;
+export default InfluencerOrderScreen;

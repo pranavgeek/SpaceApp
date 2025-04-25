@@ -1,4 +1,3 @@
-// ProjectCard.js
 import React from "react";
 import {
   View,
@@ -9,35 +8,30 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useLikeContext } from "../theme/LikeContext";
 import { useTheme } from "../theme/ThemeContext";
 import { useCart } from "../context/CartContext";
 import { getProjectId } from "../context/projectIdHelper";
 import { useAuth } from "../context/AuthContext";
+import { useWishlist } from "../context/WishlistContext";
 
 export default function ProjectCard({ item, onPress }) {
-  const { toggleLike, getLikes } = useLikeContext();
   const { colors } = useTheme();
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const { toggleWishlistItem, isInWishlist } = useWishlist();
 
-  // Get a stable project id
   const projectId = getProjectId(item.project);
+  const isFavorite = isInWishlist(projectId);
 
-  // Read the global like state
-  const isLiked = getLikes(projectId);
-  // Display like count: base count plus one if liked
-  const displayedLikes = item.project.likes + (isLiked ? 1 : 0);
-
-  const handleToggleLike = () => {
-    toggleLike(projectId);
+  const handleToggleFavorite = () => {
+    toggleWishlistItem(item);
   };
 
   const handleAddToCart = () => {
-    const buyerId = parseInt(user?.user_id); // logged-in buyer
-    const sellerId = parseInt(item.project.user_seller); // seller ID from the product
+    const buyerId = parseInt(user?.user_id);
+    const sellerId = parseInt(item.project.user_seller);
     const productId = item.project.product_id || item.project.id || item.id;
-  
+
     const cartItem = {
       ...item.project,
       cartItemId: projectId,
@@ -45,98 +39,55 @@ export default function ProjectCard({ item, onPress }) {
       buyer_id: buyerId,
       product_id: productId,
     };
-  
-    console.log("🛒 Final cart item:", JSON.stringify(cartItem));
+
     addToCart(cartItem);
   };
 
   const styles = getStyles(colors);
-  
+
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      {/* Card Image Section */}
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.imageContainer}>
-        <Image 
-          source={{ uri: item.project.image }} 
-          style={styles.projectImage} 
-          resizeMode="cover"
-        />
-        
-        {/* Price Tag */}
+        <Image source={{ uri: item.project.image }} style={styles.projectImage} resizeMode="cover" />
         <View style={styles.priceTag}>
-          <Text style={styles.priceText}>
-            ${parseFloat(item.project.price).toFixed(2)}
-          </Text>
+          <Text style={styles.priceText}>${parseFloat(item.project.price).toFixed(2)}</Text>
         </View>
         
-        {/* Like Button */}
-        <TouchableOpacity 
-          onPress={handleToggleLike} 
-          style={styles.likeButton}
-        >
-          <Ionicons
-            name={isLiked ? "heart" : "heart-outline"}
-            size={22}
-            color={isLiked ? colors.error : colors.background}
-          />
+        {/* Best Seller Badge */}
+        {item.project.best_seller && (
+          <View style={styles.bestSellerBadge}>
+            <Text style={styles.bestSellerText}>Best Seller</Text>
+          </View>
+        )}
+        
+        <TouchableOpacity onPress={handleToggleFavorite} style={styles.likeButton}>
+          <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={22} color={isFavorite ? "#FF3B30" : "#FFFFFF"} />
         </TouchableOpacity>
       </View>
-      
-      {/* Card Content */}
+
       <View style={styles.cardContent}>
-        {/* Category Tag */}
         <View style={styles.categoryTag}>
           <Text style={styles.categoryText}>{item.category}</Text>
         </View>
-        
-        {/* Project Name */}
-        <Text 
-          style={styles.projectName}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {item.project.name}
-        </Text>
-        
-        {/* Project Description */}
-        <Text
-          numberOfLines={2}
-          style={styles.projectDescription}
-          ellipsizeMode="tail"
-        >
-          {item.project.description}
-        </Text>
-        
-        {/* Creator Info Row */}
+
+        <Text style={styles.projectName} numberOfLines={1}>{item.project.name}</Text>
+        <Text style={styles.projectDescription} numberOfLines={2}>{item.project.description}</Text>
+
         <View style={styles.creatorRow}>
           <Image source={{ uri: item.creator.image }} style={styles.creatorImage} />
           <Text style={styles.creatorName}>{item.creator.name}</Text>
-          
-          {/* Cart Button */}
-          <TouchableOpacity
-            onPress={handleAddToCart}
-            style={styles.cartButton}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity onPress={handleAddToCart} style={styles.cartButton} activeOpacity={0.7}>
             <Ionicons name="cart-outline" size={20} color={colors.background} />
           </TouchableOpacity>
         </View>
-        
-        {/* Action Bar */}
+
         <View style={styles.actionBar}>
-          <View style={styles.statItem}>
-            <Ionicons name="heart" size={16} color={colors.primary} />
-            <Text style={styles.statText}>{displayedLikes}</Text>
-          </View>
-          
           <View style={styles.statItem}>
             <Ionicons name="location-outline" size={16} color={colors.subtitle} />
             <Text style={styles.statText}>
-              {item.project.city ? `${item.project.city}, ${item.project.country}` : item.project.country || "Global"}
+              {item.project.city
+                ? `${item.project.city}, ${item.project.country}`
+                : item.project.country || "Global"}
             </Text>
           </View>
         </View>
@@ -188,6 +139,26 @@ const getStyles = (colors) => StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     padding: 8,
     borderRadius: 20,
+  },
+  bestSellerBadge: {
+    position: "absolute",
+    top: 56,
+    right: 12,
+    backgroundColor: "#FFD700", // Gold color
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  bestSellerText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#000",
   },
   cardContent: {
     padding: 16,
@@ -259,5 +230,5 @@ const getStyles = (colors) => StyleSheet.create({
     marginLeft: 4,
     fontSize: 12,
     color: colors.subtitle,
-  }
+  },
 });

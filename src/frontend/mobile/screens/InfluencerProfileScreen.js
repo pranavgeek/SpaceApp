@@ -16,6 +16,7 @@ import ButtonSettings from "../components/ButtonSettings";
 import ButtonMain from "../components/ButtonMain";
 import ButtonIcon from "../components/ButtonIcon";
 import { Ionicons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -23,8 +24,8 @@ import { useAuth } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function InfluencerProfileScreen({ navigation }) {
-  const { colors } = useTheme();
-  const styles = getDynamicStyles(colors);
+  const { colors, isDarkMode } = useTheme();
+  const styles = getDynamicStyles(colors, isDarkMode);
   const { user, updateRole } = useAuth();
   const [location, setLocation] = useState("");
   const [languages, setLanguages] = useState([]);
@@ -71,19 +72,23 @@ export default function InfluencerProfileScreen({ navigation }) {
       <StatusBar
         translucent={true}
         backgroundColor="transparent"
-        barStyle="dark-content"
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
       />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Header with Background */}
         <View style={styles.profileHeader}>
           <ImageBackground
             source={{
-              uri: "https://images.unsplash.com/photo-1504805572947-34fad45aed93?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+              uri: "https://images.unsplash.com/photo-1557682250-33bd709cbe85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
             }}
             style={styles.headerBackground}
           >
             <LinearGradient
-              colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.7)"]}
+              colors={
+                isDarkMode
+                  ? ["rgba(0,0,0,0.5)", "rgba(0,0,0,0.8)"]
+                  : ["rgba(0,0,0,0.1)", "rgba(0,0,0,0.7)"]
+              }
               style={styles.gradient}
             />
             <View style={styles.headerContent}>
@@ -136,7 +141,11 @@ export default function InfluencerProfileScreen({ navigation }) {
                 <Ionicons name="logo-instagram" size={20} color="#C13584" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialIcon}>
-                <Ionicons name="logo-tiktok" size={20} color="#000000" />
+                <Ionicons
+                  name="logo-tiktok"
+                  size={20}
+                  color={isDarkMode ? "#FFFFFF" : "#000000"}
+                />
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialIcon}>
                 <Ionicons name="logo-linkedin" size={20} color="#0077B5" />
@@ -222,6 +231,62 @@ export default function InfluencerProfileScreen({ navigation }) {
                 </View>
                 <Text style={styles.buttonText}>Pending Campaigns</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => navigation.navigate("Closed Campaigns")}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <MaterialCommunityIcons
+                    name="flag-checkered"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={styles.buttonText}>Closed Campaigns</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => navigation.navigate("InfluencerOrders")}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons
+                    name="cube-outline"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={styles.buttonText}>Orders</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => navigation.navigate("Notifications")}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons
+                    name="notifications-outline"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={styles.buttonText}>Notifications</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => navigation.navigate("Payout")}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <MaterialCommunityIcons
+                    name="cash-multiple"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={styles.buttonText}>Payout</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -230,7 +295,7 @@ export default function InfluencerProfileScreen({ navigation }) {
   );
 }
 
-function getDynamicStyles(colors) {
+function getDynamicStyles(colors, isDarkMode) {
   const { width, height } = Dimensions.get("window");
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && width >= 992;
@@ -238,7 +303,7 @@ function getDynamicStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#f8f9fa",
+      backgroundColor: colors.background,
     },
     profileHeader: {
       width: "100%",
@@ -262,13 +327,13 @@ function getDynamicStyles(colors) {
     },
     profileImageContainer: {
       borderWidth: 4,
-      borderColor: "#fff",
+      borderColor: colors.background,
       borderRadius: 70,
       height: 140,
       width: 140,
       overflow: "hidden",
       elevation: 6,
-      shadowColor: "#000",
+      shadowColor: colors.shadowColor,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.3,
       shadowRadius: 4,
@@ -282,7 +347,7 @@ function getDynamicStyles(colors) {
       paddingTop: 80,
       borderTopLeftRadius: 30,
       borderTopRightRadius: 30,
-      backgroundColor: "#fff",
+      backgroundColor: colors.background,
       paddingHorizontal: 20,
       paddingBottom: 30,
     },
@@ -301,13 +366,13 @@ function getDynamicStyles(colors) {
       marginRight: 10,
     },
     accountTypeBadge: {
-      backgroundColor: "#fef3c7",
+      backgroundColor: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#fef3c7",
       paddingHorizontal: 12,
       paddingVertical: 4,
       borderRadius: 16,
     },
     accountTypeText: {
-      color: "#d97706",
+      color: isDarkMode ? "#f59e0b" : "#d97706",
       fontWeight: "600",
       fontSize: 12,
     },
@@ -328,7 +393,7 @@ function getDynamicStyles(colors) {
       fontSize: 14,
     },
     shareButton: {
-      backgroundColor: "#f1f5f9",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#f1f5f9",
       padding: 8,
       borderRadius: 8,
       alignItems: "center",
@@ -339,7 +404,7 @@ function getDynamicStyles(colors) {
       marginBottom: 16,
     },
     socialIcon: {
-      backgroundColor: "#f1f5f9",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#f1f5f9",
       width: 36,
       height: 36,
       borderRadius: 18,
@@ -362,7 +427,7 @@ function getDynamicStyles(colors) {
     },
     statsContainer: {
       flexDirection: "row",
-      backgroundColor: "#f8fafc",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.08)" : "#f8fafc",
       borderRadius: 12,
       padding: 16,
       marginBottom: 24,
@@ -383,10 +448,10 @@ function getDynamicStyles(colors) {
     },
     statDivider: {
       width: 1,
-      backgroundColor: "#e2e8f0",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#e2e8f0",
     },
     audienceCard: {
-      backgroundColor: "#f8fafc",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.08)" : "#f8fafc",
       borderRadius: 12,
       padding: 16,
       marginBottom: 24,
@@ -455,7 +520,9 @@ function getDynamicStyles(colors) {
       width: 60,
       height: 60,
       borderRadius: 30,
-      backgroundColor: `${colors.primary}10`,
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.1)"
+        : `${colors.primary}10`,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 8,
@@ -469,7 +536,7 @@ function getDynamicStyles(colors) {
       marginBottom: 20,
     },
     activityList: {
-      backgroundColor: "#f8fafc",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.08)" : "#f8fafc",
       borderRadius: 12,
       padding: 16,
     },
@@ -503,7 +570,7 @@ function getDynamicStyles(colors) {
     },
     activityDivider: {
       height: 1,
-      backgroundColor: "#e2e8f0",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#e2e8f0",
     },
   });
 }

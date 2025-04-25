@@ -11,6 +11,7 @@ import {
 import { WebView } from "react-native-webview";
 import { useAuth } from "../context/AuthContext"; // adjust if path differs
 import { createOrder } from "../backend/db/API"; // your API method
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CheckoutScreen = ({ navigation, route }) => {
   const webViewRef = useRef(null);
@@ -19,12 +20,11 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(false);
-  
+
   // Use different base URLs based on platform
-  const BASE_URL = Platform.OS === "web" 
-    ? "http://localhost:5001" 
-    : "http://10.0.0.25:5001";
-  
+  const BASE_URL =
+    Platform.OS === "web" ? "http://localhost:5001" : "http://10.0.0.25:5001";
+
   const {
     productId,
     quantity,
@@ -42,8 +42,8 @@ const CheckoutScreen = ({ navigation, route }) => {
     postal_code,
   } = route.params || {};
 
-  const checkoutUrl = `${BASE_URL}/checkout.html?total=${total}&productId=${productId}&quantity=${quantity}&product_name=${encodeURIComponent(product_name || '')}`;
-  
+  const checkoutUrl = `${BASE_URL}/checkout.html?total=${total}&productId=${productId}&quantity=${quantity}&product_name=${encodeURIComponent(product_name || "")}`;
+
   const buyer_id = user?.user_id;
 
   console.log("💳 CheckoutScreen params:", {
@@ -53,7 +53,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     seller_id,
     total,
     product_name,
-    url: checkoutUrl
+    url: checkoutUrl,
   });
 
   // Handle message events from iframe in web mode
@@ -62,7 +62,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       const handleWebMessage = async (event) => {
         // Check origin based on environment
         if (event.origin !== "http://localhost:5001") return;
-        
+
         try {
           console.log("Received message from iframe:", event.data);
           const response = JSON.parse(event.data);
@@ -127,7 +127,7 @@ const CheckoutScreen = ({ navigation, route }) => {
 
             // Use route params if order details are missing
             const productIdToUse = respProductId || productId;
-            const quantityToUse = respQuantity || quantity; 
+            const quantityToUse = respQuantity || quantity;
             const amountToUse = amount || total;
             const statusToUse = status || "completed";
 
@@ -151,9 +151,9 @@ const CheckoutScreen = ({ navigation, route }) => {
               shipping_country: country,
               shipping_postal_code: postal_code,
             };
-            
+
             console.log("Creating order with:", enrichedOrder);
-            
+
             try {
               await createOrder(enrichedOrder.buyer_id, enrichedOrder);
               console.log("✅ Order created:", enrichedOrder);
@@ -206,12 +206,12 @@ const CheckoutScreen = ({ navigation, route }) => {
       try {
         // Add a loading complete handler
         setLoading(false);
-        
+
         // Get the iframe content window
         const iframeWindow = iframeRef.current.contentWindow;
-        
+
         console.log("Iframe loaded successfully");
-        
+
         // Let's modify the checkout.html to ensure postMessage works properly
         if (iframeWindow && iframeWindow.postMessage) {
           // Just for debugging - the real communication should happen in checkout.html
@@ -248,9 +248,9 @@ const CheckoutScreen = ({ navigation, route }) => {
           src={checkoutUrl}
           onLoad={setupIframeListener}
           style={{
-            width: '100%',
-            height: '100%',
-            border: 'none'
+            width: "100%",
+            height: "100%",
+            border: "none",
           }}
           title="Checkout"
         />
@@ -258,7 +258,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         <WebView
           ref={webViewRef}
           source={{
-            uri: checkoutUrl
+            uri: checkoutUrl,
           }}
           onLoad={() => setLoading(false)}
           onMessage={handleWebViewMessage}
@@ -293,13 +293,15 @@ const CheckoutScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     backgroundColor: "#fff",
-    ...(Platform.OS === "web" ? { 
-      height: "100vh", // Use viewport height for web
-      width: "100%" 
-    } : {})
+    ...(Platform.OS === "web"
+      ? {
+          height: "100vh", // Use viewport height for web
+          width: "100%",
+        }
+      : {}),
   },
   webview: { flex: 1 },
   loadingOverlay: {

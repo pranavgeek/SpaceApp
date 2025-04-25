@@ -26,8 +26,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { fetchNotifications } from "../backend/db/API";
 
 export default function BuyerProfileScreen({ navigation, route }) {
-  const { colors } = useTheme();
-  const styles = getDynamicStyles(colors);
+  const { colors, isDarkMode } = useTheme();
+  const styles = getDynamicStyles(colors, isDarkMode);
   const { user } = useAuth();
 
   const [location, setLocation] = useState("");
@@ -43,7 +43,7 @@ export default function BuyerProfileScreen({ navigation, route }) {
           const storedLanguages = await AsyncStorage.getItem("languages");
           if (storedLocation) setLocation(storedLocation);
           if (storedLanguages) setLanguages(JSON.parse(storedLanguages));
-          
+
           // Check for new notifications
           if (user && user.user_id) {
             checkForNewNotifications();
@@ -53,7 +53,7 @@ export default function BuyerProfileScreen({ navigation, route }) {
         }
       };
       loadData();
-      
+
       // Also check if we're coming back with orderComplete flag
       if (route.params?.orderComplete) {
         Alert.alert(
@@ -68,10 +68,10 @@ export default function BuyerProfileScreen({ navigation, route }) {
   const checkForNewNotifications = async () => {
     try {
       const userNotifications = await fetchNotifications(user.user_id);
-      
+
       if (userNotifications && userNotifications.length > 0) {
         // Check if there are unread notifications
-        const hasUnread = userNotifications.some(n => !n.read);
+        const hasUnread = userNotifications.some((n) => !n.read);
         setHasNewNotifications(hasUnread);
       } else {
         setHasNewNotifications(false);
@@ -90,7 +90,9 @@ export default function BuyerProfileScreen({ navigation, route }) {
     city: user?.city || "N/A",
     country: user?.country || "N/A",
     accountType: user?.account_type || "N/A",
-    productPurchased: Array.isArray(user?.products_purchased) ? user.products_purchased : [],
+    productPurchased: Array.isArray(user?.products_purchased)
+      ? user.products_purchased
+      : [],
     followingCount: user?.following_count || 0,
     campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
     followers: user?.followers_count || 0,
@@ -99,213 +101,66 @@ export default function BuyerProfileScreen({ navigation, route }) {
 
   // Render the stats section based on the account type
   const renderStats = () => {
-    if (profile.accountType === "Seller") {
-      return (
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.campaigns.length}</Text>
-            <Text style={styles.statLabel}>Campaigns</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.followers}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>${profile.earnings}</Text>
-            <Text style={styles.statLabel}>Earnings</Text>
-          </View>
+    // Buyer
+    return (
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>
+            {profile.productPurchased.length}
+          </Text>
+          <Text style={styles.statLabel}>Purchases</Text>
         </View>
-      );
-    } else if (profile.accountType === "Influencer") {
-      return (
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.campaigns.length}</Text>
-            <Text style={styles.statLabel}>Campaigns</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.followers}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>${profile.earnings}</Text>
-            <Text style={styles.statLabel}>Earnings</Text>
-          </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{profile.followingCount}</Text>
+          <Text style={styles.statLabel}>Following</Text>
         </View>
-      );
-    } else {
-      // Buyer
-      return (
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.productPurchased.length}</Text>
-            <Text style={styles.statLabel}>Purchases</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.followingCount}</Text>
-            <Text style={styles.statLabel}>Following</Text>
-          </View>
-        </View>
-      );
-    }
+      </View>
+    );
   };
 
   // Render buttons based on account type
   const renderButtons = () => {
-    if (profile.accountType === "Seller") {
-      return (
-        <View style={styles.buttonsGrid}>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.navigate("My Products")}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="grid-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>My Products</Text>
-          </TouchableOpacity>
+    // Buyer
+    return (
+      <View style={styles.buttonsGrid}>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.navigate("BuyersOrders")}
+        >
+          <View style={styles.buttonIconContainer}>
+            <Ionicons name="cube-outline" size={24} color={colors.primary} />
+          </View>
+          <Text style={styles.buttonText}>Orders</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.navigate("Collaboration Requests")}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="people-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Collaborations</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.navigate("Payment History")}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="card-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Payment</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.navigate("SellersOrders")}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="cube-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Orders</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => {}}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="heart-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Favorites</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-              style={styles.settingItem}
-              onPress={() => navigation.navigate("Notifications")}
-            >
-              <View style={styles.settingIconContainer}>
-                <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-              </View>
-              <Text style={styles.settingText}>Notifications</Text>
-              {hasNewNotifications && <View style={styles.settingBadge} />}
-              <Ionicons name="chevron-forward" size={18} color={colors.subtitle} />
-            </TouchableOpacity>
-        </View>
-      );
-    } else if (profile.accountType === "Influencer") {
-      return (
-        <View style={styles.buttonsGrid}>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => handleCampaigns()}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="megaphone-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Campaigns</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => handlePendingCampaigns()}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="time-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Pending</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    } else {
-      // Buyer
-      return (
-        <View style={styles.buttonsGrid}>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.navigate("Favourites")}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="heart-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Favorites</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.navigate("BuyersOrders")}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="cube-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Orders</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.navigate("Payment")}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="card-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.buttonText}>Payment</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-  };
-
-  // Social media icons for influencers
-  const renderSocialIcons = () => {
-    if (profile.accountType === "Influencer") {
-      return (
-        <View style={styles.socialIconsContainer}>
-          <TouchableOpacity style={styles.socialIcon}>
-            <Ionicons name="logo-twitter" size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialIcon}>
-            <Ionicons name="logo-instagram" size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialIcon}>
-            <Ionicons name="logo-tiktok" size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialIcon}>
-            <Ionicons name="logo-linkedin" size={20} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    return null;
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.navigate("Notifications")}
+        >
+          <View style={styles.buttonIconContainer}>
+            <Ionicons
+              name="notifications-outline"
+              size={24}
+              color={colors.primary}
+            />
+          </View>
+          <Text style={styles.buttonText}>Notifications</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.navigate("Favorites")}
+        >
+          <View style={styles.buttonIconContainer}>
+            <Ionicons name="heart-outline" size={24} color={colors.primary} />
+          </View>
+          <Text style={styles.buttonText}>Favorites</Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   // Helper functions for influencer account
@@ -321,21 +176,27 @@ export default function BuyerProfileScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar 
-        translucent={true} 
-        backgroundColor="transparent" 
-        barStyle="dark-content" 
+      <StatusBar
+        translucent={true}
+        backgroundColor="transparent"
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
       />
-      
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Header with Background */}
         <View style={styles.profileHeader}>
           <ImageBackground
-            source={{ uri: "https://images.unsplash.com/photo-1557682250-33bd709cbe85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80" }}
+            source={{
+              uri: "https://images.unsplash.com/photo-1557682250-33bd709cbe85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+            }}
             style={styles.headerBackground}
           >
             <LinearGradient
-              colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)']}
+              colors={
+                isDarkMode
+                  ? ["rgba(0,0,0,0.5)", "rgba(0,0,0,0.8)"]
+                  : ["rgba(0,0,0,0.1)", "rgba(0,0,0,0.7)"]
+              }
               style={styles.gradient}
             />
             <View style={styles.headerContent}>
@@ -358,39 +219,52 @@ export default function BuyerProfileScreen({ navigation, route }) {
             <View style={styles.nameSection}>
               <Text style={styles.profileName}>{profile.name}</Text>
               <View style={styles.accountTypeBadge}>
-                <Text style={styles.accountTypeText}>{profile.accountType}</Text>
+                <Text style={styles.accountTypeText}>
+                  {profile.accountType}
+                </Text>
               </View>
             </View>
 
             <View style={styles.actionsRow}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.editProfileButton}
                 onPress={() => navigation.navigate("Edit Profile")}
               >
                 <Text style={styles.editProfileText}>Edit Profile</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity style={styles.shareButton}>
-                <Ionicons name="share-social-outline" size={20} color={colors.text} />
+                <Ionicons
+                  name="share-social-outline"
+                  size={20}
+                  color={colors.text}
+                />
               </TouchableOpacity>
             </View>
-
-            {/* Social Media Icons for Influencer */}
-            {renderSocialIcons()}
 
             {/* Location & Language */}
             <View style={styles.locationContainer}>
               <View style={styles.infoItem}>
-                <Ionicons name="location-outline" size={18} color={colors.subtitle} />
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={colors.subtitle}
+                />
                 <Text style={styles.infoText}>
                   {profile.city}, {profile.country}
                 </Text>
               </View>
-              
+
               <View style={styles.infoItem}>
-                <Ionicons name="language-outline" size={18} color={colors.subtitle} />
+                <Ionicons
+                  name="language-outline"
+                  size={18}
+                  color={colors.subtitle}
+                />
                 <Text style={styles.infoText}>
-                  {languages.length > 0 ? languages.join(", ") : "No languages set"}
+                  {languages.length > 0
+                    ? languages.join(", ")
+                    : "No languages set"}
                 </Text>
               </View>
             </View>
@@ -404,46 +278,13 @@ export default function BuyerProfileScreen({ navigation, route }) {
             <Text style={styles.sectionTitle}>Account</Text>
             {renderButtons()}
           </View>
-
-          {/* Settings Section */}
-          <View style={styles.settingsSection}>
-            <Text style={styles.sectionTitle}>Settings</Text>
-            
-            <TouchableOpacity 
-              style={styles.settingItem}
-              onPress={() => navigation.navigate("Notifications")}
-            >
-              <View style={styles.settingIconContainer}>
-                <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-              </View>
-              <Text style={styles.settingText}>Notifications</Text>
-              {hasNewNotifications && <View style={styles.settingBadge} />}
-              <Ionicons name="chevron-forward" size={18} color={colors.subtitle} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.settingItem}>
-              <View style={styles.settingIconContainer}>
-                <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
-              </View>
-              <Text style={styles.settingText}>Privacy</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.subtitle} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.settingItem}>
-              <View style={styles.settingIconContainer}>
-                <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
-              </View>
-              <Text style={styles.settingText}>Help & Support</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.subtitle} />
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function getDynamicStyles(colors) {
+function getDynamicStyles(colors, isDarkMode) {
   const { width, height } = Dimensions.get("window");
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && width >= 992;
@@ -451,7 +292,7 @@ function getDynamicStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#f8f9fa",
+      backgroundColor: colors.background,
     },
     profileHeader: {
       width: "100%",
@@ -463,7 +304,7 @@ function getDynamicStyles(colors) {
       justifyContent: "flex-end",
     },
     gradient: {
-      position: 'absolute',
+      position: "absolute",
       left: 0,
       right: 0,
       top: 0,
@@ -475,13 +316,13 @@ function getDynamicStyles(colors) {
     },
     profileImageContainer: {
       borderWidth: 4,
-      borderColor: "#fff",
+      borderColor: colors.background,
       borderRadius: 70,
       height: 140,
       width: 140,
       overflow: "hidden",
       elevation: 6,
-      shadowColor: "#000",
+      shadowColor: colors.shadowColor,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.3,
       shadowRadius: 4,
@@ -495,7 +336,7 @@ function getDynamicStyles(colors) {
       paddingTop: 80,
       borderTopLeftRadius: 30,
       borderTopRightRadius: 30,
-      backgroundColor: "#fff",
+      backgroundColor: colors.background,
       paddingHorizontal: 20,
       paddingBottom: 30,
     },
@@ -514,7 +355,7 @@ function getDynamicStyles(colors) {
       marginRight: 10,
     },
     accountTypeBadge: {
-      backgroundColor: `${colors.primary}15`,
+      backgroundColor: `${colors.primary}20`,
       paddingHorizontal: 12,
       paddingVertical: 4,
       borderRadius: 16,
@@ -541,7 +382,7 @@ function getDynamicStyles(colors) {
       fontSize: 14,
     },
     shareButton: {
-      backgroundColor: "#f1f5f9",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#f1f5f9",
       padding: 8,
       borderRadius: 8,
       alignItems: "center",
@@ -552,7 +393,7 @@ function getDynamicStyles(colors) {
       marginBottom: 16,
     },
     socialIcon: {
-      backgroundColor: "#f1f5f9",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#f1f5f9",
       width: 36,
       height: 36,
       borderRadius: 18,
@@ -575,7 +416,7 @@ function getDynamicStyles(colors) {
     },
     statsContainer: {
       flexDirection: "row",
-      backgroundColor: "#f8fafc",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.08)" : "#f8fafc",
       borderRadius: 12,
       padding: 16,
       marginBottom: 24,
@@ -596,7 +437,7 @@ function getDynamicStyles(colors) {
     },
     statDivider: {
       width: 1,
-      backgroundColor: "#e2e8f0",
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#e2e8f0",
     },
     menuSection: {
       marginBottom: 24,
@@ -622,7 +463,9 @@ function getDynamicStyles(colors) {
       width: 60,
       height: 60,
       borderRadius: 30,
-      backgroundColor: `${colors.primary}10`,
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.1)"
+        : `${colors.primary}10`,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 8,
@@ -640,14 +483,16 @@ function getDynamicStyles(colors) {
       alignItems: "center",
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: "#f1f5f9",
+      borderBottomColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#f1f5f9",
       position: "relative",
     },
     settingIconContainer: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: `${colors.primary}10`,
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.1)"
+        : `${colors.primary}10`,
       alignItems: "center",
       justifyContent: "center",
       marginRight: 16,
@@ -661,8 +506,8 @@ function getDynamicStyles(colors) {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: "#ef4444",
+      backgroundColor: colors.error,
       marginRight: 8,
-    }
+    },
   });
 }

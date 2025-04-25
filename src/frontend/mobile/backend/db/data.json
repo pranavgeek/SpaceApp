@@ -11,7 +11,7 @@
       "social_media_linkedin": "linkedin.com/admin",
       "social_media_website": "admin.com",
       "profile_image": "admin.jpg",
-      "email": "kspace@example.com",
+      "email": "kspace@admin.com",
       "password": "kspace123",
       "account_type": "admin"
     },
@@ -31,6 +31,15 @@
       "email": "john@example.com",
       "password": "123456789",
       "account_type": "Buyer",
+      "is_two_factor_enabled": false,
+      "phone_number": "",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
       "products_purchased": [
         {
           "product_id": 101,
@@ -91,28 +100,32 @@
           "shipping_postal_code": "N5Y 2G7"
         },
         {
-          "order_id": "ORD-1744766018833-596",
-          "product_id": 5,
-          "product_name": "Keyboard",
+          "order_id": "ORD-1745287346463-735",
+          "product_id": 4,
+          "product_name": "MacBook",
           "quantity": 1,
-          "order_date": "2025-04-16T01:13:38.833Z",
+          "order_date": "2025-04-22T02:02:26.463Z",
           "status": "Completed",
           "tracking_number": "",
-          "amount": 300,
+          "amount": 2500,
           "buyer_id": 1,
           "seller_id": 2,
-          "buyer_first_name": "Prem",
-          "buyer_last_name": "Gotawala",
-          "buyer_email": "vats@weingenious.com",
-          "buyer_phone": "5192804167",
-          "shipping_address": "379 Hilton place",
-          "shipping_city": "London",
-          "shipping_province": "Ontario",
-          "shipping_country": "Canada",
-          "shipping_postal_code": "N5W2R8"
+          "buyer_first_name": "Jay",
+          "buyer_last_name": "Doe",
+          "buyer_email": "Jay@yahoo.com",
+          "buyer_phone": "9823902393",
+          "shipping_address": "Vesu",
+          "shipping_city": "Surat",
+          "shipping_province": "Gujarat",
+          "shipping_country": "India",
+          "shipping_postal_code": "395002"
         }
       ],
-      "id": "1"
+      "id": "1",
+      "reset_otp": "966954",
+      "otp_expires_at": 1744921895595,
+      "otp_verified": true,
+      "tier": "Starter Tier"
     },
     {
       "user_id": 2,
@@ -130,6 +143,15 @@
       "email": "sarah@example.com",
       "password": "sellerpass",
       "account_type": "Seller",
+      "is_two_factor_enabled": false,
+      "phone_number": "",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
       "notifications": [
         {
           "notification_id": 402,
@@ -214,27 +236,31 @@
           "shipping_postal_code": "N5Y 2G7"
         },
         {
-          "order_id": "ORD-1744766018833-596",
-          "product_id": 5,
-          "product_name": "Keyboard",
+          "order_id": "ORD-1745287346463-735",
+          "product_id": 4,
+          "product_name": "MacBook",
           "quantity": 1,
-          "order_date": "2025-04-16T01:13:38.833Z",
+          "order_date": "2025-04-22T02:02:26.463Z",
           "status": "Completed",
           "tracking_number": "",
-          "amount": 300,
+          "amount": 2500,
           "buyer_id": 1,
           "seller_id": 2,
-          "buyer_first_name": "Prem",
-          "buyer_last_name": "Gotawala",
-          "buyer_email": "vats@weingenious.com",
-          "buyer_phone": "5192804167",
-          "shipping_address": "379 Hilton place",
-          "shipping_city": "London",
-          "shipping_province": "Ontario",
-          "shipping_country": "Canada",
-          "shipping_postal_code": "N5W2R8"
+          "buyer_first_name": "Jay",
+          "buyer_last_name": "Doe",
+          "buyer_email": "Jay@yahoo.com",
+          "buyer_phone": "9823902393",
+          "shipping_address": "Vesu",
+          "shipping_city": "Surat",
+          "shipping_province": "Gujarat",
+          "shipping_country": "India",
+          "shipping_postal_code": "395002"
         }
-      ]
+      ],
+      "verification_code": "275708",
+      "verification_id": "1744934821300",
+      "verification_expiry": 1744935121301,
+      "temp_phone_number": "5192804167"
     },
     {
       "user_id": 3,
@@ -250,8 +276,17 @@
       "gender": "Male",
       "age": 28,
       "email": "mike@example.com",
-      "password": "influencer123",
+      "password": "Mike@123",
       "account_type": "Influencer",
+      "is_two_factor_enabled": false,
+      "phone_number": "",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
       "campaigns": [
         {
           "campaign_id": 2,
@@ -262,14 +297,128 @@
         }
       ],
       "followers_count": 5,
-      "earnings": 500
+      "earnings": 500,
+      "orders": []
+    },
+    {
+      "name": "Shubh Rai",
+      "email": "shubh@rai.com",
+      "password": "shubh@123",
+      "account_type": "Seller",
+      "role": "seller",
+      "about_us": "",
+      "address": "",
+      "city": "",
+      "country": "",
+      "social_media_x": "",
+      "social_media_linkedin": "",
+      "social_media_website": "",
+      "profile_image": "default_profile.jpg",
+      "gender": "",
+      "age": null,
+      "is_two_factor_enabled": false,
+      "phone_number": "",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
+      "user_id": 5
+    },
+    {
+      "name": "Emily Picot",
+      "email": "emily@picot",
+      "password": "Ginger@123",
+      "account_type": "Buyer",
+      "role": "buyer",
+      "about_us": "",
+      "address": "",
+      "city": "",
+      "country": "",
+      "social_media_x": "",
+      "social_media_linkedin": "",
+      "social_media_website": "",
+      "profile_image": "default_profile.jpg",
+      "gender": "",
+      "age": null,
+      "is_two_factor_enabled": false,
+      "phone_number": "",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
+      "user_id": 6,
+      "id": "6"
+    },
+    {
+      "name": "Pranav Geek",
+      "email": "pranav@geek.com",
+      "password": "Geek@123",
+      "account_type": "Influencer",
+      "role": "influencer",
+      "about_us": "I love to promote cool tech products",
+      "address": "",
+      "city": "",
+      "country": "",
+      "social_media_instagram": "Instagram: pranavgeek",
+      "social_media_x": "",
+      "social_media_linkedin": "",
+      "social_media_website": "",
+      "profile_image": "default_profile.jpg",
+      "gender": "",
+      "age": null,
+      "is_two_factor_enabled": false,
+      "phone_number": "5192804167",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
+      "user_id": 7,
+      "tier": "Starter Tier"
+    },
+    {
+      "name": "Derrick Afful",
+      "email": "derrick@afful",
+      "password": "kspace@123",
+      "account_type": "Influencer",
+      "role": "influencer",
+      "about_us": "I love to promote cool products",
+      "address": "",
+      "city": "",
+      "country": "",
+      "social_media_instagram": "Instagram: derrick",
+      "social_media_x": "",
+      "social_media_linkedin": "",
+      "social_media_website": "",
+      "profile_image": "default_profile.jpg",
+      "gender": "",
+      "age": null,
+      "is_two_factor_enabled": false,
+      "phone_number": "5192804167",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
+      "user_id": 8,
+      "tier": "Starter Tier"
     }
   ],
   "products": [
     {
       "product_id": 101,
       "product_name": "Smartphone",
-      "category": "Electronics",
+      "category": "Hardware",
       "product_image": "phone.jpg",
       "cost": 699,
       "currency": "USD",
@@ -300,7 +449,7 @@
     {
       "product_id": 102,
       "product_name": "Wireless Headphones",
-      "category": "headphones",
+      "category": "Hardware",
       "product_image": "headphone.jpg",
       "cost": 120,
       "currency": "USD",
@@ -314,6 +463,15 @@
           "user_id": 3,
           "number_stars": 4,
           "review": "Very comfortable, but a little expensive."
+        },
+        {
+          "product_id": 102,
+          "user_id": 2,
+          "user_name": "Sarah Smith",
+          "number_stars": 4,
+          "review": "nice product",
+          "date_timestamp": "2025-04-22T00:30:35.291Z",
+          "review_id": 4
         }
       ],
       "download_url": "kspace-technologies.com",
@@ -330,7 +488,18 @@
       "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/532A4BF5-D49E-49D0-B129-1281A4E9ED9F.jpg",
       "verified": true,
       "created_at": "2025-04-15T02:22:56.818Z",
-      "product_id": 4
+      "product_id": 4,
+      "reviews": [
+        {
+          "product_id": 4,
+          "user_id": 3,
+          "user_name": "Mike Influencer",
+          "number_stars": 4,
+          "review": "Love it",
+          "date_timestamp": "2025-04-17T00:27:41.967Z",
+          "review_id": 7
+        }
+      ]
     },
     {
       "product_name": "Keyboard",
@@ -342,47 +511,65 @@
       "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/E6B0C803-2C68-4E38-A8A0-B2AFA47A72A3.jpg",
       "verified": true,
       "created_at": "2025-04-15T02:45:37.090Z",
-      "product_id": 5
+      "product_id": 5,
+      "reviews": [
+        {
+          "product_id": 5,
+          "user_id": 1,
+          "user_name": "John Doe",
+          "number_stars": 4,
+          "review": "Cool keyboard",
+          "date_timestamp": "2025-04-17T00:31:18.239Z",
+          "review_id": 8
+        },
+        {
+          "product_id": 5,
+          "user_id": 3,
+          "user_name": "Mike Influencer",
+          "number_stars": 5,
+          "review": "Very light weight love it",
+          "date_timestamp": "2025-04-17T00:31:59.669Z",
+          "review_id": 9
+        }
+      ]
     }
   ],
   "reviews": [
     {
-      "review_id": 201,
-      "product_id": 101,
-      "user_id": 1,
-      "number_stars": 5,
-      "review": "Amazing phone! Highly recommend it."
-    },
-    {
-      "review_id": 202,
-      "product_id": 102,
-      "user_id": 3,
-      "number_stars": 4,
-      "review": "Very comfortable, but a little expensive."
-    },
-    {
-      "product_id": 101,
-      "user_id": 1,
-      "number_stars": 3,
-      "review": "Nasty product",
-      "date_timestamp": "2025-04-10T18:11:19.498Z",
-      "review_id": 3
-    },
-    {
-      "product_id": 101,
-      "user_id": 1,
-      "number_stars": 4,
-      "review": "Good product",
-      "date_timestamp": "2025-04-12T00:13:22.430Z",
-      "review_id": 4
-    },
-    {
       "product_id": 4,
-      "user_id": 1,
+      "user_id": 3,
+      "user_name": "Mike Influencer",
       "number_stars": 4,
-      "review": "Nice monitor",
-      "date_timestamp": "2025-04-14T23:58:28.740Z",
-      "review_id": 6
+      "review": "Love it",
+      "date_timestamp": "2025-04-17T00:27:41.967Z",
+      "review_id": 7
+    },
+    {
+      "product_id": 5,
+      "user_id": 1,
+      "user_name": "John Doe",
+      "number_stars": 4,
+      "review": "Cool keyboard",
+      "date_timestamp": "2025-04-17T00:31:18.239Z",
+      "review_id": 8
+    },
+    {
+      "product_id": 5,
+      "user_id": 3,
+      "user_name": "Mike Influencer",
+      "number_stars": 5,
+      "review": "Very light weight love it",
+      "date_timestamp": "2025-04-17T00:31:59.669Z",
+      "review_id": 9
+    },
+    {
+      "product_id": 102,
+      "user_id": 2,
+      "user_name": "Sarah Smith",
+      "number_stars": 4,
+      "review": "nice product",
+      "date_timestamp": "2025-04-22T00:30:35.291Z",
+      "review_id": 4
     }
   ],
   "messages": [
@@ -483,6 +670,72 @@
       "receiver_id": 1,
       "timestamp": "2025-04-16T01:15:34.715Z",
       "content": "📦 Your order has shipped! Track it here: https://basicappleguy.com/"
+    },
+    {
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "**********4",
+      "date_timestamp_sent": "2025-04-23T00:31:01.448Z",
+      "is_read": false,
+      "message_id": 12,
+      "add_file": null
+    },
+    {
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "***********",
+      "date_timestamp_sent": "2025-04-23T00:31:17.218Z",
+      "is_read": false,
+      "message_id": 13,
+      "add_file": null
+    },
+    {
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "*******",
+      "date_timestamp_sent": "2025-04-23T00:32:24.728Z",
+      "is_read": false,
+      "message_id": 14,
+      "add_file": null
+    },
+    {
+      "user_from": "John Doe",
+      "user_to": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "Hi",
+      "date_timestamp_sent": "2025-04-23T00:32:36.128Z",
+      "is_read": false,
+      "message_id": 15,
+      "add_file": null
+    },
+    {
+      "user_from": "Sarah Smith",
+      "user_to": "John Doe",
+      "type_message": "text",
+      "message_content": "Hi",
+      "date_timestamp_sent": "2025-04-23T00:33:04.444Z",
+      "is_read": false,
+      "message_id": 16,
+      "add_file": null
+    },
+    {
+      "user_from": "Sarah Smith",
+      "user_to": "Mike Influencer",
+      "type_message": "text",
+      "message_content": "Hi",
+      "date_timestamp_sent": "2025-04-24T00:16:28.552Z",
+      "is_read": false,
+      "message_id": 17,
+      "add_file": null
+    },
+    {
+      "sender_id": 2,
+      "receiver_id": 3,
+      "timestamp": "2025-04-24T19:06:02.946Z",
+      "content": "📦 Your order has shipped! Track it here: https://svg2jsx.com/"
     }
   ],
   "notifications": [
@@ -587,6 +840,50 @@
       "link": "https://basicappleguy.com/",
       "order_id": "ORD-1744766018833-596",
       "notification_id": 16
+    },
+    {
+      "user_id": 3,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-04-22T23:59:13.579Z",
+      "notification_id": 17
+    },
+    {
+      "user_id": 1,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-04-23T00:02:09.605Z",
+      "notification_id": 18
+    },
+    {
+      "user_id": 1,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-04-23T00:06:04.214Z",
+      "notification_id": 19
+    },
+    {
+      "user_id": 6,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-04-23T22:08:34.093Z",
+      "notification_id": 20
+    },
+    {
+      "user_id": 7,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-04-23T22:49:02.934Z",
+      "notification_id": 21
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-04-24T00:33:48.200Z",
+      "notification_id": 22
+    },
+    {
+      "user_id": 3,
+      "message": "Your tracking link for order #ORD-1745520098443-496 is now available. Sent by Sarah Smith",
+      "date_timestamp": "2025-04-24T19:06:02.950Z",
+      "link": "https://svg2jsx.com/",
+      "order_id": "ORD-1745520098443-496",
+      "notification_id": 23
     }
   ],
   "admin_data": [
@@ -594,8 +891,9 @@
       "admin_id": 501,
       "action": "Sign up influencer user group",
       "user_id": 3,
-      "status": "pending",
-      "date_timestamp": "2025-03-18T14:00:00Z"
+      "status": "rejected",
+      "date_timestamp": "2025-03-18T14:00:00Z",
+      "updated_at": "2025-04-22T23:59:13.573Z"
     },
     {
       "admin_id": 502,
@@ -603,6 +901,78 @@
       "user_id": 2,
       "status": "confirmed",
       "date_timestamp": "2025-03-18T15:00:00Z"
+    },
+    {
+      "user_id": 1,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"Insta: praanaav__\",\"followers\":\"Instagram: 1K\\nTikTok: 5K\\nFacebook: 3K\",\"whyCollaborate\":\"I love promoting product.\",\"priorExperience\":\"Yes\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-22T23:52:53.041Z\"}",
+      "status": "approved",
+      "created_at": "2025-04-22T23:52:53.042Z",
+      "admin_id": 3,
+      "updated_at": "2025-04-22T23:58:26.294Z"
+    },
+    {
+      "user_id": 1,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"345345345\",\"socialMediaHandles\":\"Ffdfgdfv\",\"followers\":\"Fvdfvdf\",\"whyCollaborate\":\"Dvfdfv\",\"priorExperience\":\"Dfvfdv\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-23T00:00:25.750Z\"}",
+      "status": "approved",
+      "created_at": "2025-04-23T00:00:25.751Z",
+      "admin_id": 4,
+      "updated_at": "2025-04-23T00:00:29.273Z"
+    },
+    {
+      "user_id": 1,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"35342233444\",\"socialMediaHandles\":\"Codec\",\"followers\":\"Csdcdsc\",\"whyCollaborate\":\"DSc\",\"priorExperience\":\"Scads\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-23T00:02:02.665Z\"}",
+      "status": "approved",
+      "created_at": "2025-04-23T00:02:02.666Z",
+      "admin_id": 5,
+      "updated_at": "2025-04-23T00:02:09.597Z"
+    },
+    {
+      "user_id": 1,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"4534543444\",\"socialMediaHandles\":\"Ccdsc\",\"followers\":\"Csdcdsc\",\"whyCollaborate\":\"Sdcsdc\",\"priorExperience\":\"sec Csdcdsc\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-23T00:06:00.878Z\"}",
+      "status": "approved",
+      "created_at": "2025-04-23T00:06:00.878Z",
+      "admin_id": 6,
+      "updated_at": "2025-04-23T00:06:04.208Z"
+    },
+    {
+      "user_id": 6,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Shubh Rai\",\"email\":\"shubh@rai.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"TikTok: ShubhRoi\",\"followers\":\"TikTok: 10K\",\"whyCollaborate\":\"I love to promote products\",\"priorExperience\":\"Yes\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-23T22:07:43.514Z\"}",
+      "status": "approved",
+      "created_at": "2025-04-23T22:07:43.514Z",
+      "admin_id": 7,
+      "updated_at": "2025-04-23T22:08:34.072Z"
+    },
+    {
+      "user_id": 7,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Pranav Geek\",\"email\":\"pranav@geek.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"Instagram: pranavgeek\",\"followers\":\"Instagram: 50K\",\"whyCollaborate\":\"I love to promote cool tech products\",\"priorExperience\":\"Yes\",\"preferredContact\":\"message\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-23T22:48:01.949Z\"}",
+      "status": "approved",
+      "created_at": "2025-04-23T22:48:01.950Z",
+      "admin_id": 8,
+      "updated_at": "2025-04-23T22:49:02.922Z"
+    },
+    {
+      "user_id": 8,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Derrick Afful\",\"email\":\"derrick@afful\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"Instagram: derrick\",\"followers\":\"Instagram: 50K followers\",\"whyCollaborate\":\"I love to promote cool products\",\"priorExperience\":\"Yes\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-24T00:32:57.069Z\"}",
+      "status": "approved",
+      "created_at": "2025-04-24T00:32:57.069Z",
+      "admin_id": 9,
+      "updated_at": "2025-04-24T00:33:48.155Z"
+    },
+    {
+      "user_id": 9,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Rohit\",\"email\":\"rohit@gmail.com\",\"phone\":\"5182809234\",\"socialMediaHandles\":\"Csd Sdc\",\"followers\":\"Sdc\",\"whyCollaborate\":\"Dfvfd\",\"priorExperience\":\"Sdc\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-24T00:36:22.968Z\"}",
+      "status": "rejected",
+      "created_at": "2025-04-24T00:36:22.968Z",
+      "admin_id": 10,
+      "updated_at": "2025-04-24T00:37:19.901Z"
     }
   ],
   "orders": [
@@ -651,26 +1021,25 @@
       "tracking_approval_status": "approved"
     },
     {
-      "order_id": "ORD-1744766018833-596",
-      "product_id": 5,
-      "product_name": "Keyboard",
+      "order_id": "ORD-1745287346463-735",
+      "product_id": 4,
+      "product_name": "MacBook",
       "quantity": 1,
-      "order_date": "2025-04-16T01:13:38.833Z",
+      "order_date": "2025-04-22T02:02:26.463Z",
       "status": "Completed",
-      "tracking_number": "https://basicappleguy.com/",
-      "amount": 300,
+      "tracking_number": "",
+      "amount": 2500,
       "buyer_id": 1,
       "seller_id": 2,
-      "buyer_first_name": "Prem",
-      "buyer_last_name": "Gotawala",
-      "buyer_email": "vats@weingenious.com",
-      "buyer_phone": "5192804167",
-      "shipping_address": "379 Hilton place",
-      "shipping_city": "London",
-      "shipping_province": "Ontario",
-      "shipping_country": "Canada",
-      "shipping_postal_code": "N5W2R8",
-      "tracking_approval_status": "approved"
+      "buyer_first_name": "Jay",
+      "buyer_last_name": "Doe",
+      "buyer_email": "Jay@yahoo.com",
+      "buyer_phone": "9823902393",
+      "shipping_address": "Vesu",
+      "shipping_city": "Surat",
+      "shipping_province": "Gujarat",
+      "shipping_country": "India",
+      "shipping_postal_code": "395002"
     }
   ]
 }

@@ -1,12 +1,20 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  StyleSheet, 
+  TouchableOpacity, 
+  StatusBar 
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFocusEffect } from "@react-navigation/native";
 
 const CollaborationRequestScreen = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
+  const styles = getDynamicStyles(colors, isDarkMode);
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
 
@@ -79,6 +87,10 @@ const CollaborationRequestScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor={colors.background}
+      />
       <FlatList
         data={requests}
         keyExtractor={(item, index) =>
@@ -86,35 +98,69 @@ const CollaborationRequestScreen = ({ navigation }) => {
         }
         renderItem={renderItem}
         ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: colors.subtitle }]}>
+          <Text style={styles.emptyText}>
             No collaboration requests yet.
           </Text>
         }
+        contentContainerStyle={requests.length === 0 ? styles.emptyList : null}
       />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#fff" },
+const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
+  container: { 
+    flex: 1, 
+    padding: 16, 
+    backgroundColor: colors.background 
+  },
   requestItem: {
     padding: 12,
-    backgroundColor: "#f2f2f2",
+    backgroundColor: isDarkMode ? colors.card : "#f2f2f2",
     borderRadius: 8,
     marginBottom: 10,
+    shadowColor: colors.shadowColor,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: isDarkMode ? 0.2 : 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  requestText: { fontSize: 16, marginBottom: 8 },
-  buttonContainer: { flexDirection: "row", justifyContent: "space-between" },
+  requestText: { 
+    fontSize: 16, 
+    marginBottom: 8,
+    color: colors.text
+  },
+  buttonContainer: { 
+    flexDirection: "row", 
+    justifyContent: "space-between" 
+  },
   button: {
     flex: 0.48,
     paddingVertical: 8,
     borderRadius: 4,
     alignItems: "center",
   },
-  acceptButton: { backgroundColor: "green" },
-  declineButton: { backgroundColor: "red" },
-  buttonText: { color: "#fff", fontSize: 16 },
-  emptyText: { textAlign: "center", fontSize: 16, marginTop: 20 },
+  acceptButton: { 
+    backgroundColor: colors.success || "green" 
+  },
+  declineButton: { 
+    backgroundColor: colors.error || "red" 
+  },
+  buttonText: { 
+    color: "#fff", 
+    fontSize: 16,
+    fontWeight: "600" 
+  },
+  emptyText: { 
+    textAlign: "center", 
+    fontSize: 16, 
+    color: colors.subtitle 
+  },
+  emptyList: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  }
 });
 
 export default CollaborationRequestScreen;

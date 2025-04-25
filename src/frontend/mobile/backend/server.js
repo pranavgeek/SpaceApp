@@ -263,6 +263,35 @@ app.post("/api/orders/:orderId/submit-tracking", async (req, res) => {
   }
 });
 
+// DELETE: Cancel an order
+app.delete("/api/orders/:orderId/cancel", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    console.log(`🧾 Cancelling order: ${orderId}`);
+    
+    const success = await db.cancelOrder(orderId);
+    
+    if (success) {
+      res.status(200).json({ 
+        success: true, 
+        message: "Order cancelled successfully" 
+      });
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        message: "Order not found" 
+      });
+    }
+  } catch (error) {
+    console.error(`❌ Error cancelling order: ${error.message}`);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to cancel order", 
+      error: error.message 
+    });
+  }
+});
+
 //Admin Endpoint to Approve/Reject
 app.post("/api/orders/:orderId/approve-tracking", async (req, res) => {
   try {
@@ -312,6 +341,207 @@ app.get("/api/admin/pending-trackings", (req, res) => {
   }
 });
 
+// Get user security settings
+app.get("/api/users/:userId/security-settings", (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const data = loadData();
+    const user = data.users.find(u => u.user_id === userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Return security settings
+    res.json({
+      twoFactorEnabled: user.is_two_factor_enabled || false,
+      phoneNumber: user.phone_number || "",
+      isPrivate: user.is_private_account || false,
+      privacySettings: user.privacy_settings || {
+        hideActivity: false,
+        hideContacts: false,
+        hideProducts: false,
+        allowMessagesFrom: "everyone"
+      }
+    });
+  } catch (error) {
+    console.error("Error getting security settings:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Update user password
+app.put("/api/users/:userId/password", (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { currentPassword, newPassword } = req.body;
+    
+    const data = loadData();
+    const user = data.users.find(u => u.user_id === userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Verify current password
+    if (user.password !== currentPassword) {
+      return res.status(401).json({ success: false, message: "Current password is incorrect" });
+    }
+    
+    // Update password
+    user.password = newPassword;
+    saveData(data);
+    
+    res.json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Send verification code for 2FA
+app.post("/api/auth/2fa/request-code", (req, res) => {
+  try {
+    const { userId, phoneNumber } = req.body;
+    
+    const data = loadData();
+    const user = data.users.find(u => u.user_id === parseInt(userId));
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    // Generate a verification code (6 digits)
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationId = Date.now().toString();
+    
+    // Store the verification info in the user object
+    user.verification_code = verificationCode;
+    user.verification_id = verificationId;
+    user.verification_expiry = Date.now() + 5 * 60 * 1000; // 5 minutes validity
+    user.temp_phone_number = phoneNumber;
+    
+    saveData(data);
+    
+    // For development - log the code to console
+    console.log("\n===================================");
+    console.log(`📱 2FA VERIFICATION CODE for user ${userId}:`);
+    console.log(`📱 ${verificationCode}`);
+    console.log("===================================\n");
+    
+    res.json({
+      success: true,
+      verificationId,
+      message: "Verification code sent successfully",
+      dev_code: verificationCode // Include code in response for development
+    });
+  } catch (error) {
+    console.error("Error sending verification code:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Verify 2FA code and enable 2FA
+app.post("/api/auth/2fa/verify", (req, res) => {
+  try {
+    const { userId, verificationId, code, phoneNumber } = req.body;
+    
+    const data = loadData();
+    const user = data.users.find(u => u.user_id === parseInt(userId));
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    // Check if verification ID matches
+    if (user.verification_id !== verificationId) {
+      return res.status(400).json({ success: false, message: "Invalid verification session" });
+    }
+    
+    // Check if code is correct
+    if (user.verification_code !== code) {
+      return res.status(400).json({ success: false, message: "Invalid verification code" });
+    }
+    
+    // Check if code is expired
+    if (Date.now() > user.verification_expiry) {
+      return res.status(400).json({ success: false, message: "Verification code expired" });
+    }
+    
+    // Enable 2FA and save phone number
+    user.is_two_factor_enabled = true;
+    user.phone_number = phoneNumber || user.temp_phone_number;
+    
+    // Clean up verification data
+    delete user.verification_code;
+    delete user.verification_id;
+    delete user.verification_expiry;
+    delete user.temp_phone_number;
+    
+    saveData(data);
+    
+    res.json({ success: true, message: "Two-factor authentication enabled successfully" });
+  } catch (error) {
+    console.error("Error verifying 2FA code:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Disable 2FA
+app.post("/api/auth/2fa/disable", (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    const data = loadData();
+    const user = data.users.find(u => u.user_id === parseInt(userId));
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    // Disable 2FA
+    user.is_two_factor_enabled = false;
+    
+    saveData(data);
+    
+    res.json({ success: true, message: "Two-factor authentication disabled successfully" });
+  } catch (error) {
+    console.error("Error disabling 2FA:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Update privacy settings
+app.put("/api/users/:userId/privacy-settings", (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const settings = req.body;
+    
+    const data = loadData();
+    const user = data.users.find(u => u.user_id === userId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    // Update privacy settings
+    user.is_private_account = settings.isPrivate;
+    user.privacy_settings = {
+      hideActivity: settings.hideActivity || false,
+      hideContacts: settings.hideContacts || false,
+      hideProducts: settings.hideProducts || false,
+      allowMessagesFrom: settings.allowMessagesFrom || "everyone"
+    };
+    
+    saveData(data);
+    
+    res.json({ success: true, message: "Privacy settings updated successfully" });
+  } catch (error) {
+    console.error("Error updating privacy settings:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // ------------------------------------------------------------------------------
 
 //Payment Gateway
@@ -353,6 +583,217 @@ app.get("/api/payment", async (req, res) => {
   } catch (err) {
     console.error("Payment preload error:", err);
     res.status(500).json({ error: "Failed to initiate payment" });
+  }
+});
+
+// Process tokenization request (card validation without charging)
+app.post("/api/tokenize-request", async (req, res) => {
+  try {
+    const { userId, requestType } = req.body;
+    
+    console.log(`💳 Tokenization request for user: ${userId}, type: ${requestType}`);
+    
+    // Configure Moneris Checkout for tokenization using the Tokenize Card transaction type
+    const preloadPayload = {
+      store_id: "monca11434", // Your Moneris Store ID
+      api_token: "leYuEX1G18u8DrrxIhkj", // Your Moneris API Token
+      checkout_id: "chktDAL6N11434", // Your Moneris Checkout ID
+      environment: "qa", // 'qa' for testing, 'prod' for production
+      action: "preload",
+      txn_total: "1.00", // Minimum valid amount
+      txn_type: "tokenize", // This specifies the Tokenize Card transaction type
+      cust_id: userId || "customer",
+      contact_details: {
+        first_name: "", // Optional
+        last_name: "", // Optional
+        email: "" // Optional
+      },
+      cart: {
+        items: [{
+          name: "Card Registration",
+          quantity: "1",
+          unit_cost: "1.00"
+        }]
+      },
+      payment_methods: ["credit_card"] // Only allow credit card
+    };
+    
+    try {
+      // Make the request to Moneris Checkout API
+      const response = await fetch(
+        "https://gatewayt.moneris.com/chktv2/request/request.php",
+        {
+          method: "POST",
+          body: JSON.stringify(preloadPayload),
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      
+      const data = await response.json();
+      console.log("📦 Moneris Tokenization Preload Response:", data);
+      
+      if (data?.response?.ticket) {
+        res.json({ ticket: data.response.ticket });
+      } else {
+        console.error("❌ Invalid preload response", data);
+        res.status(400).json({ 
+          error: "Invalid Moneris credentials or configuration." 
+        });
+      }
+    } catch (err) {
+      console.error("Tokenization preload error:", err);
+      res.status(500).json({ error: "Failed to initiate tokenization" });
+    }
+  } catch (err) {
+    console.error("Server error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Process payment using a stored token/data key
+app.post("/api/token-payment", async (req, res) => {
+  try {
+    const { dataKey, amount, orderId, productId, productName, quantity } = req.body;
+    
+    if (!dataKey) {
+      return res.status(400).json({ success: false, error: "Missing payment token" });
+    }
+    
+    console.log(`💰 Processing token payment: ${dataKey} for $${amount}`);
+    
+    // Format amount to ensure it's a valid decimal
+    const formattedAmount = parseFloat(amount).toFixed(2);
+    
+    // Moneris token purchase configuration
+    const purchasePayload = {
+      store_id: "monca11434", // Your Moneris Store ID
+      api_token: "leYuEX1G18u8DrrxIhkj", // Your Moneris API Token
+      checkout_id: "chktDAL6N11434", // Your Moneris Checkout ID
+      environment: "qa", // 'qa' for testing, 'prod' for production
+      action: "purchase",
+      order_id: orderId || `order-${Date.now()}`,
+      txn_total: formattedAmount,
+      cust_id: "customer", // Optional - could use buyer_id here
+      data_key: dataKey, // Use the stored token
+      payment: {
+        use_data_key: true // Use token for payment
+      }
+    };
+    
+    // Make the request to Moneris Purchase API
+    const response = await fetch(
+      "https://gatewayt.moneris.com/chktv2/request/request.php",
+      {
+        method: "POST",
+        body: JSON.stringify(purchasePayload),
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    
+    const data = await response.json();
+    console.log("📦 Moneris Token Purchase Response:", data);
+    
+    if (data?.response?.success === 'true' || data?.response?.success === true) {
+      // Payment was successful
+      res.json({
+        success: true,
+        txn_num: data.response.txn_num,
+        order_id: data.response.order_id,
+        message: "Payment processed successfully",
+        receipt_id: data.response.receipt_id,
+        card_type: data.response.card,
+        reference_num: data.response.reference_num,
+        iso_code: data.response.iso_code
+      });
+    } else {
+      // Payment failed
+      const errorMessage = data?.response?.error || "Payment processing failed";
+      console.error("❌ Token payment failed:", errorMessage);
+      
+      res.status(400).json({
+        success: false,
+        error: errorMessage,
+        code: data?.response?.iso_code || "unknown"
+      });
+    }
+  } catch (err) {
+    console.error("Payment processing error:", err);
+    res.status(500).json({ success: false, error: "Payment processing error" });
+  }
+});
+
+// Add this to your server.js file
+app.post("/api/retrieve-token", async (req, res) => {
+  try {
+    const { ticket, responseCode, userId } = req.body;
+    
+    if (!ticket) {
+      return res.status(400).json({ success: false, error: "Missing ticket" });
+    }
+    
+    console.log(`🔑 Retrieving token for ticket: ${ticket}`);
+    
+    // Configuration for the token retrieval
+    const retrievePayload = {
+      store_id: "monca11434", // Your Moneris Store ID
+      api_token: "leYuEX1G18u8DrrxIhkj", // Your Moneris API Token
+      checkout_id: "chktDAL6N11434", // Your Moneris Checkout ID
+      environment: "qa", // 'qa' for testing, 'prod' for production
+      action: "receipt",
+      ticket: ticket
+    };
+    
+    // Make the request to Moneris API to retrieve the token
+    const response = await fetch(
+      "https://gatewayt.moneris.com/chktv2/request/request.php",
+      {
+        method: "POST",
+        body: JSON.stringify(retrievePayload),
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    
+    const data = await response.json();
+    console.log("📦 Moneris Token Retrieval Response:", data);
+    
+    // Check if the response contains the token data
+    if (data?.response?.success === 'true' && data?.response?.receipt) {
+      const receipt = data.response.receipt;
+      
+      // Check if there's a data_key in the receipt
+      if (receipt.data_key) {
+        res.json({
+          success: true,
+          data_key: receipt.data_key,
+          card_type: receipt.card || "Credit Card",
+          last_digits: receipt.last_digits || receipt.masked_pan?.substr(-4) || "****"
+        });
+      } else {
+        console.error("❌ No data_key in receipt:", receipt);
+        res.status(400).json({ 
+          success: false,
+          error: "No data key returned by Moneris"
+        });
+      }
+    } else if (data?.response?.error) {
+      console.error("❌ Error from Moneris:", data.response.error);
+      res.status(400).json({ 
+        success: false,
+        error: data.response.error
+      });
+    } else {
+      console.error("❌ Invalid response format:", data);
+      res.status(500).json({ 
+        success: false,
+        error: "Invalid response from Moneris"
+      });
+    }
+  } catch (err) {
+    console.error("Token retrieval error:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to retrieve token: " + err.message
+    });
   }
 });
 
@@ -410,11 +851,28 @@ app.put("/api/users/:id", async (req, res) => {
 
 // Delete User
 app.delete("/api/users/:id", async (req, res) => {
-  const deleted = await db.deleteUser(parseInt(req.params.id));
-  if (!deleted) {
-    return res.status(404).json({ error: "User not found" });
+  try {
+    const userId = parseInt(req.params.id);
+    
+    // Get the current data
+    const data = loadData();
+    const userIndex = data.users.findIndex(u => u.user_id === userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Remove the user
+    data.users.splice(userIndex, 1);
+    
+    // Save the updated data
+    saveData(data);
+    
+    res.json({ message: "User deleted successfully", success: true });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ error: "Failed to delete user" });
   }
-  res.json({ message: "User deleted successfully" });
 });
 
 app.get("/api/products", async (req, res) => {
@@ -861,6 +1319,90 @@ app.get("/api/admin/:id", async (req, res) => {
     return res.status(404).json({ error: "Admin action not found" });
   }
   res.json(adminAction);
+});
+
+app.put("/api/admin/:id", async (req, res) => {
+  try {
+    const adminId = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    console.log(`Received request to update admin action ${adminId} to status: ${status}`);
+    
+    if (!status) {
+      return res.status(400).json({ error: "Status is required" });
+    }
+    
+    // Get the current admin data
+    const data = loadData();
+    const adminIndex = data.admin_data.findIndex(a => a.admin_id === adminId);
+    
+    if (adminIndex === -1) {
+      return res.status(404).json({ error: "Admin action not found" });
+    }
+    
+    // Update the status
+    data.admin_data[adminIndex].status = status;
+    data.admin_data[adminIndex].updated_at = new Date().toISOString();
+    
+    // Save the updated data
+    saveData(data);
+    
+    res.json(data.admin_data[adminIndex]);
+  } catch (error) {
+    console.error("Failed to update admin status:", error);
+    res.status(500).json({ error: "Failed to update admin status" });
+  }
+});
+
+app.get("/api/users/role/:role", async (req, res) => {
+  try {
+    const { role } = req.params;
+    const users = await db.getUsersByRole(role);
+    res.json(users);
+  } catch (error) {
+    console.error("Failed to get users by role:", error);
+    res.status(500).json({ error: "Failed to get users by role" });
+  }
+});
+
+// Update User Role
+app.put("/api/users/:id/role", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { role, tier } = req.body;
+    
+    console.log(`Updating user ${userId} role to: ${role}, tier: ${tier || 'none'}`);
+    
+    if (!role) {
+      return res.status(400).json({ error: "Role is required" });
+    }
+    
+    // Get the current data
+    const data = loadData();
+    const userIndex = data.users.findIndex(u => u.user_id === userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Update both role and account_type for compatibility
+    data.users[userIndex].role = role.toLowerCase();
+    data.users[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
+    
+    // Add tier information if provided (for influencers)
+    if (tier) {
+      data.users[userIndex].tier = tier;
+    }
+    
+    // Save the updated data
+    saveData(data);
+    
+    console.log(`✅ Successfully updated user ${userId} to ${role} role`);
+    res.json(data.users[userIndex]);
+  } catch (error) {
+    console.error("Failed to update user role:", error);
+    res.status(500).json({ error: "Failed to update user role" });
+  }
 });
 
 app.post("/api/admin", async (req, res) => {

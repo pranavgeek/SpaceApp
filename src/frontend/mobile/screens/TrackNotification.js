@@ -8,7 +8,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Linking,
-  RefreshControl
+  RefreshControl,
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -16,7 +17,8 @@ import { useAuth } from '../context/AuthContext';
 import { fetchNotifications } from '../backend/db/API';
 
 const TrackNotification = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
+  const styles = getDynamicStyles(colors, isDarkMode);
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,15 @@ const TrackNotification = ({ navigation }) => {
           new Date(b.date_timestamp) - new Date(a.date_timestamp)
         );
         
-        setNotifications(sortedNotifications);
+        // Add a unique identifier if notification_id doesn't exist
+        const notificationsWithIds = sortedNotifications.map((notification, index) => {
+          if (!notification.notification_id) {
+            return { ...notification, notification_id: `temp-id-${index}` };
+          }
+          return notification;
+        });
+        
+        setNotifications(notificationsWithIds);
       } else {
         setNotifications([]);
       }
@@ -116,8 +126,22 @@ const TrackNotification = ({ navigation }) => {
     );
   };
   
+  // Generate a truly unique key for each notification
+  const keyExtractor = (item, index) => {
+    // Use the notification_id if available, otherwise create a unique key from index
+    if (item.notification_id) {
+      return item.notification_id.toString();
+    }
+    // If notification_id is not available, create a unique key from index
+    return `notification-${index}`;
+  };
+  
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={isDarkMode ? colors.background : '#fff'}
+      />
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -125,21 +149,28 @@ const TrackNotification = ({ navigation }) => {
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off-outline" size={60} color={colors.subtitle} />
+          <Ionicons 
+            name="notifications-off-outline" 
+            size={60} 
+            color={colors.subtitle} 
+          />
           <Text style={styles.emptyText}>No notifications yet</Text>
-          <Text style={styles.emptySubtext}>You'll see notifications about your orders and tracking updates here</Text>
+          <Text style={styles.emptySubtext}>
+            You'll see notifications about your orders and tracking updates here
+          </Text>
         </View>
       ) : (
         <FlatList
           data={notifications}
           renderItem={renderNotificationItem}
-          keyExtractor={(item) => item.notification_id?.toString() || Math.random().toString()}
+          keyExtractor={keyExtractor}
           contentContainerStyle={styles.notificationsList}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
         />
@@ -148,10 +179,10 @@ const TrackNotification = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -159,9 +190,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: isDarkMode ? colors.border : '#f1f5f9',
   },
   backButton: {
     padding: 8,
@@ -169,7 +200,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text,
   },
   rightPlaceholder: {
     width: 40,
@@ -183,7 +214,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: colors.subtitle,
   },
   emptyContainer: {
     flex: 1,
@@ -195,12 +226,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text,
   },
   emptySubtext: {
     marginTop: 8,
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.subtitle,
     textAlign: 'center',
     maxWidth: '80%',
   },
@@ -209,29 +240,31 @@ const styles = StyleSheet.create({
   },
   notificationItem: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: isDarkMode ? colors.card : '#fff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadowColor,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: isDarkMode ? 0.2 : 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
   unreadNotification: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#f0f9ff',
     borderLeftWidth: 3,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: colors.primary,
   },
   notificationIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#f0f9ff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    // Adding a solid background color to fix the shadow efficiency warning
+    overflow: 'hidden',
   },
   notificationContent: {
     flex: 1,
@@ -239,12 +272,12 @@ const styles = StyleSheet.create({
   notificationMessage: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#111827',
+    color: colors.text,
     marginBottom: 4,
   },
   notificationTime: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.subtitle,
     marginBottom: 8,
   },
   trackingContainer: {
@@ -254,14 +287,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   trackingBadge: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: isDarkMode ? 'rgba(22, 163, 74, 0.2)' : '#dcfce7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   trackingBadgeText: {
     fontSize: 12,
-    color: '#16a34a',
+    color: isDarkMode ? '#4ade80' : '#16a34a',
     fontWeight: '500',
   },
   trackingButton: {
@@ -271,11 +304,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0',
+    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
   },
   trackingButtonText: {
     fontSize: 14,
-    color: '#3b82f6',
+    color: colors.primary,
     fontWeight: '500',
     marginRight: 4,
   },

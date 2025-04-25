@@ -55,27 +55,45 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
+      // Get the selected account type from AsyncStorage
+      const selectedRole = await AsyncStorage.getItem("userRole") || "buyer";
+      console.log(`Attempting to login as: ${selectedRole}`);
+      
+      // Fetch user data from the API
       const userData = await apiLogin(email, password);
-      const storedRole = await AsyncStorage.getItem("userRole");
-
-      // Only apply storedRole if it matches one of the allowed roles for the user
-      const validRoles = ["buyer", "seller", "influencer"];
-      const roleFromAPI = userData.account_type?.toLowerCase() || "buyer";
-      const role = validRoles.includes(storedRole) ? storedRole : roleFromAPI;
-
+      
+      // Check if the user exists
+      if (!userData) {
+        throw new Error("Invalid credentials");
+      }
+      
+      // Get the user's actual role from their account data
+      const userRole = userData.account_type?.toLowerCase() || userData.role?.toLowerCase() || "buyer";
+      console.log(`User's actual role: ${userRole}`);
+      
+      // Verify that the selected role matches the user's actual role
+      if (selectedRole !== userRole) {
+        throw new Error(`This account is registered as a ${userRole}. Please use the ${userRole} login option.`);
+      }
+      
+      // Create the updated user object with the correct role
       const updatedUser = {
         ...userData,
-        role, // use valid role only
-        account_type: role.charAt(0).toUpperCase() + role.slice(1), // Ensure account_type is set and capitalized
+        role: userRole,
+        account_type: userRole.charAt(0).toUpperCase() + userRole.slice(1), // Ensure account_type is set and capitalized
         id: userData.user_id.toString(),
       };
+      
+      // Update state and storage
       setUser(updatedUser);
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-      await AsyncStorage.setItem("userRole", updatedUser.role);
+      await AsyncStorage.setItem("userRole", userRole);
+      console.log(`Successfully logged in as: ${userRole}`);
+      
       return updatedUser;
     } catch (error) {
-      console.error("Login failed", error);
-      throw new Error(error.message || "Login failed");
+      console.error("Login failed:", error);
+      throw new Error(error.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }
@@ -150,43 +168,74 @@ export const AuthProvider = ({ children }) => {
   //   }
   // };
 
-  const updateRole = async (newRole) => {
+  const updateRole = async (newRole, tier = null) => {
     if (user) {
       setLoading(true);
       try {
+        console.log(`AuthContext: Updating user ${user.user_id} to role ${newRole} with tier ${tier || 'none'}`);
+        
         // Normalize role format
         const normalizedRole = newRole.toLowerCase();
         const displayRole = normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
         
-        // Get the most recent user data from storage to ensure we have all fields
+        // Get the most recent user data from storage
         const storedUserStr = await AsyncStorage.getItem("user");
         const storedUser = storedUserStr ? JSON.parse(storedUserStr) : user;
         
+        // Create the updated user object
         const updatedUser = { 
-          ...storedUser,  // Use all stored user data
+          ...storedUser,  
           account_type: displayRole,
           role: normalizedRole
         };
         
-        console.log("Sending update to server with:", updatedUser);
+        // Add tier information if provided (for influencers)
+        if (tier) {
+          updatedUser.tier = tier;
+          console.log(`Setting user tier to: ${tier}`);
+        }
         
-        // Only send the account_type to the server update
-        await updateUser(user.user_id, { account_type: displayRole });
+        // Log the update for debugging
+        console.log("Sending update to server with:", {
+          user_id: user.user_id,
+          role: normalizedRole,
+          account_type: displayRole,
+          tier: tier || 'none'
+        });
+        
+        // Update the user in the backend
+        const updateData = { 
+          role: normalizedRole,
+          account_type: displayRole
+        };
+        
+        if (tier) {
+          updateData.tier = tier;
+        }
+        
+        await updateUser(user.user_id, updateData);
+        console.log("✅ User role updated in the backend");
   
-        // But update the local storage with the complete user object
+        // Update the local state
         setUser(updatedUser);
+        console.log("✅ User state updated in context");
+        
+        // Update AsyncStorage
         await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
         await AsyncStorage.setItem("userRole", normalizedRole);
         await AsyncStorage.setItem("switchedRole", displayRole);
+        console.log("✅ User data saved to AsyncStorage");
         
-        console.log("✅ Updated AsyncStorage user:", updatedUser);
         return updatedUser;
       } catch (error) {
-        console.error("Failed to update role on server:", error);
+        console.error("Failed to update role:", error);
         throw error;
       } finally {
         setLoading(false);
       }
+    } else {
+      console.error("Cannot update role: No user is logged in");
+      throw new Error("No user logged in");
     }
   };
   

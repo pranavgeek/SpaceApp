@@ -13,10 +13,14 @@ console.log(`Using API base URL: ${BASE_URL}`);
 export const apiLogin = async (email, password) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {  // Simulate network delay
+      // Fetch all users from the mock data
       const user = userData.users.find(u => u.email === email && u.password === password);
+      
       if (user) {
+        console.log("User found:", user.name, "Role:", user.account_type);
         resolve(user);  // Return the found user
       } else {
+        console.log("Login failed: Invalid credentials");
         reject(new Error('Invalid credentials'));
       }
     }, 1000);
@@ -77,6 +81,28 @@ export const createOrder = async (buyerId, orderData) => {
   } catch (error) {
     console.error("Error creating order:", error);
     throw error;
+  }
+};
+
+export const cancelOrder = async (orderId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/orders/${orderId}/cancel`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`Error cancelling order: ${errorData}`);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    return false;
   }
 };
 
@@ -322,45 +348,25 @@ export const getVerifiedProductsCount = async (sellerId) => {
 };
 
 // REVIEWS
-export const fetchReviews = async (productId) => {
-  try {
-    // If product ID is provided, fetch reviews for that specific product
-    const url = productId 
-      ? `${BASE_URL}/reviews?product_id=${productId}` 
-      : `${BASE_URL}/reviews`;
-      
-    console.log(`Fetching reviews from: ${url}`);
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      console.error(`Failed to fetch reviews: ${response.status}`);
-      return [];
-    }
-    
-    const data = await response.json();
-    
-    // Double-check filtering on client side if productId was specified
-    if (productId && Array.isArray(data)) {
-      // Make sure we only return reviews that match this exact product ID
-      const filteredData = data.filter(review => 
-        Number(review.product_id) === Number(productId)
-      );
-      
-      console.log(`Filtered ${data.length} reviews to ${filteredData.length} for product ${productId}`);
-      return filteredData;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Error fetching reviews:', error);
-    return [];
-  }
-};
-
 export const createReview = async (reviewData) => {
   try {
-    console.log('Creating review with data:', reviewData);
-    
+    // Make sure we have a user_name in the review data
+    if (!reviewData.user_name) {
+      // If user_name is not provided, fetch it from the users endpoint
+      try {
+        const response = await fetch(`${BASE_URL}/users/${reviewData.user_id}`);
+        const userData = await response.json();
+        
+        if (userData && userData.name) {
+          reviewData.user_name = userData.name;
+        }
+      } catch (error) {
+        console.error("Error fetching user name:", error);
+        // Continue with the review creation even if we couldn't get the name
+      }
+    }
+
+    // Send the review data to your API endpoint
     const response = await fetch(`${BASE_URL}/reviews`, {
       method: 'POST',
       headers: {
@@ -368,15 +374,58 @@ export const createReview = async (reviewData) => {
       },
       body: JSON.stringify(reviewData),
     });
-    
+
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create review: ${response.status} - ${errorText}`);
+      throw new Error(`Error creating review: ${response.status}`);
+    }
+
+    const createdReview = await response.json();
+    return createdReview;
+  } catch (error) {
+    console.error("Error in createReview:", error);
+    throw error;
+  }
+};
+
+// Modified fetchReviews function in your API.js file
+export const fetchReviews = async (productId) => {
+  try {
+    // Fetch reviews for the product
+    const reviewsResponse = await fetch(`${BASE_URL}/reviews?product_id=${productId}`);
+    
+    if (!reviewsResponse.ok) {
+      throw new Error(`Error fetching reviews: ${reviewsResponse.status}`);
     }
     
-    return response.json();
+    const reviews = await reviewsResponse.json();
+    
+    // If there are reviews, fetch user data to get names
+    if (reviews && reviews.length > 0) {
+      // Get unique user IDs from reviews
+      const userIds = [...new Set(reviews.map(review => review.user_id))];
+      
+      // Fetch user details for all these users
+      const usersResponse = await fetch(`${BASE_URL}/users?${userIds.map(id => `id=${id}`).join('&')}`);
+      
+      if (usersResponse.ok) {
+        const users = await usersResponse.json();
+        
+        // Create a map of user_id to user name
+        const userMap = {};
+        users.forEach(user => {
+          userMap[user.user_id] = user.name;
+        });
+        
+        // Enhance review objects with user names
+        reviews.forEach(review => {
+          review.user_name = userMap[review.user_id] || `User ${review.user_id}`;
+        });
+      }
+    }
+    
+    return reviews;
   } catch (error) {
-    console.error('Error creating review:', error);
+    console.error("Error in fetchReviews:", error);
     throw error;
   }
 };
@@ -573,12 +622,282 @@ export const fetchAdminData = async () => {
   return response.json();
 };
 
+export const createAdminAction = async (actionData) => {
+  try {
+    const response = await fetch(`${BASE_URL}/admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(actionData),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`Failed to create admin action: ${errorData}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating admin action:", error);
+    throw error;
+  }
+};
+
 export const updateAdminStatus = async (adminId, status) => {
-  const response = await fetch(`${BASE_URL}/admin/${adminId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
-  });
-  if (!response.ok) throw new Error("Failed to update admin status");
-  return response.json();
+  try {
+    console.log(`Updating admin action ${adminId} to status: ${status}`);
+    
+    const response = await fetch(`${BASE_URL}/admin/${adminId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`Server returned error: ${response.status} ${errorData}`);
+      throw new Error(`Failed to update admin status: ${errorData}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating admin status:", error);
+    throw error;
+  }
+};
+
+export const updateUserRole = async (userId, role, tier = null) => {
+  try {
+    console.log(`Updating user ${userId} to role: ${role} with tier: ${tier || 'none'}`);
+    
+    // Normalize the role and create the appropriate account_type
+    const normalizedRole = role.toLowerCase();
+    let accountType;
+    
+    // Map the normalized role to the appropriate account_type format
+    switch(normalizedRole) {
+      case 'influencer':
+        accountType = 'Influencer';
+        break;
+      case 'seller':
+        accountType = 'Seller';
+        break;
+      case 'buyer':
+        accountType = 'Buyer';
+        break;
+      case 'admin':
+        accountType = 'Admin';
+        break;
+      default:
+        accountType = 'Buyer'; // Default fallback
+    }
+    
+    // Create a payload with both role and account_type
+    const payload = { 
+      role: normalizedRole,
+      account_type: accountType
+    };
+    
+    // Add tier if provided
+    if (tier) {
+      payload.tier = tier;
+    }
+    
+    console.log("Sending update payload:", JSON.stringify(payload));
+    
+    // Send the update request
+    const response = await fetch(`${BASE_URL}/users/${userId}/role`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`Server returned error: ${response.status} ${errorData}`);
+      throw new Error(`Failed to update user role: ${errorData}`);
+    }
+    
+    const result = await response.json();
+    console.log("User role update result:", result);
+    return result;
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    throw error;
+  }
+};
+
+// SECURITY SETTINGS
+export const getUserSecuritySettings = async (userId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/users/${userId}/security-settings`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get security settings: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error getting security settings:", error);
+    throw error;
+  }
+};
+
+// Update user security settings
+export const updatePassword = async (userId, currentPassword, newPassword) => {
+  try {
+    const response = await fetch(`${BASE_URL}/users/${userId}/password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword
+      })
+    });
+    
+    const data = await response.json();
+    
+    return {
+      success: response.ok,
+      message: data.message
+    };
+  } catch (error) {
+    console.error("Error updating password:", error);
+    return {
+      success: false,
+      message: "An error occurred while updating password"
+    };
+  }
+};
+
+// Enable or disable two-factor authentication
+export const requestVerificationCode = async (userId, phoneNumber) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/2fa/request-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        phoneNumber
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || "Failed to send verification code"
+      };
+    }
+    
+    // For development, log the verification code
+    if (data.dev_code) {
+      console.log(`Development 2FA code: ${data.dev_code}`);
+    }
+    
+    return {
+      success: true,
+      verificationId: data.verificationId,
+      message: "Verification code sent successfully"
+    };
+  } catch (error) {
+    console.error("Error requesting verification code:", error);
+    return {
+      success: false,
+      message: "An error occurred while requesting verification code"
+    };
+  }
+};
+
+// Enable two-factor authentication
+export const verifyTwoFACode = async (userId, verificationId, code, phoneNumber) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/2fa/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        verificationId,
+        code,
+        phoneNumber
+      })
+    });
+    
+    const data = await response.json();
+    
+    return {
+      success: response.ok,
+      message: data.message
+    };
+  } catch (error) {
+    console.error("Error verifying 2FA code:", error);
+    return {
+      success: false,
+      message: "An error occurred while verifying the code"
+    };
+  }
+};
+
+// Enable two-factor authentication
+export const disableTwoFA = async (userId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/2fa/disable`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    
+    const data = await response.json();
+    
+    return {
+      success: response.ok,
+      message: data.message
+    };
+  } catch (error) {
+    console.error("Error disabling 2FA:", error);
+    return {
+      success: false,
+      message: "An error occurred while disabling two-factor authentication"
+    };
+  }
+};
+
+// Update privacy settings
+export const updatePrivacySettings = async (userId, settings) => {
+  try {
+    const response = await fetch(`${BASE_URL}/users/${userId}/privacy-settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(settings)
+    });
+    
+    const data = await response.json();
+    
+    return {
+      success: response.ok,
+      message: data.message
+    };
+  } catch (error) {
+    console.error("Error updating privacy settings:", error);
+    return {
+      success: false,
+      message: "An error occurred while updating privacy settings"
+    };
+  }
 };

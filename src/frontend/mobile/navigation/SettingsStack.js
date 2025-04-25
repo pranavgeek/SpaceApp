@@ -5,7 +5,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import SettingsScreen from "../screens/SettingsScreen";
 import ProfileEditScreen from "../screens/ProfileEditScreen";
 import SupportScreen from "../screens/SupportScreen";
-import PaymentMethodsScreen from "../screens/PaymentsMethodsScreen";
 import NotificationScreen from "../screens/NotificationScren";
 import RegionLanguageScreen from "../screens/RegionLanguageScreen";
 import AppearanceScreen from "../screens/AppearanceScreen";
@@ -13,6 +12,7 @@ import SecurityPrivacyScreen from "../screens/SecurityPrivacyScreen";
 import InfluencerProgramScreen from "../screens/InfluencerProgramScreen";
 import SellerPlansScreen from "../screens/SellerPlansScreen";
 import CollaborationScreen from "../screens/CollaborationScreen"
+import InfluencerApplicationScreen from "../screens/InfluencerApplicationScreen.js";
 import { useTheme } from "../theme/ThemeContext.js";
 
 const SettingsStack = createNativeStackNavigator();
@@ -44,10 +44,6 @@ const SettingsStackNavigator = () => {
       <SettingsStack.Screen name="Edit Profile" component={ProfileEditScreen} />
       <SettingsStack.Screen name="Support" component={SupportScreen} />
       <SettingsStack.Screen
-        name="Payment Methods"
-        component={PaymentMethodsScreen}
-      />
-      <SettingsStack.Screen
         name="Notifications"
         component={NotificationScreen}
       />
@@ -61,6 +57,12 @@ const SettingsStackNavigator = () => {
       <SettingsStack.Screen
         name="Influencer Program"
         component={InfluencerProgramScreen}
+        //   options={{headerShown: false}} // or your desired options
+      />
+
+      <SettingsStack.Screen
+        name="Influencer Form"
+        component={InfluencerApplicationScreen}
         //   options={{headerShown: false}} // or your desired options
       />
       <SettingsStack.Screen

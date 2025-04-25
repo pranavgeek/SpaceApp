@@ -16,15 +16,10 @@ const MessagesStackNavigator = () => {
   return (
     <MessagesStack.Navigator>
         <MessagesStack.Screen name="Messages" component={MessagesScreen} 
-            options={{
-                headerStyle: { backgroundColor: colors.background },
-                headerTintColor: colors.text, 
-                headerTitleStyle: { fontWeight: 'bold' },
-                // headerRight: () => (
-                //   <TouchableOpacity style={{marginRight: 15}}>
-                //     <Icon name="notifications-outline" size={24} color="#fff" />
-                //   </TouchableOpacity>
-                // ),
+             options={{
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { }
             }}/>
         <MessagesStack.Screen name="Chat" component={ChatScreen} 
             options={{

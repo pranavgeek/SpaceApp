@@ -107,6 +107,31 @@ const db = {
     return updatedUser;
   },
 
+  deleteUser: async (id) => {
+    try {
+      // Fetch the current data
+      const data = loadData();
+      
+      // Find the user index
+      const userIndex = data.users.findIndex(u => u.user_id === id);
+      
+      if (userIndex === -1) {
+        return false; // User not found
+      }
+      
+      // Remove the user
+      data.users.splice(userIndex, 1);
+      
+      // Save the updated data
+      saveData(data);
+      
+      return true; // Deletion successful
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      return false;
+    }
+  }, 
+
   // Get User Dashboard (Products for Seller / Campaigns for Influencer)
   getUserDashboard: async (user_id) => {
     const data = loadData();
@@ -164,13 +189,15 @@ const db = {
       const result = await runQuery(query, params);
       return result[0];
     }
-  
+
     const data = loadData();
-    
+
     // Find the highest existing product ID
-    const maxId = data.products.reduce((max, p) => 
-      p.product_id > max ? p.product_id : max, 0);
-    
+    const maxId = data.products.reduce(
+      (max, p) => (p.product_id > max ? p.product_id : max),
+      0
+    );
+
     // Set new product ID to be one higher than the current maximum
     product.product_id = maxId + 1;
     product.verified = false;
@@ -178,7 +205,7 @@ const db = {
     data.products.push(product);
     saveData(data);
     return product;
-  }, 
+  },
 
   updateProduct: async (productId, updatedFields) => {
     if (USE_CLOUD_DB) {
@@ -187,70 +214,81 @@ const db = {
         .join(", ");
       const values = Object.values(updatedFields);
       values.push(productId); // Add productId for WHERE clause
-  
+
       const query = `UPDATE products SET ${setClause} WHERE product_id = $${values.length} RETURNING *`;
       const result = await runQuery(query, values);
       return result[0];
     }
-  
+
     // Local JSON fallback
     const data = loadData();
-    const productIndex = data.products.findIndex((p) => p.product_id === productId);
-  
+    const productIndex = data.products.findIndex(
+      (p) => p.product_id === productId
+    );
+
     if (productIndex === -1) return null;
-  
+
     data.products[productIndex] = {
       ...data.products[productIndex],
       ...updatedFields,
     };
-  
+
     saveData(data);
     return data.products[productIndex];
-  },  
+  },
 
   // Get products by seller ID
-getProductsBySellerId: async (sellerId) => {
-  try {
-    const products = data.products.filter(product => product.user_seller === sellerId);
-    return products;
-  } catch (error) {
-    console.error("Error getting products by seller ID:", error);
-    return [];
-  }
-},
+  getProductsBySellerId: async (sellerId) => {
+    try {
+      const products = data.products.filter(
+        (product) => product.user_seller === sellerId
+      );
+      return products;
+    } catch (error) {
+      console.error("Error getting products by seller ID:", error);
+      return [];
+    }
+  },
 
-// Get verified products count by seller ID
-getVerifiedProductsCountBySellerId: async (sellerId) => {
-  try {
-    const verifiedProducts = data.products.filter(
-      product => product.user_seller === sellerId && product.verified === true
-    );
-    return verifiedProducts.length;
-  } catch (error) {
-    console.error("Error getting verified products count:", error);
-    return 0;
-  }
-},
+  // Get verified products count by seller ID
+  getVerifiedProductsCountBySellerId: async (sellerId) => {
+    try {
+      const verifiedProducts = data.products.filter(
+        (product) =>
+          product.user_seller === sellerId && product.verified === true
+      );
+      return verifiedProducts.length;
+    } catch (error) {
+      console.error("Error getting verified products count:", error);
+      return 0;
+    }
+  },
 
   // Get reviews by product ID
   getReviewsByProductId: async (productId) => {
     if (USE_CLOUD_DB) {
-      return await runQuery("SELECT * FROM reviews WHERE product_id = $1", [productId]);
+      return await runQuery("SELECT * FROM reviews WHERE product_id = $1", [
+        productId,
+      ]);
     }
-    
+
     const data = loadData();
     const numericProductId = parseInt(productId, 10);
-    
-    console.log(`Looking for reviews with exact product_id match: ${numericProductId}`);
-    
+
+    console.log(
+      `Looking for reviews with exact product_id match: ${numericProductId}`
+    );
+
     // Filter reviews that exactly match the product ID
-    const matchingReviews = data.reviews.filter(review => {
+    const matchingReviews = data.reviews.filter((review) => {
       const reviewProductId = parseInt(review.product_id, 10);
       // Check for exact match only (strict equality)
       return reviewProductId === numericProductId;
     });
-    
-    console.log(`Found ${matchingReviews.length} reviews for product ID ${numericProductId}`);
+
+    console.log(
+      `Found ${matchingReviews.length} reviews for product ID ${numericProductId}`
+    );
     return matchingReviews;
   },
 
@@ -438,120 +476,130 @@ getVerifiedProductsCountBySellerId: async (sellerId) => {
   },
 
   // Get messages between two users
-getMessagesBetweenUsers: async (user1Id, user2Id) => {
-  if (USE_CLOUD_DB) {
-    return await runQuery(
-      "SELECT * FROM messages WHERE (user_from = $1 AND user_to = $2) OR (user_from = $2 AND user_to = $1) ORDER BY date_timestamp_sent ASC",
-      [user1Id, user2Id]
-    );
-  }
-  
-  const data = loadData();
-  return data.messages.filter(
-    message => 
-      (String(message.user_from) === String(user1Id) && String(message.user_to) === String(user2Id)) ||
-      (String(message.user_from) === String(user2Id) && String(message.user_to) === String(user1Id))
-  ).sort((a, b) => new Date(a.date_timestamp_sent) - new Date(b.date_timestamp_sent));
-},
+  getMessagesBetweenUsers: async (user1Id, user2Id) => {
+    if (USE_CLOUD_DB) {
+      return await runQuery(
+        "SELECT * FROM messages WHERE (user_from = $1 AND user_to = $2) OR (user_from = $2 AND user_to = $1) ORDER BY date_timestamp_sent ASC",
+        [user1Id, user2Id]
+      );
+    }
 
-// Get all conversations for a user (list of unique users they've messaged with)
-getUserConversations: async (userId) => {
-  if (USE_CLOUD_DB) {
-    return await runQuery(
-      `SELECT DISTINCT 
+    const data = loadData();
+    return data.messages
+      .filter(
+        (message) =>
+          (String(message.user_from) === String(user1Id) &&
+            String(message.user_to) === String(user2Id)) ||
+          (String(message.user_from) === String(user2Id) &&
+            String(message.user_to) === String(user1Id))
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.date_timestamp_sent) - new Date(b.date_timestamp_sent)
+      );
+  },
+
+  // Get all conversations for a user (list of unique users they've messaged with)
+  getUserConversations: async (userId) => {
+    if (USE_CLOUD_DB) {
+      return await runQuery(
+        `SELECT DISTINCT 
         CASE 
           WHEN user_from = $1 THEN user_to 
           ELSE user_from 
         END as other_user_id
       FROM messages
       WHERE user_from = $1 OR user_to = $1`,
-      [userId]
-    );
-  }
-  
-  const data = loadData();
-  const conversations = new Set();
-  
-  data.messages.forEach(message => {
-    if (String(message.user_from) === String(userId)) {
-      conversations.add(String(message.user_to));
-    } else if (String(message.user_to) === String(userId)) {
-      conversations.add(String(message.user_from));
+        [userId]
+      );
     }
-  });
-  
-  return Array.from(conversations);
-},
 
-// Update existing createMessage function to ensure it has all required fields
-createMessage: async (message) => {
-  if (USE_CLOUD_DB) {
-    const query = `
+    const data = loadData();
+    const conversations = new Set();
+
+    data.messages.forEach((message) => {
+      if (String(message.user_from) === String(userId)) {
+        conversations.add(String(message.user_to));
+      } else if (String(message.user_to) === String(userId)) {
+        conversations.add(String(message.user_from));
+      }
+    });
+
+    return Array.from(conversations);
+  },
+
+  // Update existing createMessage function to ensure it has all required fields
+  createMessage: async (message) => {
+    if (USE_CLOUD_DB) {
+      const query = `
       INSERT INTO messages (user_from, user_to, type_message, message_content, add_file, date_timestamp_sent, is_read)
       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-    const params = [
-      message.user_from,
-      message.user_to,
-      message.type_message || 'text',
-      message.message_content,
-      message.add_file || null,
-      message.date_timestamp_sent || new Date().toISOString(),
-      message.is_read || false
-    ];
-    const result = await runQuery(query, params);
-    return result[0];
-  }
-  
-  const data = loadData();
-  message.message_id = data.messages.length + 1;
-  
-  // Make sure all fields are set
-  message.type_message = message.type_message || 'text';
-  message.add_file = message.add_file || null;
-  message.date_timestamp_sent = message.date_timestamp_sent || new Date().toISOString();
-  message.is_read = message.is_read || false;
-  
-  data.messages.push(message);
-  saveData(data);
-  return message;
-},
+      const params = [
+        message.user_from,
+        message.user_to,
+        message.type_message || "text",
+        message.message_content,
+        message.add_file || null,
+        message.date_timestamp_sent || new Date().toISOString(),
+        message.is_read || false,
+      ];
+      const result = await runQuery(query, params);
+      return result[0];
+    }
 
-// Mark message as read
-markMessageAsRead: async (messageId) => {
-  if (USE_CLOUD_DB) {
-    const result = await runQuery(
-      "UPDATE messages SET is_read = true WHERE message_id = $1 RETURNING *",
-      [messageId]
-    );
-    return result[0];
-  }
-  
-  const data = loadData();
-  const messageIndex = data.messages.findIndex(msg => msg.message_id === parseInt(messageId));
-  
-  if (messageIndex === -1) return null;
-  
-  data.messages[messageIndex].is_read = true;
-  saveData(data);
-  
-  return data.messages[messageIndex];
-},
+    const data = loadData();
+    message.message_id = data.messages.length + 1;
 
-// Get unread messages count for a user
-getUnreadMessagesCount: async (userId) => {
-  if (USE_CLOUD_DB) {
-    const result = await runQuery(
-      "SELECT COUNT(*) as count FROM messages WHERE user_to = $1 AND is_read = false",
-      [userId]
+    // Make sure all fields are set
+    message.type_message = message.type_message || "text";
+    message.add_file = message.add_file || null;
+    message.date_timestamp_sent =
+      message.date_timestamp_sent || new Date().toISOString();
+    message.is_read = message.is_read || false;
+
+    data.messages.push(message);
+    saveData(data);
+    return message;
+  },
+
+  // Mark message as read
+  markMessageAsRead: async (messageId) => {
+    if (USE_CLOUD_DB) {
+      const result = await runQuery(
+        "UPDATE messages SET is_read = true WHERE message_id = $1 RETURNING *",
+        [messageId]
+      );
+      return result[0];
+    }
+
+    const data = loadData();
+    const messageIndex = data.messages.findIndex(
+      (msg) => msg.message_id === parseInt(messageId)
     );
-    return parseInt(result[0].count);
-  }
-  
-  const data = loadData();
-  return data.messages.filter(
-    msg => String(msg.user_to) === String(userId) && msg.is_read === false
-  ).length;
-},
+
+    if (messageIndex === -1) return null;
+
+    data.messages[messageIndex].is_read = true;
+    saveData(data);
+
+    return data.messages[messageIndex];
+  },
+
+  // Get unread messages count for a user
+  getUnreadMessagesCount: async (userId) => {
+    if (USE_CLOUD_DB) {
+      const result = await runQuery(
+        "SELECT COUNT(*) as count FROM messages WHERE user_to = $1 AND is_read = false",
+        [userId]
+      );
+      return parseInt(result[0].count);
+    }
+
+    const data = loadData();
+    return data.messages.filter(
+      (msg) => String(msg.user_to) === String(userId) && msg.is_read === false
+    ).length;
+  },
 
   // Get Notifications by User ID
   getNotifications: async (user_id) => {
@@ -591,6 +639,87 @@ getUnreadMessagesCount: async (userId) => {
       return await runQuery("SELECT * FROM admin_data");
     }
     return loadData().admin_data;
+  },
+
+  updateAdminStatus: async (adminId, status) => {
+    try {
+      const data = loadData();
+      const adminIndex = data.admin_data.findIndex(a => a.admin_id === adminId);
+      
+      if (adminIndex === -1) return null;
+      
+      data.admin_data[adminIndex].status = status;
+      data.admin_data[adminIndex].updated_at = new Date().toISOString();
+      
+      saveData(data);
+      return data.admin_data[adminIndex];
+    } catch (error) {
+      console.error("Error updating admin status:", error);
+      throw error;
+    }
+  },
+
+  getUsersByRole: async (role) => {
+    try {
+      const data = loadData();
+      return data.users.filter(u => u.role === role || u.account_type?.toLowerCase() === role.toLowerCase());
+    } catch (error) {
+      console.error(`Error getting ${role} users:`, error);
+      throw error;
+    }
+  },  
+
+  updateUserRole: async (userId, role, tier = null) => {
+    try {
+      const data = loadData();
+      const userIndex = data.users.findIndex(u => u.user_id === userId);
+      
+      if (userIndex === -1) return null;
+      
+      const currentUser = data.users[userIndex];
+      
+      // Only allow buyers to become influencers
+      if (role.toLowerCase() === "influencer" && 
+          currentUser.role?.toLowerCase() !== "buyer" && 
+          currentUser.account_type?.toLowerCase() !== "buyer") {
+        throw new Error(`Only buyer accounts can become influencers. This user is a ${currentUser.role || currentUser.account_type}.`);
+      }
+      
+      // Update the role in both fields for compatibility
+      data.users[userIndex].role = role.toLowerCase();
+      data.users[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
+      
+      // Add tier if provided (for influencers)
+      if (tier) {
+        data.users[userIndex].tier = tier;
+      }
+      
+      saveData(data);
+      return data.users[userIndex];
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      throw error;
+    }
+  },
+
+  getAdminById: async (adminId) => {
+    try {
+      const data = loadData();
+      return data.admin_data.find(a => a.admin_id === adminId);
+    } catch (error) {
+      console.error("Error getting admin action:", error);
+      throw error;
+    }
+  },
+  
+  getUserById: async (userId) => {
+    try {
+      const data = loadData();
+      return data.users.find(u => u.user_id === userId);
+    } catch (error) {
+      console.error("Error getting user:", error);
+      throw error;
+    }
   },
 
   // Create New Admin Action
@@ -698,6 +827,64 @@ getUnreadMessagesCount: async (userId) => {
     console.log("✅ Order successfully created:", orderObject.order_id);
 
     return orderObject;
+  },
+
+  // Cancel an order
+  cancelOrder: async (orderId) => {
+    try {
+      const data = loadData();
+
+      // 1. Remove from global orders array
+      const orderIndex = data.orders.findIndex(
+        (order) => order.order_id === orderId
+      );
+
+      if (orderIndex === -1) {
+        console.log(`Order with ID ${orderId} not found`);
+        return false;
+      }
+
+      // Store the order details before removing it
+      const cancelledOrder = data.orders[orderIndex];
+
+      // Remove from global orders array
+      data.orders.splice(orderIndex, 1);
+
+      // 2. Remove from buyer's orders array
+      const buyer = data.users.find(
+        (user) => String(user.user_id) === String(cancelledOrder.buyer_id)
+      );
+      if (buyer && buyer.orders) {
+        const buyerOrderIndex = buyer.orders.findIndex(
+          (order) => order.order_id === orderId
+        );
+        if (buyerOrderIndex !== -1) {
+          buyer.orders.splice(buyerOrderIndex, 1);
+        }
+      }
+
+      // 3. Remove from seller's received_orders array
+      const seller = data.users.find(
+        (user) => String(user.user_id) === String(cancelledOrder.seller_id)
+      );
+      if (seller && seller.received_orders) {
+        const sellerOrderIndex = seller.received_orders.findIndex(
+          (order) => order.order_id === orderId
+        );
+        if (sellerOrderIndex !== -1) {
+          seller.received_orders.splice(sellerOrderIndex, 1);
+        }
+      }
+
+      // Save the updated data
+      saveData(data);
+      console.log(`✅ Order ${orderId} successfully cancelled`);
+
+      return true;
+    } catch (error) {
+      console.error(`Error cancelling order: ${error.message}`);
+      return false;
+    }
   },
 };
 
