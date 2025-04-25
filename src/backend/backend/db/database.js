@@ -282,6 +282,8 @@ const db = {
         adminAction.user_id,
         adminAction.status,
         adminAction.date_timestamp,
+        adminAction.influencer_metrics
+        
       ];
       const result = await runQuery(query, params);
       return result[0];
@@ -292,6 +294,7 @@ const db = {
     saveData(data);
     return adminAction;
   },
+  
 };
 
 module.exports = db;
