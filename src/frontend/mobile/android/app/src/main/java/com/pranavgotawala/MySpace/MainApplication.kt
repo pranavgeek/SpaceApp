@@ -1,4 +1,4 @@
-package com.pranavgotawala.MySpace
+package com.pranavgotawala.myspace
 
 import android.app.Application
 import android.content.res.Configuration
