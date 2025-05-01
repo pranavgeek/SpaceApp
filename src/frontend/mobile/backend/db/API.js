@@ -622,31 +622,97 @@ export const fetchAdminData = async () => {
   return response.json();
 };
 
+// Create a new admin action for approval
 export const createAdminAction = async (actionData) => {
   try {
-    const response = await fetch(`${BASE_URL}/admin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(actionData),
-    });
+    console.log("[ADMIN] Creating admin action:", actionData);
+    
+    // Make sure the action has all required fields
+    const enhancedAction = {
+      ...actionData,
+      status: actionData.status || "pending", // Default status is pending
+      date_timestamp: actionData.date_timestamp || new Date().toISOString()
+    };
+    
+    // Try to send to the backend
+    try {
+      const response = await fetch(`${BASE_URL}/admin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(enhancedAction),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[ADMIN] Failed to create admin action: ${errorText}`);
+        throw new Error(`Failed to create admin action: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log(`[ADMIN] Successfully created admin action with ID: ${result.admin_id}`);
+      
+      return result;
+    } catch (apiError) {
+      console.error("[ADMIN] Backend API error:", apiError);
+      
+      // For fallback, could store in local storage if needed
+      // But most important is to show the error to the user
+      throw apiError;
+    }
+  } catch (error) {
+    console.error("[ADMIN] Error creating admin action:", error);
+    throw error;
+  }
+};
+
+// Get all admin actions (for admin dashboard)
+export const fetchAdminActions = async () => {
+  try {
+    console.log("[ADMIN] Fetching all admin actions");
+    
+    const response = await fetch(`${BASE_URL}/admin`);
     
     if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`Failed to create admin action: ${errorData}`);
+      throw new Error(`Failed to fetch admin actions: ${response.status}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    console.log(`[ADMIN] Fetched ${data.length} admin actions`);
+    
+    return data;
   } catch (error) {
-    console.error("Error creating admin action:", error);
-    throw error;
+    console.error("[ADMIN] Error fetching admin actions:", error);
+    return [];
+  }
+};
+
+// Get pending admin actions (for admin dashboard)
+export const fetchPendingAdminActions = async () => {
+  try {
+    console.log("[ADMIN] Fetching pending admin actions");
+    
+    // Since many APIs don't have a filter option,
+    // we'll fetch all and filter on the client
+    const allActions = await fetchAdminActions();
+    
+    const pendingActions = allActions.filter(action => 
+      action.status === "pending" || action.status === "Pending"
+    );
+    
+    console.log(`[ADMIN] Found ${pendingActions.length} pending admin actions`);
+    
+    return pendingActions;
+  } catch (error) {
+    console.error("[ADMIN] Error fetching pending admin actions:", error);
+    return [];
   }
 };
 
 export const updateAdminStatus = async (adminId, status) => {
   try {
-    console.log(`Updating admin action ${adminId} to status: ${status}`);
+    console.log(`[ADMIN] Updating admin action ${adminId} to status: ${status}`);
     
     const response = await fetch(`${BASE_URL}/admin/${adminId}`, {
       method: 'PUT',
@@ -658,13 +724,16 @@ export const updateAdminStatus = async (adminId, status) => {
     
     if (!response.ok) {
       const errorData = await response.text();
-      console.error(`Server returned error: ${response.status} ${errorData}`);
+      console.error(`[ADMIN] Server returned error: ${response.status} ${errorData}`);
       throw new Error(`Failed to update admin status: ${errorData}`);
     }
     
-    return await response.json();
+    const result = await response.json();
+    console.log(`[ADMIN] Successfully updated admin action status to: ${status}`);
+    
+    return result;
   } catch (error) {
-    console.error("Error updating admin status:", error);
+    console.error("[ADMIN] Error updating admin status:", error);
     throw error;
   }
 };
@@ -899,5 +968,630 @@ export const updatePrivacySettings = async (userId, settings) => {
       success: false,
       message: "An error occurred while updating privacy settings"
     };
+  }
+};
+
+// Get all campaign requests
+export const fetchCampaignRequests = async () => {
+  try {
+    const response = await fetch(`${BASE_URL}/campaign-requests`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch campaign requests: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching campaign requests:", error);
+    // Fall back to local storage
+    return getLocalCampaignRequests();
+  }
+};
+
+// Get campaign requests for a specific influencer
+export const fetchInfluencerCampaignRequests = async (influencerId) => {
+  try {
+    // Try fetching from the backend API
+    const response = await fetch(`${BASE_URL}/campaign-requests/influencer/${influencerId}`);
+    
+    if (!response.ok) {
+      // If API fails, fall back to local storage
+      throw new Error(`Failed to fetch influencer campaign requests: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching influencer campaign requests:", error);
+    
+    // Fall back to local storage
+    try {
+      // Get stored campaign requests
+      const stored = await AsyncStorage.getItem("campaignRequests");
+      const allRequests = stored ? JSON.parse(stored) : [];
+      
+      // Filter for the specified influencer
+      return allRequests.filter(req => String(req.influencerId) === String(influencerId));
+    } catch (storageError) {
+      console.error("Error fetching from local storage:", storageError);
+      // Return empty array if all attempts fail
+      return [];
+    }
+  }
+};
+
+// Get campaign requests for a specific seller
+export const fetchSellerCampaignRequests = async (sellerId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/campaign-requests/seller/${sellerId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch seller campaign requests: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching seller campaign requests:", error);
+    // Fall back to local storage
+    const allRequests = await getLocalCampaignRequests();
+    return allRequests.filter(req => String(req.sellerId) === String(sellerId));
+  }
+};
+
+// Create a new campaign request
+export const createCampaignRequest = async (campaignRequest) => {
+  try {
+    console.log("[CAMPAIGN] Creating campaign request:", campaignRequest);
+    
+    // First try to create on the backend
+    try {
+      const response = await fetch(`${BASE_URL}/campaign-requests`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(campaignRequest),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to create campaign request: ${response.status}`);
+      }
+      
+      const createdCampaign = await response.json();
+      console.log("[CAMPAIGN] Successfully created campaign on backend:", createdCampaign);
+      
+      // Also store in local storage for offline access
+      try {
+        const stored = await AsyncStorage.getItem("campaignRequests");
+        const existingRequests = stored ? JSON.parse(stored) : [];
+        
+        // Check for duplicates
+        const duplicate = existingRequests.find(
+          req => req.requestId === createdCampaign.requestId
+        );
+        
+        if (!duplicate) {
+          const updatedRequests = [...existingRequests, createdCampaign];
+          await AsyncStorage.setItem("campaignRequests", JSON.stringify(updatedRequests));
+        }
+      } catch (storageError) {
+        console.error("[CAMPAIGN] Error updating local storage:", storageError);
+      }
+      
+      return createdCampaign;
+    } catch (apiError) {
+      console.error("[CAMPAIGN] Error creating campaign on backend:", apiError);
+      
+      // Fallback to local storage only
+      const stored = await AsyncStorage.getItem("campaignRequests");
+      const existingRequests = stored ? JSON.parse(stored) : [];
+      
+      // Check for duplicates
+      const duplicate = existingRequests.find(
+        req => req.influencerId === campaignRequest.influencerId && 
+               req.sellerId === campaignRequest.sellerId && 
+               req.productId === campaignRequest.productId &&
+               req.status === "Pending"
+      );
+      
+      if (duplicate) {
+        throw new Error("Duplicate campaign request found");
+      }
+      
+      // Add to campaign requests
+      const updatedRequests = [...existingRequests, campaignRequest];
+      await AsyncStorage.setItem("campaignRequests", JSON.stringify(updatedRequests));
+      console.log("[CAMPAIGN] Successfully created campaign in local storage only");
+      
+      return campaignRequest;
+    }
+  } catch (error) {
+    console.error("[CAMPAIGN] Error in createCampaignRequest:", error);
+    throw error;
+  }
+};
+
+// Update campaign request status
+export const updateCampaignRequestStatus = async (requestId, status) => {
+  try {
+    // Try to update in backend first
+    const response = await fetch(`${BASE_URL}/campaign-requests/${requestId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update campaign request: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating campaign request:", error);
+    
+    // Fall back to local storage if backend fails
+    try {
+      const requests = await getLocalCampaignRequests();
+      const updatedRequests = requests.map(req => 
+        req.requestId === requestId 
+          ? { 
+              ...req, 
+              status, 
+              statusUpdatedAt: new Date().toISOString() 
+            } 
+          : req
+      );
+      
+      await saveLocalCampaignRequests(updatedRequests);
+      return updatedRequests.find(req => req.requestId === requestId);
+    } catch (storageError) {
+      console.error("Error updating in local storage:", storageError);
+      throw storageError;
+    }
+  }
+};
+
+export const fetchApprovedCampaigns = async () => {
+  try {
+      const response = await fetch(`${BASE_URL}/campaigns/approved`);
+      if (!response.ok) throw new Error("Failed to fetch approved campaigns");
+      return response.json();
+  } catch (error) {
+      console.error("Error fetching approved campaigns:", error);
+      return [];
+  }
+};
+
+// Delete a campaign request
+export const deleteCampaignRequest = async (requestId) => {
+  try {
+    // Try to delete from backend first
+    const response = await fetch(`${BASE_URL}/campaign-requests/${requestId}`, {
+      method: "DELETE",
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete campaign request: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error deleting campaign request:", error);
+    
+    // Fall back to local storage if backend fails
+    try {
+      const requests = await getLocalCampaignRequests();
+      const filteredRequests = requests.filter(req => req.requestId !== requestId);
+      
+      if (requests.length === filteredRequests.length) {
+        throw new Error("Campaign request not found");
+      }
+      
+      await saveLocalCampaignRequests(filteredRequests);
+      return { message: "Campaign request deleted successfully" };
+    } catch (storageError) {
+      console.error("Error deleting from local storage:", storageError);
+      throw storageError;
+    }
+  }
+};
+
+// Fetch collaboration requests for a seller
+export const fetchCollaborationRequests = async (sellerId) => {
+  try {
+    // Ensure sellerId is a string for consistent comparison
+    const sellerIdStr = String(sellerId);
+    console.log(`Fetching collaboration requests for seller ID: ${sellerIdStr}`);
+    
+    // First try the backend API
+    try {
+      const response = await fetch(`${BASE_URL}/collaboration-requests/seller/${sellerIdStr}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`[API] Fetched ${data.length} collaboration requests from backend for seller ${sellerIdStr}`);
+        
+        // Additional check to ensure the data is properly filtered for this seller
+        const properlyFilteredData = data.filter(req => String(req.sellerId) === sellerIdStr);
+        
+        if (data.length !== properlyFilteredData.length) {
+          console.log(`[API] Warning: Backend returned ${data.length} requests, but only ${properlyFilteredData.length} are for seller ${sellerIdStr}`);
+        }
+        
+        return properlyFilteredData;
+      } else {
+        console.log(`[API] Backend request failed with status: ${response.status}`);
+        throw new Error(`Failed to fetch collaboration requests: ${response.status}`);
+      }
+    } catch (apiError) {
+      console.error("[API] Error fetching collaboration requests from backend:", apiError);
+      
+      // Fallback to local storage
+      const stored = await AsyncStorage.getItem("collaborationRequests");
+      const allRequests = stored ? JSON.parse(stored) : [];
+      
+      console.log(`[LOCAL] Found ${allRequests.length} total collaboration requests in local storage`);
+      
+      // Filter requests for this seller, with detailed logging
+      const sellerRequests = allRequests.filter(req => {
+        // Check if the request has the sellerId field
+        if (!req || !req.sellerId) {
+          console.log(`[LOCAL] Skipping invalid request: ${JSON.stringify(req)}`);
+          return false;
+        }
+        
+        // Compare seller IDs as strings
+        const isMatch = String(req.sellerId) === sellerIdStr;
+        if (isMatch) {
+          console.log(`[LOCAL] Found matching request: ${req.requestId} for seller ${sellerIdStr}`);
+        }
+        return isMatch;
+      });
+      
+      console.log(`[LOCAL] Found ${sellerRequests.length} collaboration requests in local storage for seller ${sellerIdStr}`);
+      return sellerRequests;
+    }
+  } catch (error) {
+    console.error("Error in fetchCollaborationRequests:", error);
+    return [];
+  }
+};
+
+// Update collaboration request status
+export const updateCollaborationRequestStatus = async (requestId, status) => {
+  try {
+    // Try to update on the backend first
+    const response = await fetch(`${BASE_URL}/collaboration-requests/${requestId}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update request status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating collaboration request status:", error);
+    
+    // Fallback to local storage
+    try {
+      const stored = await AsyncStorage.getItem("collaborationRequests");
+      const allRequests = stored ? JSON.parse(stored) : [];
+      
+      const updatedRequests = allRequests.map(req => {
+        if (req.requestId === requestId) {
+          return {
+            ...req,
+            status,
+            statusUpdatedAt: new Date().toISOString()
+          };
+        }
+        return req;
+      });
+      
+      await AsyncStorage.setItem("collaborationRequests", JSON.stringify(updatedRequests));
+      
+      return updatedRequests.find(req => req.requestId === requestId);
+    } catch (storageError) {
+      console.error("Error updating in local storage:", storageError);
+      throw storageError;
+    }
+  }
+};
+
+// Create a new collaboration request
+export const createCollaborationRequest = async (requestData) => {
+  try {
+    // Ensure consistent data types for IDs
+    const enhancedRequest = {
+      ...requestData,
+      sellerId: String(requestData.sellerId),
+      influencerId: String(requestData.influencerId),
+      requestId: requestData.requestId || Date.now().toString(),
+      timestamp: requestData.timestamp || new Date().toISOString(),
+      status: requestData.status || "Pending"
+    };
+    
+    console.log(`[CREATE] Creating collaboration request: ${JSON.stringify(enhancedRequest)}`);
+    
+    // Try to create on the backend first
+    try {
+      const response = await fetch(`${BASE_URL}/collaboration-requests`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(enhancedRequest),
+      });
+      
+      if (response.ok) {
+        const createdRequest = await response.json();
+        console.log(`[CREATE] Successfully created request on backend: ${createdRequest.requestId}`);
+        
+        // Also store in local storage to ensure consistency
+        try {
+          const stored = await AsyncStorage.getItem("collaborationRequests");
+          const allRequests = stored ? JSON.parse(stored) : [];
+          
+          // Check if this request already exists (by ID)
+          const existingIndex = allRequests.findIndex(req => req.requestId === createdRequest.requestId);
+          
+          let updatedRequests;
+          if (existingIndex >= 0) {
+            // Update existing request
+            updatedRequests = [...allRequests];
+            updatedRequests[existingIndex] = createdRequest;
+            console.log(`[CREATE] Updated existing request in local storage: ${createdRequest.requestId}`);
+          } else {
+            // Add new request
+            updatedRequests = [...allRequests, createdRequest];
+            console.log(`[CREATE] Added new request to local storage: ${createdRequest.requestId}`);
+          }
+          
+          await AsyncStorage.setItem("collaborationRequests", JSON.stringify(updatedRequests));
+        } catch (storageError) {
+          console.error("[CREATE] Error updating local storage:", storageError);
+        }
+        
+        return createdRequest;
+      } else {
+        console.log(`[CREATE] Backend request failed with status: ${response.status}`);
+        throw new Error(`Failed to create collaboration request: ${response.status}`);
+      }
+    } catch (apiError) {
+      console.error("[CREATE] Error creating collaboration request on backend:", apiError);
+      
+      // Fallback to local storage
+      const stored = await AsyncStorage.getItem("collaborationRequests");
+      const allRequests = stored ? JSON.parse(stored) : [];
+      
+      // Check if this request already exists (by ID)
+      const existingIndex = allRequests.findIndex(req => req.requestId === enhancedRequest.requestId);
+      
+      let updatedRequests;
+      if (existingIndex >= 0) {
+        // Update existing request
+        updatedRequests = [...allRequests];
+        updatedRequests[existingIndex] = enhancedRequest;
+        console.log(`[CREATE] Updated existing request in local storage: ${enhancedRequest.requestId}`);
+      } else {
+        // Add new request
+        updatedRequests = [...allRequests, enhancedRequest];
+        console.log(`[CREATE] Added new request to local storage: ${enhancedRequest.requestId}`);
+      }
+      
+      await AsyncStorage.setItem("collaborationRequests", JSON.stringify(updatedRequests));
+      
+      return enhancedRequest;
+    }
+  } catch (error) {
+    console.error("Error in createCollaborationRequest:", error);
+    throw error;
+  }
+};
+
+export const syncCollaborationRequests = async () => {
+  try {
+    console.log("Syncing collaboration requests with backend...");
+    
+    // Try to fetch from backend first
+    let backendRequests = [];
+    try {
+      const response = await fetch(`${BASE_URL}/collaboration-requests`);
+      if (response.ok) {
+        backendRequests = await response.json();
+        console.log(`[SYNC] Fetched ${backendRequests.length} requests from backend`);
+        
+        // Validate the structure of received requests
+        backendRequests = backendRequests.filter(req => {
+          if (!req || !req.requestId || !req.sellerId || !req.influencerId) {
+            console.log(`[SYNC] Skipping invalid backend request: ${JSON.stringify(req)}`);
+            return false;
+          }
+          return true;
+        });
+      } else {
+        console.log(`[SYNC] Backend fetch failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.log(`[SYNC] Backend unavailable: ${error.message}`);
+    }
+    
+    // Get local requests
+    const stored = await AsyncStorage.getItem("collaborationRequests");
+    const localRequests = stored ? JSON.parse(stored) : [];
+    console.log(`[SYNC] Found ${localRequests.length} requests in local storage`);
+    
+    // If backend is available and has data, merge with local storage
+    if (backendRequests.length > 0) {
+      // Create a map of backend requests by ID for quick lookups
+      const backendRequestMap = new Map();
+      
+      // Add each valid backend request to the map
+      backendRequests.forEach(request => {
+        if (request && request.requestId) {
+          backendRequestMap.set(request.requestId, request);
+          console.log(`[SYNC] Added backend request to map: ${request.requestId} for seller ${request.sellerId}`);
+        }
+      });
+      
+      // Find local requests that aren't on the backend
+      const localOnlyRequests = localRequests.filter(
+        request => request && request.requestId && !backendRequestMap.has(request.requestId)
+      );
+      
+      console.log(`[SYNC] Found ${localOnlyRequests.length} requests in local storage that need to be pushed to backend`);
+      
+      // Try to push local-only requests to backend
+      for (const request of localOnlyRequests) {
+        try {
+          const response = await fetch(`${BASE_URL}/collaboration-requests`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(request),
+          });
+          
+          if (response.ok) {
+            console.log(`[SYNC] Successfully pushed request ${request.requestId} to backend`);
+            // Add this request to our backend map
+            const createdRequest = await response.json();
+            backendRequestMap.set(createdRequest.requestId, createdRequest);
+          } else {
+            console.log(`[SYNC] Failed to push request ${request.requestId} to backend: ${response.status}`);
+          }
+        } catch (error) {
+          console.log(`[SYNC] Error pushing request ${request.requestId} to backend:`, error);
+        }
+      }
+      
+      // Merge backend requests with any remaining local-only requests
+      const mergedRequests = Array.from(backendRequestMap.values());
+      
+      // Log detailed information about merged requests
+      console.log(`[SYNC] Merged ${mergedRequests.length} requests. Details:`);
+      mergedRequests.forEach(req => {
+        console.log(`[SYNC] - Request ID: ${req.requestId}, Seller: ${req.sellerId}, Influencer: ${req.influencerId}, Status: ${req.status}`);
+      });
+      
+      // Update local storage with merged requests
+      await AsyncStorage.setItem(
+        "collaborationRequests",
+        JSON.stringify(mergedRequests)
+      );
+      console.log(`[SYNC] Updated local storage with ${mergedRequests.length} merged requests`);
+      
+      return mergedRequests;
+    }
+    
+    return localRequests;
+  } catch (error) {
+    console.error("[SYNC] Error syncing collaboration requests:", error);
+    return [];
+  }
+};
+
+// Function to clear local storage collaboration requests
+export const clearLocalCollaborationRequests = async () => {
+  try {
+    await AsyncStorage.removeItem("collaborationRequests");
+    console.log("Local collaboration requests cleared");
+    return true;
+  } catch (error) {
+    console.error("Error clearing local collaboration requests:", error);
+    return false;
+  }
+};
+
+// Initialize some sample collaboration requests for development/testing
+export const initializeSampleCollaborationRequests = async () => {
+  try {
+    // Clear existing requests first
+    await clearLocalCollaborationRequests();
+    
+    // Sample data
+    const sampleRequests = [
+      {
+        requestId: "1001",
+        influencerId: "3",
+        influencerName: "Mike Influencer",
+        sellerId: "2",
+        sellerName: "Sarah Smith",
+        product: "Smartphone",
+        status: "Pending",
+        timestamp: new Date(Date.now() - 86400000).toISOString() // 1 day ago
+      },
+      {
+        requestId: "1002",
+        influencerId: "7",
+        influencerName: "Pranav Geek",
+        sellerId: "2",
+        sellerName: "Sarah Smith",
+        product: "Keyboard",
+        status: "Accepted",
+        timestamp: new Date(Date.now() - 172800000).toISOString() // 2 days ago
+      },
+      {
+        requestId: "1003",
+        influencerId: "8",
+        influencerName: "Derrick Afful",
+        sellerId: "2",
+        sellerName: "Sarah Smith",
+        product: "Wireless Headphones",
+        status: "Declined",
+        timestamp: new Date(Date.now() - 259200000).toISOString() // 3 days ago
+      }
+    ];
+    
+    // Save to local storage
+    await AsyncStorage.setItem(
+      "collaborationRequests",
+      JSON.stringify(sampleRequests)
+    );
+    
+    // Try to send to backend
+    try {
+      for (const request of sampleRequests) {
+        await fetch(`${BASE_URL}/collaboration-requests`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(request),
+        });
+      }
+      console.log("Sample requests pushed to backend");
+    } catch (error) {
+      console.log("Failed to push sample requests to backend", error);
+    }
+    
+    console.log("Sample collaboration requests initialized");
+    return sampleRequests;
+  } catch (error) {
+    console.error("Error initializing sample requests:", error);
+    return [];
+  }
+};
+
+// Helper functions for local storage
+export const getLocalCampaignRequests = async () => {
+  try {
+    const stored = await AsyncStorage.getItem("campaignRequests");
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error("Error fetching local campaign requests", error);
+    return [];
+  }
+};
+
+export const saveLocalCampaignRequests = async (requests) => {
+  try {
+    await AsyncStorage.setItem("campaignRequests", JSON.stringify(requests));
+    return true;
+  } catch (error) {
+    console.error("Error saving local campaign requests", error);
+    return false;
   }
 };

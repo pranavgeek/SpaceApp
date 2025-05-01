@@ -19,6 +19,7 @@ import DropDownPicker from "react-native-dropdown-picker";
 import { useAuth } from "../context/AuthContext";
 import { mockCities } from "../data/MockData";
 import { createProduct } from "../backend/db/API";
+import PriceCalculator from "../components/PriceCalculator";
 
 /**
  * Single entry point: decides which layout to show based on the platform.
@@ -43,6 +44,7 @@ function WebForm() {
   // Form states for text fields
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
+  const [sellingPrice, setSellingPrice] = useState(0);
   const [detailedDescription, setDetailedDescription] = useState("");
   const [images, setImages] = useState([]);
   const [country, setCountry] = useState("");
@@ -66,7 +68,7 @@ function WebForm() {
   const [countryOpen, setCountryOpen] = useState(false);
   // Convert mockCities array of strings to array of objects with label and value
   const [countryItems, setCountryItems] = useState(
-    mockCities.map(city => ({ label: city, value: city }))
+    mockCities.map((city) => ({ label: city, value: city }))
   );
 
   // Handlers
@@ -101,24 +103,26 @@ function WebForm() {
       title,
       category,
       price,
+      sellingPrice, // Log the selling price
       detailedDescription,
       country,
       images,
     });
-  
+
     try {
       const productPayload = {
         product_name: title,
         category,
         cost: parseFloat(price),
+        selling_price: sellingPrice, // Include in the payload
         description: detailedDescription,
         country,
         user_seller: user?.user_id,
-        product_image: images.length ? images[0].uri : "", // basic support for first image
+        product_image: images.length ? images[0].uri : "",
         verified: false,
         created_at: new Date().toISOString(),
       };
-  
+
       const res = await createProduct(productPayload);
       console.log("✅ Product submitted:", res);
       setSubmitted(true);
@@ -194,15 +198,15 @@ function WebForm() {
         </View>
 
         {/* Price */}
-        <FormField
-          label="PRICE"
-          value={price}
-          onChangeText={setPrice}
-          placeholder="Enter price"
-          colors={colors}
-          keyboardType="numeric"
-          required
-        />
+        <View style={styles.fieldContainer}>
+          <Text style={styles.label}>PRICING DETAILS</Text>
+          <PriceCalculator
+            initialPrice={price}
+            onPriceChange={setPrice}
+            onSellingPriceChange={setSellingPrice}
+            colors={colors}
+          />
+        </View>
 
         {/* Detailed Description */}
         <FormField
@@ -288,7 +292,7 @@ function FormField({
   return (
     <View style={styles.fieldContainer}>
       <Text style={styles.label}>
-        {label} {required && <Text style={{ color: 'red' }}>*</Text>}
+        {label} {required && <Text style={{ color: "red" }}>*</Text>}
       </Text>
       <TextInput
         style={[styles.lineInput, multiline && styles.multiline]}
@@ -403,7 +407,7 @@ function getWebStyles(colors) {
       borderBottomWidth: 1,
       borderColor: colors.secondary,
       borderRadius: 0,
-    }
+    },
   });
 }
 
@@ -427,6 +431,7 @@ function AnimatedMobileWizard() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
+  const [sellingPrice, setSellingPrice] = useState(0);
   const [detailedDescription, setDetailedDescription] = useState("");
   const [images, setImages] = useState([]);
   const [country, setCountry] = useState("");
@@ -446,11 +451,11 @@ function AnimatedMobileWizard() {
     { label: "Startups", value: "Startups" },
     { label: "Creators", value: "Creators" },
   ]);
-  
+
   const [countryOpen, setCountryOpen] = useState(false);
   // Convert mockCities array of strings to array of objects with label and value
   const [countryItems, setCountryItems] = useState(
-    mockCities.map(city => ({ label: city, value: city }))
+    mockCities.map((city) => ({ label: city, value: city }))
   );
 
   // For picking images
@@ -494,9 +499,12 @@ function AnimatedMobileWizard() {
       label: "Price",
       question: "What's your price?",
       icon: "attach-money",
+      isPriceCalculator: true,
       placeholder: "Enter price",
       value: price,
       setValue: setPrice,
+      sellingPrice: sellingPrice,
+      setSellingPrice: setSellingPrice,
       keyboardType: "numeric",
       multiline: false,
       required: true,
@@ -541,7 +549,7 @@ function AnimatedMobileWizard() {
   // Update progress bar when step changes
   useEffect(() => {
     Animated.timing(progressAnim, {
-      toValue: (currentStep) / (steps.length - 1),
+      toValue: currentStep / (steps.length - 1),
       duration: 300,
       useNativeDriver: false,
       easing: Easing.inOut(Easing.ease),
@@ -551,10 +559,10 @@ function AnimatedMobileWizard() {
   // Animation for step transition
   const animateToNextStep = (nextStep) => {
     if (animating) return;
-    
+
     setAnimating(true);
     const moveDirection = direction === "next" ? -width : width;
-    
+
     // Animate current step out
     Animated.parallel([
       Animated.timing(slideAnim, {
@@ -572,12 +580,12 @@ function AnimatedMobileWizard() {
         toValue: 0.95,
         duration: 200,
         useNativeDriver: true,
-      })
+      }),
     ]).start(() => {
       // Update step and reset animations
       setCurrentStep(nextStep);
       slideAnim.setValue(moveDirection * -1);
-      
+
       // Animate new step in
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -595,7 +603,7 @@ function AnimatedMobileWizard() {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
-        })
+        }),
       ]).start(() => {
         setAnimating(false);
       });
@@ -605,10 +613,13 @@ function AnimatedMobileWizard() {
   const handleNext = () => {
     const step = steps[currentStep];
     if (!step.isImageStep && step.required && !step.value) {
-      Alert.alert("Required Field", "Please fill in this field before continuing.");
+      Alert.alert(
+        "Required Field",
+        "Please fill in this field before continuing."
+      );
       return;
     }
-    
+
     if (currentStep < steps.length - 1) {
       setDirection("next");
       animateToNextStep(currentStep + 1);
@@ -634,6 +645,7 @@ function AnimatedMobileWizard() {
       title,
       category,
       price,
+      sellingPrice, // Log the selling price
       detailedDescription,
       country,
       images,
@@ -644,6 +656,7 @@ function AnimatedMobileWizard() {
         product_name: title,
         category,
         cost: parseFloat(price),
+        selling_price: sellingPrice, // Include in payload
         description: detailedDescription,
         country,
         user_seller: user?.user_id,
@@ -652,10 +665,10 @@ function AnimatedMobileWizard() {
         created_at: new Date().toISOString(),
       };
       console.log("🧾 Final product payload:", productPayload);
-  
+
       const res = await createProduct(productPayload);
       console.log("✅ Product created:", res);
-  
+
       // Trigger success animation
       Animated.sequence([
         Animated.timing(scaleAnim, {
@@ -674,7 +687,9 @@ function AnimatedMobileWizard() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        console.log("🎉 Success animation completed. Form marked as submitted.");
+        console.log(
+          "🎉 Success animation completed. Form marked as submitted."
+        );
         setSubmitted(true);
       });
     } catch (err) {
@@ -685,7 +700,7 @@ function AnimatedMobileWizard() {
 
   // Success screen animation
   const successAnim = useRef(new Animated.Value(0)).current;
-  
+
   useEffect(() => {
     if (submitted) {
       Animated.sequence([
@@ -694,7 +709,7 @@ function AnimatedMobileWizard() {
           duration: 800,
           useNativeDriver: true,
           easing: Easing.elastic(1),
-        })
+        }),
       ]).start();
     }
   }, [submitted]);
@@ -702,26 +717,26 @@ function AnimatedMobileWizard() {
   if (submitted) {
     return (
       <View style={styles.successContainer}>
-        <Animated.View 
+        <Animated.View
           style={[
             styles.successContent,
             {
               opacity: successAnim,
               transform: [
-                { scale: successAnim.interpolate({
-                  inputRange: [0, 0.5, 1],
-                  outputRange: [0.8, 1.1, 1]
-                })}
-              ]
-            }
+                {
+                  scale: successAnim.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [0.8, 1.1, 1],
+                  }),
+                },
+              ],
+            },
           ]}
         >
           <View style={styles.successIconContainer}>
             <Feather name="check-circle" size={60} color="white" />
           </View>
-          <Text style={styles.successTitle}>
-            Success!
-          </Text>
+          <Text style={styles.successTitle}>Success!</Text>
           <Text style={styles.successMessage}>
             Your product has been submitted
           </Text>
@@ -733,7 +748,7 @@ function AnimatedMobileWizard() {
   const current = steps[currentStep];
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0%', '100%']
+    outputRange: ["0%", "100%"],
   });
 
   return (
@@ -742,7 +757,7 @@ function AnimatedMobileWizard() {
       <View style={styles.progressContainer}>
         <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
       </View>
-      
+
       {/* Step indicator */}
       <View style={styles.stepIndicatorContainer}>
         <View style={styles.stepIcon}>
@@ -753,36 +768,44 @@ function AnimatedMobileWizard() {
           {currentStep + 1} / {steps.length}
         </Text>
       </View>
-      
-      <Animated.View 
+
+      <Animated.View
         style={[
           styles.contentContainer,
           {
-            transform: [
-              { translateX: slideAnim },
-              { scale: scaleAnim }
-            ],
-            opacity: opacityAnim
-          }
+            transform: [{ translateX: slideAnim }, { scale: scaleAnim }],
+            opacity: opacityAnim,
+          },
         ]}
       >
         <Text style={styles.questionText}>{current.question}</Text>
-        
-        {current.isImageStep ? (
+
+        {current.isPriceCalculator ? (
+          <PriceCalculator
+            initialPrice={current.value}
+            onPriceChange={current.setValue}
+            onSellingPriceChange={current.setSellingPrice}
+            colors={colors}
+          />
+        ) : current.isImageStep ? (
           <View style={styles.imageStepWrapper}>
-            <TouchableOpacity 
-              style={styles.uploadButton} 
+            <TouchableOpacity
+              style={styles.uploadButton}
               onPress={pickImage}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="add-photo-alternate" size={20} color="white" />
+              <MaterialIcons
+                name="add-photo-alternate"
+                size={20}
+                color="white"
+              />
               <Text style={styles.uploadButtonText}>Select Images</Text>
             </TouchableOpacity>
-            
+
             <View style={styles.selectedImagesContainer}>
               {images.map((img, index) => (
-                <Animated.View 
-                  key={`mobile-img-${index}`} 
+                <Animated.View
+                  key={`mobile-img-${index}`}
                   style={[styles.selectedImageItem]}
                   entering={Animated.spring({
                     duration: 300,
@@ -800,11 +823,17 @@ function AnimatedMobileWizard() {
                   </TouchableOpacity>
                 </Animated.View>
               ))}
-              
+
               {images.length === 0 && (
                 <View style={styles.emptyImagesContainer}>
-                  <MaterialIcons name="image" size={40} color={colors.secondary} />
-                  <Text style={styles.noImagesText}>No images selected yet</Text>
+                  <MaterialIcons
+                    name="image"
+                    size={40}
+                    color={colors.secondary}
+                  />
+                  <Text style={styles.noImagesText}>
+                    No images selected yet
+                  </Text>
                 </View>
               )}
             </View>
@@ -816,28 +845,41 @@ function AnimatedMobileWizard() {
               searchablePlaceholder={`Search for a ${current.dropdownType}...`}
               searchablePlaceholderTextColor="#888"
               placeholder={current.placeholder}
-              open={current.dropdownType === "category" ? categoryOpen : countryOpen}
+              open={
+                current.dropdownType === "category" ? categoryOpen : countryOpen
+              }
               value={current.dropdownType === "category" ? category : country}
-              items={current.dropdownType === "category" ? categoryItems : countryItems}
-              setOpen={current.dropdownType === "category" ? setCategoryOpen : setCountryOpen}
+              items={
+                current.dropdownType === "category"
+                  ? categoryItems
+                  : countryItems
+              }
+              setOpen={
+                current.dropdownType === "category"
+                  ? setCategoryOpen
+                  : setCountryOpen
+              }
               setValue={current.setValue}
-              setItems={current.dropdownType === "category" ? setCategoryItems : setCountryItems}
+              setItems={
+                current.dropdownType === "category"
+                  ? setCategoryItems
+                  : setCountryItems
+              }
               style={styles.dropdownStyle}
               dropDownContainerStyle={styles.dropdownListStyle}
               listItemContainerStyle={styles.dropdownItemStyle}
               searchContainerStyle={styles.dropdownSearchContainer}
               searchTextInputStyle={styles.dropdownSearchInput}
-              containerStyle={{ marginBottom: (categoryOpen || countryOpen) ? 200 : 20 }}
+              containerStyle={{
+                marginBottom: categoryOpen || countryOpen ? 200 : 20,
+              }}
               zIndex={3000}
             />
           </View>
         ) : (
           <View style={styles.inputContainer}>
             <TextInput
-              style={[
-                styles.input,
-                current.multiline && styles.multilineInput,
-              ]}
+              style={[styles.input, current.multiline && styles.multilineInput]}
               placeholder={current.placeholder}
               placeholderTextColor={colors.placeholderText || "#999"}
               value={current.value}
@@ -852,27 +894,34 @@ function AnimatedMobileWizard() {
           </View>
         )}
       </Animated.View>
-      
+
       <View style={styles.bottomButtonContainer}>
         {currentStep > 0 && (
-          <TouchableOpacity 
-            style={styles.backButton} 
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={handleBack}
             disabled={animating}
             activeOpacity={0.7}
           >
-            <MaterialIcons name="arrow-back" size={20} color={colors.backButtonText || "#555"} />
+            <MaterialIcons
+              name="arrow-back"
+              size={20}
+              color={colors.backButtonText || "#555"}
+            />
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
         )}
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
-            styles.nextButton, 
+            styles.nextButton,
             currentStep > 0 ? { flex: 1, marginLeft: 10 } : { width: "100%" },
             // Subtle disabled state
-            (!current.isImageStep && current.required && !current.value) && styles.buttonDisabled
-          ]} 
+            !current.isImageStep &&
+              current.required &&
+              !current.value &&
+              styles.buttonDisabled,
+          ]}
           onPress={handleNext}
           disabled={animating}
           activeOpacity={0.7}
@@ -899,7 +948,7 @@ function AnimatedMobileWizard() {
  */
 function getEnhancedMobileStyles(colors) {
   const { width, height } = Dimensions.get("window");
-  
+
   // Enhance colors with defaults if not provided
   const enhancedColors = {
     ...colors,
@@ -912,7 +961,7 @@ function getEnhancedMobileStyles(colors) {
     buttonDisabled: colors.buttonDisabled || "rgba(0,0,0,0.2)",
     successBackground: colors.successBackground || colors.primary || "#3498db",
   };
-  
+
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -1190,6 +1239,6 @@ function getEnhancedMobileStyles(colors) {
       fontSize: 18,
       color: "white",
       textAlign: "center",
-    }
+    },
   });
 }

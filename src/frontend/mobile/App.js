@@ -38,6 +38,7 @@ import UserTrackingScreen from "./screens/UserTrackingScreen";
 import InfluencerProgramScreen from "./screens/InfluencerProgramScreen";
 import InfluencerApplicationScreen from "./screens/InfluencerApplicationScreen.js";
 import CollaborationModal from "./components/CollaborationModal.js";
+import SuggestedAccountsScreen from "./screens/SuggestedAccountsScreen.js";
 
 console.log("AuthProvider:", AuthProvider);
 console.log("useAuth:", useAuth);
@@ -69,14 +70,24 @@ const AuthStack = () => {
 };
 
 const AppNavigator = () => {
-  const { user } = useAuth();
+  const { user, isFirstLogin } = useAuth();
 
-  if (!user) return <AuthStack />;
-  // Admin check (can be email or a flag in your data)
-  // if (user.email === "kspace@example.com") {
-  //   return <AdminNavigator />;
-  // }
+  // No user, show auth screens
+  if (!user) {
+    return <AuthStack />;
+  }
 
+  // User is a buyer logging in for the first time
+  if (isFirstLogin && (user.role?.toLowerCase() === 'buyer' || user.account_type?.toLowerCase() === 'buyer')) {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="SuggestedAccounts" component={SuggestedAccountsScreen} />
+        <Stack.Screen name="MainApp" component={AppContent} />
+      </Stack.Navigator>
+    );
+  }
+
+  // Regular app flow
   return <AppContent />;
 };
 

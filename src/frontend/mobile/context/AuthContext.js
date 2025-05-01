@@ -8,6 +8,8 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
+
 
   // On app load, try to load the user from persistent storage
   useEffect(() => {
@@ -89,6 +91,15 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
       await AsyncStorage.setItem("userRole", userRole);
       console.log(`Successfully logged in as: ${userRole}`);
+      
+      // Check if this is a buyer who should see the suggested accounts
+      if (userRole === 'buyer') {
+        const hasSeenSuggestions = await AsyncStorage.getItem(`seen_suggestions_${updatedUser.user_id}`);
+        setIsFirstLogin(!hasSeenSuggestions);
+        console.log(`First login status for buyer: ${!hasSeenSuggestions}`);
+      } else {
+        setIsFirstLogin(false);
+      }
       
       return updatedUser;
     } catch (error) {

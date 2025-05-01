@@ -126,7 +126,8 @@
       "reset_otp": "966954",
       "otp_expires_at": 1744921895595,
       "otp_verified": true,
-      "tier": "Starter Tier"
+      "tier": "Starter Tier",
+      "following": []
     },
     {
       "user_id": 2,
@@ -170,7 +171,7 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 5,
+      "followers_count": 0,
       "earnings": 500,
       "received_orders": [
         {
@@ -261,7 +262,8 @@
       "verification_code": "275708",
       "verification_id": "1744934821300",
       "verification_expiry": 1744935121301,
-      "temp_phone_number": "5192804167"
+      "temp_phone_number": "5192804167",
+      "followers": []
     },
     {
       "user_id": 3,
@@ -297,9 +299,10 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 5,
+      "followers_count": 0,
       "earnings": 500,
-      "orders": []
+      "orders": [],
+      "followers": []
     },
     {
       "name": "Shubh Rai",
@@ -307,16 +310,16 @@
       "password": "shubh@123",
       "account_type": "Seller",
       "role": "seller",
-      "about_us": "",
+      "about_us": "Into Tech🚀",
       "address": "",
-      "city": "",
-      "country": "",
+      "city": "Hamilton",
+      "country": "Canada",
       "social_media_x": "",
       "social_media_linkedin": "",
       "social_media_website": "",
       "profile_image": "default_profile.jpg",
-      "gender": "",
-      "age": null,
+      "gender": "Male",
+      "age": 25,
       "is_two_factor_enabled": false,
       "phone_number": "",
       "is_private_account": false,
@@ -326,7 +329,10 @@
         "hideProducts": false,
         "allowMessagesFrom": "everyone"
       },
-      "user_id": 5
+      "user_id": 5,
+      "id": "5",
+      "followers": [],
+      "followers_count": 0
     },
     {
       "name": "Emily Picot",
@@ -354,7 +360,8 @@
         "allowMessagesFrom": "everyone"
       },
       "user_id": 6,
-      "id": "6"
+      "id": "6",
+      "following": []
     },
     {
       "name": "Pranav Geek",
@@ -383,7 +390,9 @@
         "allowMessagesFrom": "everyone"
       },
       "user_id": 7,
-      "tier": "Starter Tier"
+      "tier": "Starter Tier",
+      "followers": [],
+      "followers_count": 0
     },
     {
       "name": "Derrick Afful",
@@ -412,7 +421,9 @@
         "allowMessagesFrom": "everyone"
       },
       "user_id": 8,
-      "tier": "Starter Tier"
+      "tier": "Starter Tier",
+      "followers": [],
+      "followers_count": 0
     }
   ],
   "products": [
@@ -533,6 +544,18 @@
           "review_id": 9
         }
       ]
+    },
+    {
+      "product_name": "iPad Pro",
+      "category": "",
+      "cost": 2000,
+      "description": "2025 modal",
+      "country": "São Paulo, Brazil",
+      "user_seller": 5,
+      "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/31ADA506-A523-4A7C-9ECD-7B376D82A315/data/Containers/Data/Application/540E5A6A-1C31-4755-8400-67A0F3192930/Library/Caches/ImagePicker/C8C926D7-939D-4D80-B552-63E9ACE011F7.jpg",
+      "verified": true,
+      "created_at": "2025-04-29T03:25:38.828Z",
+      "product_id": 103
     }
   ],
   "reviews": [
@@ -737,6 +760,16 @@
       "receiver_id": 3,
       "timestamp": "2025-04-24T19:06:02.946Z",
       "content": "📦 Your order has shipped! Track it here: https://svg2jsx.com/"
+    },
+    {
+      "user_from": "Pranav Geek",
+      "user_to": "Shubh Rai",
+      "type_message": "text",
+      "message_content": "Hi",
+      "date_timestamp_sent": "2025-04-28T23:23:18.744Z",
+      "is_read": false,
+      "message_id": 19,
+      "add_file": null
     }
   ],
   "notifications": [
@@ -885,95 +918,95 @@
       "link": "https://svg2jsx.com/",
       "order_id": "ORD-1745520098443-496",
       "notification_id": 23
+    },
+    {
+      "user_id": "3",
+      "message": "Your campaign for \"MacBook\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-04-28T21:07:19.568Z",
+      "notification_id": 24
+    },
+    {
+      "user_id": "2",
+      "message": "Your campaign request with Mike Influencer for \"MacBook\" has been approved.",
+      "date_timestamp": "2025-04-28T21:07:19.571Z",
+      "notification_id": 25
+    },
+    {
+      "user_id": "7",
+      "message": "Your campaign for \"Keyboard\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-04-28T22:03:52.391Z",
+      "notification_id": 26
+    },
+    {
+      "user_id": "2",
+      "message": "Your campaign request with Pranav Geek for \"Keyboard\" has been approved.",
+      "date_timestamp": "2025-04-28T22:03:52.397Z",
+      "notification_id": 27
+    },
+    {
+      "user_id": 5,
+      "message": "✅ Your product \"iPad Pro\" has been verified and is now live!",
+      "date_timestamp": "2025-04-29T03:26:34.112Z",
+      "notification_id": 28
+    },
+    {
+      "user_id": "3",
+      "message": "Your campaign for \"iPad Pro\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-04-29T04:03:10.743Z",
+      "notification_id": 29
+    },
+    {
+      "user_id": "5",
+      "message": "Your campaign request with Mike Influencer for \"iPad Pro\" has been approved.",
+      "date_timestamp": "2025-04-29T04:03:10.746Z",
+      "notification_id": 30
+    },
+    {
+      "user_id": "3",
+      "message": "Your campaign for \"iPad Pro\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-04-29T04:27:18.346Z",
+      "notification_id": 31
+    },
+    {
+      "user_id": "5",
+      "message": "Your campaign request with Mike Influencer for \"iPad Pro\" has been approved.",
+      "date_timestamp": "2025-04-29T04:27:18.349Z",
+      "notification_id": 32
+    },
+    {
+      "user_id": "3",
+      "message": "Your campaign for \"iPad Pro\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-04-29T04:44:32.369Z",
+      "notification_id": 33
+    },
+    {
+      "user_id": "5",
+      "message": "Your campaign request with Mike Influencer for \"iPad Pro\" has been approved.",
+      "date_timestamp": "2025-04-29T04:44:32.376Z",
+      "notification_id": 34
+    },
+    {
+      "user_id": "8",
+      "message": "Your campaign for \"Wireless Headphones\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-04-30T00:14:40.491Z",
+      "notification_id": 35
+    },
+    {
+      "user_id": "2",
+      "message": "Your campaign request with Derrick Afful for \"Wireless Headphones\" has been approved.",
+      "date_timestamp": "2025-04-30T00:14:40.504Z",
+      "notification_id": 36
     }
   ],
   "admin_data": [
     {
-      "admin_id": 501,
-      "action": "Sign up influencer user group",
-      "user_id": 3,
-      "status": "rejected",
-      "date_timestamp": "2025-03-18T14:00:00Z",
-      "updated_at": "2025-04-22T23:59:13.573Z"
-    },
-    {
-      "admin_id": 502,
-      "action": "Sign up seller user group",
-      "user_id": 2,
-      "status": "confirmed",
-      "date_timestamp": "2025-03-18T15:00:00Z"
-    },
-    {
-      "user_id": 1,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"Insta: praanaav__\",\"followers\":\"Instagram: 1K\\nTikTok: 5K\\nFacebook: 3K\",\"whyCollaborate\":\"I love promoting product.\",\"priorExperience\":\"Yes\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-22T23:52:53.041Z\"}",
+      "action": "Campaign Approval Request",
+      "user_id": "2",
       "status": "approved",
-      "created_at": "2025-04-22T23:52:53.042Z",
-      "admin_id": 3,
-      "updated_at": "2025-04-22T23:58:26.294Z"
-    },
-    {
-      "user_id": 1,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"345345345\",\"socialMediaHandles\":\"Ffdfgdfv\",\"followers\":\"Fvdfvdf\",\"whyCollaborate\":\"Dvfdfv\",\"priorExperience\":\"Dfvfdv\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-23T00:00:25.750Z\"}",
-      "status": "approved",
-      "created_at": "2025-04-23T00:00:25.751Z",
-      "admin_id": 4,
-      "updated_at": "2025-04-23T00:00:29.273Z"
-    },
-    {
-      "user_id": 1,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"35342233444\",\"socialMediaHandles\":\"Codec\",\"followers\":\"Csdcdsc\",\"whyCollaborate\":\"DSc\",\"priorExperience\":\"Scads\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-23T00:02:02.665Z\"}",
-      "status": "approved",
-      "created_at": "2025-04-23T00:02:02.666Z",
-      "admin_id": 5,
-      "updated_at": "2025-04-23T00:02:09.597Z"
-    },
-    {
-      "user_id": 1,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"4534543444\",\"socialMediaHandles\":\"Ccdsc\",\"followers\":\"Csdcdsc\",\"whyCollaborate\":\"Sdcsdc\",\"priorExperience\":\"sec Csdcdsc\",\"preferredContact\":\"email\",\"submittedAt\":\"2025-04-23T00:06:00.878Z\"}",
-      "status": "approved",
-      "created_at": "2025-04-23T00:06:00.878Z",
-      "admin_id": 6,
-      "updated_at": "2025-04-23T00:06:04.208Z"
-    },
-    {
-      "user_id": 6,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Shubh Rai\",\"email\":\"shubh@rai.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"TikTok: ShubhRoi\",\"followers\":\"TikTok: 10K\",\"whyCollaborate\":\"I love to promote products\",\"priorExperience\":\"Yes\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-23T22:07:43.514Z\"}",
-      "status": "approved",
-      "created_at": "2025-04-23T22:07:43.514Z",
-      "admin_id": 7,
-      "updated_at": "2025-04-23T22:08:34.072Z"
-    },
-    {
-      "user_id": 7,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Pranav Geek\",\"email\":\"pranav@geek.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"Instagram: pranavgeek\",\"followers\":\"Instagram: 50K\",\"whyCollaborate\":\"I love to promote cool tech products\",\"priorExperience\":\"Yes\",\"preferredContact\":\"message\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-23T22:48:01.949Z\"}",
-      "status": "approved",
-      "created_at": "2025-04-23T22:48:01.950Z",
-      "admin_id": 8,
-      "updated_at": "2025-04-23T22:49:02.922Z"
-    },
-    {
-      "user_id": 8,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Derrick Afful\",\"email\":\"derrick@afful\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"Instagram: derrick\",\"followers\":\"Instagram: 50K followers\",\"whyCollaborate\":\"I love to promote cool products\",\"priorExperience\":\"Yes\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-24T00:32:57.069Z\"}",
-      "status": "approved",
-      "created_at": "2025-04-24T00:32:57.069Z",
-      "admin_id": 9,
-      "updated_at": "2025-04-24T00:33:48.155Z"
-    },
-    {
-      "user_id": 9,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Rohit\",\"email\":\"rohit@gmail.com\",\"phone\":\"5182809234\",\"socialMediaHandles\":\"Csd Sdc\",\"followers\":\"Sdc\",\"whyCollaborate\":\"Dfvfd\",\"priorExperience\":\"Sdc\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-04-24T00:36:22.968Z\"}",
-      "status": "rejected",
-      "created_at": "2025-04-24T00:36:22.968Z",
-      "admin_id": 10,
-      "updated_at": "2025-04-24T00:37:19.901Z"
+      "date_timestamp": "2025-04-30T00:13:58.847Z",
+      "details": "{\"campaignRequestId\":\"1745972038800\",\"productName\":\"Wireless Headphones\",\"influencerName\":\"Derrick Afful\",\"sellerName\":\"Sarah Smith\",\"campaignDuration\":50,\"commission\":10}",
+      "admin_id": 1,
+      "updated_at": "2025-04-30T00:14:40.411Z"
     }
   ],
   "orders": [
@@ -1041,6 +1074,224 @@
       "shipping_province": "Gujarat",
       "shipping_country": "India",
       "shipping_postal_code": "395002"
+    }
+  ],
+  "campaign_requests": [
+    {
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "productId": "4",
+      "productName": "MacBook",
+      "productImage": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/532A4BF5-D49E-49D0-B129-1281A4E9ED9F.jpg",
+      "productPrice": 2500,
+      "commission": 10,
+      "campaignDetails": "Request for Mike Influencer to promote MacBook",
+      "campaignDuration": 14,
+      "status": "Accepted",
+      "requestId": "1745865108269",
+      "timestamp": "2025-04-28T18:31:48.269Z",
+      "statusUpdatedAt": "2025-04-28T21:07:19.566Z"
+    },
+    {
+      "requestId": "1745972038800",
+      "influencerId": "8",
+      "influencerName": "Derrick Afful",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "productId": "102",
+      "productName": "Wireless Headphones",
+      "productImage": "headphone.jpg",
+      "productPrice": 120,
+      "commission": 10,
+      "campaignDetails": "Request for Derrick Afful to promote Wireless Headphones",
+      "campaignDuration": 50,
+      "status": "Accepted",
+      "timestamp": "2025-04-30T00:13:58.800Z",
+      "statusUpdatedAt": "2025-04-30T00:14:40.486Z"
+    }
+  ],
+  "collaboration_requests": [
+    {
+      "requestId": "1745971972549",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "8",
+      "influencerName": "Derrick Afful",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-30T00:12:52.549Z"
+    },
+    {
+      "requestId": "1001",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "product": "Smartphone",
+      "status": "Pending",
+      "timestamp": "2025-04-27T23:42:41.679Z"
+    },
+    {
+      "requestId": "1002",
+      "influencerId": "7",
+      "influencerName": "Pranav Geek",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "product": "Keyboard",
+      "status": "Accepted",
+      "timestamp": "2025-04-26T23:42:41.679Z"
+    },
+    {
+      "requestId": "1003",
+      "influencerId": "8",
+      "influencerName": "Derrick Afful",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "product": "Wireless Headphones",
+      "status": "Declined",
+      "timestamp": "2025-04-25T23:42:41.679Z"
+    },
+    {
+      "requestId": "1745890430279",
+      "sellerId": "5",
+      "sellerName": "Shubh Rai",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "General Collaboration",
+      "status": "Pending",
+      "timestamp": "2025-04-29T01:33:50.279Z"
+    },
+    {
+      "requestId": "1745895369781",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T02:56:09.781Z"
+    },
+    {
+      "requestId": "1745896358495",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T03:12:38.495Z"
+    },
+    {
+      "requestId": "1745896380962",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T03:13:00.962Z"
+    },
+    {
+      "requestId": "1745896683814",
+      "sellerId": "5",
+      "sellerName": "Shubh Rai",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T03:18:03.814Z"
+    },
+    {
+      "requestId": "1745896828681",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T03:20:28.681Z"
+    },
+    {
+      "requestId": "1745896841131",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T03:20:41.131Z"
+    },
+    {
+      "requestId": "1745896844245",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T03:20:44.245Z"
+    },
+    {
+      "requestId": "1745896872897",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T03:21:12.897Z"
+    },
+    {
+      "requestId": "1745900688223",
+      "sellerId": "5",
+      "sellerName": "Shubh Rai",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T04:24:48.223Z"
+    },
+    {
+      "requestId": "1745901821195",
+      "sellerId": "5",
+      "sellerName": "Shubh Rai",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-29T04:43:41.195Z"
+    },
+    {
+      "requestId": "1745971606199",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-30T00:06:46.199Z"
+    },
+    {
+      "requestId": "1744064726103",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Accepted",
+      "timestamp": "2025-04-30T22:47:54.512Z"
+    },
+    {
+      "requestId": "1745516672420",
+      "sellerId": "5",
+      "sellerName": "Shubh Rai",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Pending",
+      "timestamp": "2025-04-24T17:44:32.420Z"
     }
   ]
 }

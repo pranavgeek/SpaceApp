@@ -886,6 +886,169 @@ const db = {
       return false;
     }
   },
+
+  // Get all campaign requests
+getCampaignRequests: async () => {
+  try {
+    const data = loadData();
+    return data.campaign_requests || [];
+  } catch (error) {
+    console.error("Error getting campaign requests:", error);
+    return [];
+  }
+},
+
+// Get campaign requests for a specific influencer
+getInfluencerCampaignRequests: async (influencerId) => {
+  try {
+    const data = loadData();
+    return (data.campaign_requests || []).filter(
+      req => String(req.influencerId) === String(influencerId)
+    );
+  } catch (error) {
+    console.error("Error getting influencer campaign requests:", error);
+    return [];
+  }
+},
+
+// Get campaign requests for a specific seller
+getSellerCampaignRequests: async (sellerId) => {
+  try {
+    const data = loadData();
+    return (data.campaign_requests || []).filter(
+      req => String(req.sellerId) === String(sellerId)
+    );
+  } catch (error) {
+    console.error("Error getting seller campaign requests:", error);
+    return [];
+  }
+},
+
+// Create a new campaign request
+createCampaignRequest: async (campaignRequest) => {
+  try {
+    const data = loadData();
+    
+    // Initialize campaign_requests array if it doesn't exist
+    if (!data.campaign_requests) {
+      data.campaign_requests = [];
+    }
+    
+    // Generate a unique request ID
+    campaignRequest.requestId = campaignRequest.requestId || Date.now().toString();
+    
+    // Set initial status to "Pending" if not provided
+    campaignRequest.status = campaignRequest.status || "Pending";
+    
+    // Add timestamp if not provided
+    campaignRequest.timestamp = campaignRequest.timestamp || new Date().toISOString();
+    
+    // Add the new request
+    data.campaign_requests.push(campaignRequest);
+    
+    // Save the updated data
+    saveData(data);
+    
+    // Return the created request
+    return campaignRequest;
+  } catch (error) {
+    console.error("Error creating campaign request:", error);
+    throw error;
+  }
+},
+
+// Get a campaign request by ID
+getCampaignRequestById: async (requestId) => {
+  try {
+    const data = loadData();
+    return (data.campaign_requests || []).find(
+      req => req.requestId === requestId
+    );
+  } catch (error) {
+    console.error("Error getting campaign request by ID:", error);
+    return null;
+  }
+},
+
+// Update a campaign request
+updateCampaignRequest: async (requestId, updates) => {
+  try {
+    const data = loadData();
+    
+    // Check if the campaign_requests array exists
+    if (!data.campaign_requests) {
+      throw new Error("No campaign requests found");
+    }
+    
+    // Find the index of the request to update
+    const requestIndex = data.campaign_requests.findIndex(
+      req => req.requestId === requestId
+    );
+    
+    if (requestIndex === -1) {
+      throw new Error("Campaign request not found");
+    }
+    
+    // Update the request
+    data.campaign_requests[requestIndex] = {
+      ...data.campaign_requests[requestIndex],
+      ...updates,
+      // If updating status, add status update timestamp
+      ...(updates.status ? { statusUpdatedAt: new Date().toISOString() } : {})
+    };
+    
+    // Save the updated data
+    saveData(data);
+    
+    // Return the updated request
+    return data.campaign_requests[requestIndex];
+  } catch (error) {
+    console.error("Error updating campaign request:", error);
+    throw error;
+  }
+},
+
+// Update campaign request status
+updateCampaignRequestStatus: async (requestId, status) => {
+  try {
+    return await db.updateCampaignRequest(requestId, { status });
+  } catch (error) {
+    console.error("Error updating campaign request status:", error);
+    throw error;
+  }
+},
+
+// Delete a campaign request
+ deleteCampaignRequest:  async (requestId) => {
+  try {
+    const data = loadData();
+    
+    // Check if the campaign_requests array exists
+    if (!data.campaign_requests) {
+      return false;
+    }
+    
+    // Find the index of the request to delete
+    const requestIndex = data.campaign_requests.findIndex(
+      req => req.requestId === requestId
+    );
+    
+    if (requestIndex === -1) {
+      return false;
+    }
+    
+    // Remove the request
+    data.campaign_requests.splice(requestIndex, 1);
+    
+    // Save the updated data
+    saveData(data);
+    
+    return true;
+  } catch (error) {
+    console.error("Error deleting campaign request:", error);
+    return false;
+  }
+}
 };
 
 module.exports = db;

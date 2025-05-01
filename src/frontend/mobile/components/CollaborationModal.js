@@ -16,8 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { useTheme } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { fetchUsers } from "../backend/db/API";
+import { fetchUsers, createCollaborationRequest } from "../backend/db/API";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -29,6 +28,7 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [swipedAll, setSwipedAll] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const swiperRef = useRef(null);
 
   const styles = getDynamicStyles(colors);
@@ -47,20 +47,8 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
         (u) => u.account_type === "Seller"
       );
       
-      // Get existing collaboration requests
-      const stored = await AsyncStorage.getItem("collaborationRequests");
-      const existingRequests = stored ? JSON.parse(stored) : [];
-      
-      // Mark sellers that already have requests but include all
-      const availableSellers = filteredSellers.map(seller => ({
-        ...seller,
-        alreadyRequested: existingRequests.some(
-          req => req.influencerId === user.id && req.sellerId === seller.user_id.toString()
-        )
-      }));
-      
-      setSellers(availableSellers);
-      setSwipedAll(availableSellers.length === 0);
+      setSellers(filteredSellers);
+      setSwipedAll(filteredSellers.length === 0);
     } catch (err) {
       console.error("Failed to fetch sellers", err);
       Alert.alert("Error", "Failed to load potential collaborators");
@@ -71,68 +59,40 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
 
   const handleSwipeRight = async (cardIndex) => {
     const selectedSeller = sellers[cardIndex];
-
-    // Skip if already requested
-    if (selectedSeller.alreadyRequested) {
-      Alert.alert("Already Sent", "You already sent a request to this seller.");
+    
+    // Prevent duplicate swipes to the same seller
+    if (isSending) {
       return;
     }
-
-    const request = {
-      requestId: Date.now().toString(),
-      sellerId: selectedSeller.user_id.toString(),
-      sellerName: selectedSeller.name,
-      influencerId: user.id,
-      influencerName: user.name,
-      product: "Collaboration Request",
-      status: "Pending",
-      timestamp: new Date().toISOString()
-    };
-
+    
+    setIsSending(true);
+    
     try {
-      // Update collaboration requests
-      const stored = await AsyncStorage.getItem("collaborationRequests");
-      const existingRequests = stored ? JSON.parse(stored) : [];
+      // Create the collaboration request directly on the backend
+      const request = {
+        requestId: Date.now().toString(),
+        sellerId: selectedSeller.user_id.toString(),
+        sellerName: selectedSeller.name,
+        influencerId: user.id || user.user_id.toString(),
+        influencerName: user.name,
+        product: "Collaboration Request",
+        status: "Pending",
+        timestamp: new Date().toISOString()
+      };
       
-      const alreadySent = existingRequests.some(
-        (r) =>
-          r.influencerId === user.id &&
-          r.sellerId === selectedSeller.user_id.toString()
-      );
-
-      if (alreadySent) {
-        Alert.alert("Already Sent", "You already sent a request to this seller.");
-        return;
-      }
+      console.log("Sending collaboration request:", request);
       
-      const updatedRequests = [...existingRequests, request];
-      await AsyncStorage.setItem("collaborationRequests", JSON.stringify(updatedRequests));
+      // Send to the backend
+      const createdRequest = await createCollaborationRequest(request);
+      console.log("Created request:", createdRequest);
 
-      // Store an initial message as well
-      const storedMessages = await AsyncStorage.getItem("messages");
-      const existingMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      existingMessages.push({
-        message_id: Date.now(),
-        user_from: user.name,
-        user_to: selectedSeller.name,
-        type_message: "text",
-        message_content: "Hi, I'm interested in collaborating with you!",
-        date_timestamp_sent: new Date().toISOString(),
-      });
-
-      await AsyncStorage.setItem("messages", JSON.stringify(existingMessages));
-
-      // Update the local sellers state
-      const updatedSellers = [...sellers];
-      updatedSellers[cardIndex] = { ...updatedSellers[cardIndex], alreadyRequested: true };
-      setSellers(updatedSellers);
-
-      // Show a success message
+      // Show success message
       showCollaboationSuccessIndicator(selectedSeller.name);
     } catch (error) {
       console.error("Error sending request:", error);
       Alert.alert("Error", "Something went wrong while sending your request.");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -162,12 +122,6 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
       <Text style={styles.cardSubtitle}>
         {seller.about_us || "No description available"}
       </Text>
-      
-      {seller.alreadyRequested && (
-        <View style={styles.alreadyRequestedBadge}>
-          <Text style={styles.alreadyRequestedText}>Already Requested</Text>
-        </View>
-      )}
       
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
@@ -313,15 +267,25 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
               <TouchableOpacity 
                 style={[styles.actionButton, styles.skipButton]}
                 onPress={() => swiperRef.current?.swipeLeft()}
+                disabled={isSending}
               >
                 <Ionicons name="close" size={24} color="#FFF" />
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={[styles.actionButton, styles.connectButton]}
+                style={[
+                  styles.actionButton, 
+                  styles.connectButton,
+                  isSending && styles.disabledButton
+                ]}
                 onPress={() => swiperRef.current?.swipeRight()}
+                disabled={isSending}
               >
-                <Ionicons name="checkmark" size={24} color="#FFF" />
+                {isSending ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Ionicons name="checkmark" size={24} color="#FFF" />
+                )}
               </TouchableOpacity>
             </View>
           </>
@@ -483,6 +447,9 @@ const getDynamicStyles = (colors) => StyleSheet.create({
   },
   connectButton: {
     backgroundColor: "#4CAF50",
+  },
+  disabledButton: {
+    backgroundColor: "#4CAF50AA",
   },
   loaderContainer: {
     flex: 1,

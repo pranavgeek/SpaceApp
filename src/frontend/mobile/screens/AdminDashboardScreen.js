@@ -25,6 +25,8 @@ import {
   verifyProduct,
   updateAdminStatus,
   updateUserRole,
+  fetchCampaignRequests,
+  updateCampaignRequestStatus,
 } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -41,10 +43,22 @@ export default function AdminDashboardScreen() {
   const [processingAction, setProcessingAction] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [campaignRequests, setCampaignRequests] = useState([]);
 
   useEffect(() => {
     loadAdminDashboard();
+    loadCampaignRequests();
   }, []);
+
+  const loadCampaignRequests = async () => {
+    try {
+      const requests = await fetchCampaignRequests();
+      setCampaignRequests(requests);
+    } catch (error) {
+      console.error("Error loading campaign requests:", error);
+      Alert.alert("Error", "Failed to load campaign requests.");
+    }
+  };
 
   const loadAdminDashboard = async () => {
     try {
@@ -194,10 +208,109 @@ export default function AdminDashboardScreen() {
     }
   };
 
-  const handleApprove = (adminId, userId, role) => {
-    console.log(`✅ Approved ${role} for user ${userId}`);
-    // Call updateUser and updateAdminStatus here (to be implemented)
+  const handleApprove = async (adminId, userId, role, additionalData) => {
+    try {
+      setProcessingAction(true);
+      if (role === "Influencer") {
+        // ... existing influencer approval logic
+      } else if (role === "Campaign") {
+        // Handle campaign approval
+        await updateCampaignRequestStatus(additionalData.requestId, {
+          status: "approved",
+        });
+        Alert.alert("Success", "Campaign approved!");
+      }
+      await loadAdminDashboard();
+      await loadCampaignRequests();
+    } catch (error) {
+      console.error("Error during approval:", error);
+      Alert.alert("Error", "Approval failed.");
+    } finally {
+      setProcessingAction(false);
+    }
   };
+
+  const handleCampaignApproval = async (requestId, adminId) => {
+    try {
+      setProcessingAction(true);
+      console.log(`✅ Approving campaign request ${requestId}`);
+      
+      // 1. Update the admin action status
+      if (adminId) {
+        await updateAdminStatus(adminId, "approved");
+      }
+      
+      // 2. Update the campaign request status
+      await updateCampaignRequestStatus(requestId, "Accepted");
+      
+      // 3. Create notifications for both seller and influencer
+      const campaign = campaignRequests.find(c => c.requestId === requestId);
+      if (campaign) {
+        // Notify influencer
+        await createNotification({
+          user_id: campaign.influencerId,
+          message: `Your campaign for "${campaign.productName}" has been approved. Check your Active Campaigns tab.`,
+          date_timestamp: new Date().toISOString(),
+        });
+        
+        // Notify seller
+        await createNotification({
+          user_id: campaign.sellerId,
+          message: `Your campaign request with ${campaign.influencerName} for "${campaign.productName}" has been approved.`,
+          date_timestamp: new Date().toISOString(),
+        });
+      }
+      
+      // 4. Refresh data
+      await loadCampaignRequests();
+      
+      Alert.alert("Success", "Campaign has been approved successfully.");
+    } catch (error) {
+      console.error("Error approving campaign:", error);
+      Alert.alert("Error", "Failed to approve campaign request. Please try again.");
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+  
+  const handleCampaignRejection = async (requestId) => {
+    try {
+      setProcessingAction(true);
+      console.log(`❌ Rejecting campaign request ${requestId}`);
+      
+      // 1. Update the campaign request status
+      await updateCampaignRequestStatus(requestId, "Declined");
+      
+      // 2. Create notifications for both seller and influencer
+      const campaign = campaignRequests.find(c => c.requestId === requestId);
+      if (campaign) {
+        // Notify influencer
+        await createNotification({
+          user_id: campaign.influencerId,
+          message: `Campaign request for "${campaign.productName}" has been declined by admin.`,
+          date_timestamp: new Date().toISOString(),
+        });
+        
+        // Notify seller
+        await createNotification({
+          user_id: campaign.sellerId,
+          message: `Your campaign request with ${campaign.influencerName} for "${campaign.productName}" was not approved.`,
+          date_timestamp: new Date().toISOString(),
+        });
+      }
+      
+      // 3. Refresh data
+      await loadCampaignRequests();
+      
+      Alert.alert("Success", "Campaign has been declined.");
+    } catch (error) {
+      console.error("Error rejecting campaign:", error);
+      Alert.alert("Error", "Failed to reject campaign request. Please try again.");
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+  
 
   const handleProductVerify = async (productId, productName) => {
     try {
@@ -390,82 +503,73 @@ export default function AdminDashboardScreen() {
       >
         <Ionicons
           name="checkmark-circle-outline"
-          size={20}
+          size={24}
           color={activeTab === "approvals" ? colors.primary : colors.subtitle}
         />
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === "approvals" && styles.activeTabText,
-          ]}
-        >
-          Approvals
-        </Text>
+        {pendingApprovals.length > 0 && (
+          <View style={styles.iconBadge}>
+            <Text style={styles.iconBadgeText}>{pendingApprovals.length}</Text>
+          </View>
+        )}
       </TouchableOpacity>
-
+  
       <TouchableOpacity
         style={[styles.tab, activeTab === "tracking" && styles.activeTab]}
         onPress={() => setActiveTab("tracking")}
       >
         <Ionicons
           name="navigate-outline"
-          size={20}
+          size={24}
           color={activeTab === "tracking" ? colors.primary : colors.subtitle}
         />
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === "tracking" && styles.activeTabText,
-          ]}
-        >
-          Tracking
-        </Text>
         {pendingTrackings.length > 0 && (
-          <View style={styles.tabBadge}>
-            <Text style={styles.tabBadgeText}>{pendingTrackings.length}</Text>
+          <View style={styles.iconBadge}>
+            <Text style={styles.iconBadgeText}>{pendingTrackings.length}</Text>
           </View>
         )}
       </TouchableOpacity>
-
+  
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "campaigns" && styles.activeTab]}
+        onPress={() => setActiveTab("campaigns")}
+      >
+        <Ionicons
+          name="megaphone-outline"
+          size={24}
+          color={activeTab === "campaigns" ? colors.primary : colors.subtitle}
+        />
+        {campaignRequests.filter(c => c.status === "Pending").length > 0 && (
+          <View style={styles.iconBadge}>
+            <Text style={styles.iconBadgeText}>
+              {campaignRequests.filter(c => c.status === "Pending").length}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+  
       <TouchableOpacity
         style={[styles.tab, activeTab === "accounts" && styles.activeTab]}
         onPress={() => setActiveTab("accounts")}
       >
         <Ionicons
           name="person-outline"
-          size={20}
+          size={24}
           color={activeTab === "accounts" ? colors.primary : colors.subtitle}
         />
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === "accounts" && styles.activeTabText,
-          ]}
-        >
-          Accounts
-        </Text>
       </TouchableOpacity>
-
+  
       <TouchableOpacity
         style={[styles.tab, activeTab === "products" && styles.activeTab]}
         onPress={() => setActiveTab("products")}
       >
         <Ionicons
           name="cube-outline"
-          size={20}
+          size={24}
           color={activeTab === "products" ? colors.primary : colors.subtitle}
         />
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === "products" && styles.activeTabText,
-          ]}
-        >
-          Products
-        </Text>
       </TouchableOpacity>
     </View>
-  );
+  );  
 
   const renderPendingApprovals = () => (
     <View style={styles.sectionContainer}>
@@ -1041,6 +1145,135 @@ export default function AdminDashboardScreen() {
     );
   };
 
+  const renderCampaignRequests = () => {
+    // Filter for pending campaign requests
+    const pendingCampaigns = campaignRequests.filter(req => req.status === "Pending");
+    
+    return (
+      <View style={styles.sectionContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Campaign Approval Requests</Text>
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{pendingCampaigns.length}</Text>
+          </View>
+        </View>
+  
+        {pendingCampaigns.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="megaphone" size={50} color="#8b5cf6" />
+            <Text style={styles.emptyStateText}>No pending campaign requests</Text>
+          </View>
+        ) : (
+          pendingCampaigns.map((request) => {
+            // Find the admin data related to this campaign request
+            const adminAction = adminData.find(
+              action => action.details && 
+              JSON.parse(action.details).campaignRequestId === request.requestId
+            );
+            
+            // Find the seller and influencer
+            const seller = users.find(u => u.user_id === parseInt(request.sellerId));
+            const influencer = users.find(u => u.user_id === parseInt(request.influencerId));
+            
+            return (
+              <View key={request.requestId} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.userInfo}>
+                    <View
+                      style={[
+                        styles.userIconContainer,
+                        { backgroundColor: "#e0f2fe" },
+                      ]}
+                    >
+                      <Text style={styles.userInitial}>
+                        {seller?.name?.charAt(0).toUpperCase() || "S"}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.userName}>
+                        {seller?.name || "Unknown Seller"}
+                      </Text>
+                      <Text style={styles.userAction}>
+                        Campaign Request for {influencer?.name || "Unknown Influencer"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>{request.status}</Text>
+                  </View>
+                </View>
+  
+                <View style={styles.campaignDetails}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Product:</Text>
+                    <Text style={styles.detailValue}>{request.productName}</Text>
+                  </View>
+                  
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Duration:</Text>
+                    <Text style={styles.detailValue}>{request.campaignDuration} days</Text>
+                  </View>
+                  
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Commission:</Text>
+                    <Text style={styles.detailValue}>{request.commission}%</Text>
+                  </View>
+                  
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Submitted:</Text>
+                    <Text style={styles.detailValue}>
+                      {new Date(request.timestamp).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+  
+                <View style={styles.divider} />
+  
+                <View style={styles.cardFooter}>
+                  <TouchableOpacity
+                    style={styles.rejectButton}
+                    onPress={() => handleCampaignRejection(request.requestId)}
+                    disabled={processingAction}
+                  >
+                    <Text style={styles.rejectButtonText}>
+                      {processingAction ? "Processing..." : "Reject"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.approveButton,
+                      processingAction && styles.disabledButton,
+                    ]}
+                    onPress={() => handleCampaignApproval(request.requestId, adminAction?.admin_id)}
+                    disabled={processingAction}
+                  >
+                    {processingAction ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#fff"
+                        style={{ marginRight: 8 }}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color="#fff"
+                        style={{ marginRight: 4 }}
+                      />
+                    )}
+                    <Text style={styles.approveButtonText}>
+                      {processingAction ? "Processing..." : "Approve"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </View>
+    );
+  };
+
   const renderActiveTabContent = () => {
     switch (activeTab) {
       case "approvals":
@@ -1051,6 +1284,8 @@ export default function AdminDashboardScreen() {
         return renderConfirmedAccounts();
       case "products":
         return renderProducts();
+      case "campaigns":
+        return renderCampaignRequests();
       default:
         return renderPendingApprovals();
     }
@@ -1216,12 +1451,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
+    flexDirection: 'row',
+    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 12,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2.22,
@@ -1229,41 +1464,31 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
-    position: "relative",
+    position: 'relative',
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: "#3b82f6",
+    borderBottomColor: '#3b82f6',
   },
-  tabText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#6b7280",
-    marginLeft: 4,
-  },
-  activeTabText: {
-    color: "#3b82f6",
-    fontWeight: "600",
-  },
-  tabBadge: {
-    position: "absolute",
-    top: 8,
-    right: 16,
-    backgroundColor: "#ef4444",
+  iconBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 'auto',
+    backgroundColor: '#ef4444',
     width: 18,
     height: 18,
     borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 16,
   },
-  tabBadgeText: {
-    color: "#fff",
+  iconBadgeText: {
+    color: '#fff',
     fontSize: 10,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   sectionContainer: {
     padding: 16,

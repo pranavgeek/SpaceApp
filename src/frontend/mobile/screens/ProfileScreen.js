@@ -14,7 +14,7 @@ import {
   ImageBackground,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -152,10 +152,15 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.statLabel}>Campaigns</Text>
             </View>
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() =>
+                navigation.navigate("Followers", { userId: user.user_id })
+              }
+            >
               <Text style={styles.statValue}>{seller.followers}</Text>
               <Text style={styles.statLabel}>Followers</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>${seller.earnings}</Text>

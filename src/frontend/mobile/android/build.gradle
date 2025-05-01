@@ -6,10 +6,22 @@ buildscript {
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
         targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
-        kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
-
+        
+        // Force Kotlin version 1.9.25 explicitly here
+        kotlinVersion = '1.9.25'
+        
         ndkVersion = "26.1.10909125"
     }
+    
+    // Add this: Force Kotlin version for all projects
+    configurations.classpath {
+        resolutionStrategy.force "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.25"
+        resolutionStrategy.force "org.jetbrains.kotlin:kotlin-stdlib:1.9.25"
+        resolutionStrategy.force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
+        resolutionStrategy.force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.25"
+        resolutionStrategy.force "org.jetbrains.kotlin:kotlin-reflect:1.9.25"
+    }
+    
     repositories {
         google()
         mavenCentral()
@@ -17,7 +29,9 @@ buildscript {
     dependencies {
         classpath('com.android.tools.build:gradle')
         classpath('com.facebook.react:react-native-gradle-plugin')
-        classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+        
+        // Specify version explicitly
+        classpath('org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.25')
     }
 }
 

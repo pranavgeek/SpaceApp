@@ -554,7 +554,6 @@ export default function ChatScreen({ navigation, route }) {
                       <Text style={styles.profileName} numberOfLines={1}>
                         {chatPartner}
                       </Text>
-                      <Text style={styles.onlineStatus}>Online</Text>
                     </View>
                   </View>
                   {isSelecting ? (
@@ -578,7 +577,7 @@ export default function ChatScreen({ navigation, route }) {
                       style={styles.menuButton}
                       onPress={() => {}}
                     >
-                      <MaterialIcons name="more-vert" size={24} color="#fff" />
+                      {/* <MaterialIcons name="more-vert" size={24} color="#fff" /> */}
                     </TouchableOpacity>
                   )}
                 </View>

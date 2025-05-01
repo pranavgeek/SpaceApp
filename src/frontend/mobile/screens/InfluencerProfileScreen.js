@@ -64,8 +64,9 @@ export default function InfluencerProfileScreen({ navigation }) {
   };
 
   // Action Handlers (adjust navigation routes as needed)
-  const handleCampaigns = () => navigation.navigate("Campaigns");
+  const handleActiveCampaigns = () => navigation.navigate("ActiveCampaigns");
   const handlePendingCampaigns = () => navigation.navigate("PendingCampaigns");
+  const handleClosedCampaigns = () => navigation.navigate("ClosedCampaigns");
 
   return (
     <SafeAreaView style={styles.container}>
@@ -206,7 +207,7 @@ export default function InfluencerProfileScreen({ navigation }) {
             <View style={styles.buttonsGrid}>
               <TouchableOpacity
                 style={styles.menuButton}
-                onPress={handleCampaigns}
+                onPress={handleActiveCampaigns}
               >
                 <View style={styles.buttonIconContainer}>
                   <Ionicons
@@ -234,7 +235,7 @@ export default function InfluencerProfileScreen({ navigation }) {
 
               <TouchableOpacity
                 style={styles.menuButton}
-                onPress={() => navigation.navigate("Closed Campaigns")}
+                onPress={handleClosedCampaigns}
               >
                 <View style={styles.buttonIconContainer}>
                   <MaterialCommunityIcons

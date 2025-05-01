@@ -1,89 +1,313 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { 
   View, 
   Text, 
   FlatList, 
   StyleSheet, 
   TouchableOpacity, 
-  StatusBar 
+  StatusBar,
+  Alert,
+  ActivityIndicator
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import CampaignFormModal from "../components/CampaignFormModal";
+import { 
+  fetchCollaborationRequests, 
+  syncCollaborationRequests, 
+  updateCollaborationRequestStatus,
+  fetchCampaignRequests
+} from "../backend/db/API";
 
 const CollaborationRequestScreen = ({ navigation }) => {
   const { colors, isDarkMode } = useTheme();
   const styles = getDynamicStyles(colors, isDarkMode);
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
+  const [formModalVisible, setFormModalVisible] = useState(false);
+  const [selectedInfluencer, setSelectedInfluencer] = useState(null);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [campaignRequests, setCampaignRequests] = useState([]);
+  const isMounted = useRef(true);
 
-  const loadRequests = async () => {
+  // Ensure we don't set state after unmounting
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  // Load all campaign requests to check against collaboration requests
+  const loadCampaignRequests = useCallback(async () => {
     try {
-      const stored = await AsyncStorage.getItem("collaborationRequests");
-      const allRequests = stored ? JSON.parse(stored) : [];
-      const sellerRequests = allRequests.filter(
-        (req) => req && req.requestId && req.sellerId === user.id
-      );
-      setRequests(sellerRequests);
+      const campaigns = await fetchCampaignRequests();
+      if (isMounted.current) {
+        setCampaignRequests(campaigns);
+      }
+      return campaigns;
+    } catch (error) {
+      console.error("Error loading campaign requests", error);
+      return [];
+    }
+  }, []);
+
+  const loadCollaborationRequests = useCallback(async () => {
+    // Only load if we're a seller
+    if (!user || !user.id || user.account_type !== "Seller") return;
+    
+    try {
+      if (isMounted.current) {
+        setLoading(true);
+        setError(null);
+      }
+      
+      // First sync collaboration requests between local storage and backend
+      await syncCollaborationRequests();
+      
+      // Get all campaign requests to check against
+      const allCampaignRequests = await loadCampaignRequests();
+      
+      // Then fetch all requests for this seller
+      const sellerIdToUse = user.id || user.user_id;
+      const collaborationRequests = await fetchCollaborationRequests(sellerIdToUse);
+      
+      console.log(`Loaded ${collaborationRequests.length} collaboration requests for seller ${sellerIdToUse}`);
+      
+      if (isMounted.current) {
+        // Update collaboration request status based on existing campaign requests
+        const updatedRequests = collaborationRequests.map(request => {
+          // Check if there's an accepted campaign request for this influencer
+          const existingCampaign = allCampaignRequests.find(campaign => 
+            campaign.influencerId === request.influencerId && 
+            campaign.sellerId === sellerIdToUse &&
+            campaign.status === "Accepted"
+          );
+          
+          // If we found a campaign, update the collaboration request status
+          if (existingCampaign && request.status === "Pending") {
+            return {
+              ...request,
+              status: "Accepted",
+              campaignRequestId: existingCampaign.requestId,
+              productName: existingCampaign.productName
+            };
+          }
+          
+          return request;
+        });
+        
+        // Enhanced deduplication by influencer ID and status
+        const uniqueByInfluencer = [];
+        const seenInfluencers = new Set();
+
+        // Sort by timestamp (newest first) to ensure we keep the most recent
+        const sortedRequests = [...updatedRequests].sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        sortedRequests.forEach(request => {
+          // Create a unique key combining influencer ID and status
+          const key = `${request.influencerId}-${request.status}`;
+          
+          if (!seenInfluencers.has(key)) {
+            seenInfluencers.add(key);
+            uniqueByInfluencer.push(request);
+          }
+          // We don't need the else case here since we've sorted by timestamp
+          // and will process the newest requests first
+        });
+
+        setRequests(uniqueByInfluencer);
+      }
     } catch (error) {
       console.error("Error loading collaboration requests", error);
-    }
-  };
-
-  const updateRequestStatus = async (requestId, newStatus) => {
-    try {
-      const stored = await AsyncStorage.getItem("collaborationRequests");
-      const allRequests = stored ? JSON.parse(stored) : [];
-      let updatedRequests;
-      if (newStatus === "Declined") {
-        // Remove the request if declined.
-        updatedRequests = allRequests.filter((req) => req.requestId !== requestId);
-      } else {
-        // Update the status for accepted requests.
-        updatedRequests = allRequests.map((req) =>
-          req.requestId === requestId ? { ...req, status: newStatus } : req
-        );
+      if (isMounted.current) {
+        setError("Failed to load collaboration requests. Please try again.");
       }
-      await AsyncStorage.setItem("collaborationRequests", JSON.stringify(updatedRequests));
-      const sellerRequests = updatedRequests.filter(
-        (req) => req && req.requestId && req.sellerId === user.id
-      );
-      setRequests(sellerRequests);
-    } catch (error) {
-      console.error("Error updating request status", error);
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  };
+  }, [user, loadCampaignRequests]);
 
+  // Load data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadRequests();
-    }, [user])
+      loadCollaborationRequests();
+    }, [loadCollaborationRequests])
   );
   
+  const handleSelectInfluencer = (item) => {
+    // Check if any campaigns have already been created for this influencer
+    const existingCampaign = requests.find(
+      req => req.influencerId === item.influencerId && 
+             req.status === "Accepted"
+    );
+    
+    if (existingCampaign) {
+      Alert.alert(
+        "Campaign Exists",
+        "You've already created a campaign with this influencer that's waiting for admin approval.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
+    // Check in the campaignRequests state for existing campaigns
+    const existingCampaignRequest = campaignRequests.find(
+      campaign => 
+        campaign.influencerId === item.influencerId && 
+        campaign.sellerId === (user.id || user.user_id)
+    );
+    
+    if (existingCampaignRequest) {
+      Alert.alert(
+        "Campaign Exists",
+        `You already have a ${existingCampaignRequest.status} campaign with this influencer for "${existingCampaignRequest.productName}".`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
+    // Handle selection for campaign creation
+    setSelectedInfluencer({
+      id: item.influencerId,
+      name: item.influencerName
+    });
+    setSelectedRequestId(item.requestId);
+    setFormModalVisible(true);
+  };
+
+  // Update collaboration request status
+  const updateRequestStatus = async (requestId, status, campaignRequestId = null, productName = null) => {
+    try {
+      const updatedRequest = { status };
+      
+      // If we have a campaign request ID, associate it with the collaboration request
+      if (campaignRequestId) {
+        updatedRequest.campaignRequestId = campaignRequestId;
+      }
+      
+      // If we have a product name, associate it with the collaboration request
+      if (productName) {
+        updatedRequest.productName = productName;
+      }
+      
+      await updateCollaborationRequestStatus(requestId, updatedRequest);
+      
+      // Refresh the list
+      loadCollaborationRequests();
+    } catch (error) {
+      console.error("Error updating request status:", error);
+      Alert.alert("Error", "Failed to update request status.");
+    }
+  };
+
   const renderItem = ({ item }) => (
-    <View style={styles.requestItem}>
+    <TouchableOpacity 
+      style={styles.requestItem} 
+      onPress={() => item.status === "Pending" ? handleSelectInfluencer(item) : null}
+      activeOpacity={item.status === "Pending" ? 0.7 : 1}
+    >
+      <View style={styles.requestHeader}>
+        <Text style={styles.influencerName}>{item.influencerName}</Text>
+        <View style={[
+          styles.statusBadge,
+          item.status === "Pending" ? styles.pendingBadge : 
+          item.status === "Accepted" ? styles.acceptedBadge : 
+          styles.declinedBadge
+        ]}>
+          <Text style={styles.statusText}>{item.status}</Text>
+        </View>
+      </View>
       <Text style={styles.requestText}>
-        {item.influencerName} requested to collaborate on {item.product} ({item.status})
+        {item.status === "Accepted" && item.productName
+          ? `Campaign created for "${item.productName}"`
+          : `Requested to collaborate on ${item.product || "your products"}`}
       </Text>
+      <Text style={styles.timestampText}>
+        {new Date(item.timestamp).toLocaleDateString()}
+      </Text>
+      
+      {/* Only show Create Campaign button for Pending requests */}
       {item.status === "Pending" && (
-        <View style={styles.buttonContainer}>
+        <View style={styles.createCampaignContainer}>
           <TouchableOpacity
-            style={[styles.button, styles.acceptButton]}
-            onPress={() => updateRequestStatus(item.requestId, "Accepted")}
+            style={styles.createCampaignButton}
+            onPress={() => handleSelectInfluencer(item)}
           >
-            <Text style={styles.buttonText}>Accept</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.declineButton]}
-            onPress={() => updateRequestStatus(item.requestId, "Declined")}
-          >
-            <Text style={styles.buttonText}>Decline</Text>
+            <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
+            <Text style={styles.createCampaignText}>Create Campaign</Text>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+      
+      {/* For Accepted requests, show campaign details if available */}
+      {item.status === "Accepted" && (
+        <View style={styles.campaignInfoContainer}>
+          <Text style={styles.campaignInfoText}>
+            Campaign created successfully
+          </Text>
+          {item.campaignRequestId && (
+            <View style={styles.adminStatusContainer}>
+              <Ionicons name="time-outline" size={14} color="#FF9800" />
+              <Text style={styles.adminStatusText}>Awaiting admin approval</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </TouchableOpacity>
   );
+
+  // Handle refresh action
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadCollaborationRequests();
+  };
+
+  // Handle form submission from the modal
+  const handleFormSubmission = (campaignRequestId, productName) => {
+    if (selectedRequestId) {
+      // Update the collaboration request with the campaign ID, status, and product name
+      updateRequestStatus(selectedRequestId, "Accepted", campaignRequestId, productName);
+    }
+    
+    setFormModalVisible(false);
+    setSelectedInfluencer(null);
+    setSelectedRequestId(null);
+    
+    // Show success message
+    Alert.alert(
+      "Success", 
+      "Campaign has been created and sent to admin for approval.",
+      [{ text: "OK" }]
+    );
+  };
+
+  // This screen is only for sellers
+  if (user.account_type !== "Seller") {
+    return (
+      <View style={styles.container}>
+        <StatusBar 
+          barStyle={isDarkMode ? "light-content" : "dark-content"}
+          backgroundColor={colors.background}
+        />
+        <View style={styles.notSellerContainer}>
+          <Text style={styles.notSellerText}>
+            This screen is only available for seller accounts.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -91,18 +315,77 @@ const CollaborationRequestScreen = ({ navigation }) => {
         barStyle={isDarkMode ? "light-content" : "dark-content"}
         backgroundColor={colors.background}
       />
+      
+      {/* Campaign Form Modal */}
+      {selectedInfluencer && (
+        <CampaignFormModal
+          visible={formModalVisible}
+          onClose={() => {
+            setFormModalVisible(false);
+            setSelectedInfluencer(null);
+            setSelectedRequestId(null);
+            // Wait a bit before refreshing to make sure form is fully closed
+            setTimeout(() => {
+              loadCollaborationRequests();
+            }, 500);
+          }}
+          onSubmitSuccess={handleFormSubmission}
+          influencerId={selectedInfluencer.id}
+          influencerName={selectedInfluencer.name}
+          collaborationRequestId={selectedRequestId}
+        />
+      )}
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerActions}>
+          <Text style={styles.headerSubtitle}>
+            Tap on an influencer to create a campaign
+          </Text>
+          <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+            <Ionicons name="refresh-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Loading indicator */}
+      {loading && !refreshing && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      )}
+      
+      {/* Error message */}
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      
+      {/* List of collaboration requests */}
       <FlatList
         data={requests}
-        keyExtractor={(item, index) =>
-          item && item.requestId ? item.requestId.toString() : index.toString()
-        }
+        keyExtractor={(item) => item.requestId?.toString() || Math.random().toString()}
         renderItem={renderItem}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            No collaboration requests yet.
-          </Text>
+          !loading && !error ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={60} color={colors.subtitle} />
+              <Text style={styles.emptyText}>
+                No collaboration requests yet.
+              </Text>
+              <Text style={styles.emptySubtext}>
+                Influencers can discover and request to collaborate with you through the Collaboration Modal.
+              </Text>
+            </View>
+          ) : null
         }
-        contentContainerStyle={requests.length === 0 ? styles.emptyList : null}
+        contentContainerStyle={!loading && !error && requests.length === 0 ? styles.emptyList : styles.listContainer}
       />
     </View>
   );
@@ -111,55 +394,194 @@ const CollaborationRequestScreen = ({ navigation }) => {
 const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
   container: { 
     flex: 1, 
-    padding: 16, 
     backgroundColor: colors.background 
   },
+  header: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: colors.text,
+    marginBottom: 4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.subtitle,
+    flex: 1,
+  },
+  refreshButton: {
+    padding: 4,
+  },
+  listContainer: {
+    padding: 8,
+  },
   requestItem: {
-    padding: 12,
-    backgroundColor: isDarkMode ? colors.card : "#f2f2f2",
-    borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: colors.shadowColor,
+    margin: 8,
+    padding: 16,
+    backgroundColor: isDarkMode ? colors.card : "white",
+    borderRadius: 12,
+    shadowColor: colors.shadowColor || "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: isDarkMode ? 0.2 : 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
-  requestText: { 
-    fontSize: 16, 
+  requestHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
-    color: colors.text
   },
-  buttonContainer: { 
-    flexDirection: "row", 
-    justifyContent: "space-between" 
+  influencerName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.text,
   },
-  button: {
-    flex: 0.48,
-    paddingVertical: 8,
-    borderRadius: 4,
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  pendingBadge: {
+    backgroundColor: "#FFC107", // Amber
+  },
+  acceptedBadge: {
+    backgroundColor: "#4CAF50", // Green
+  },
+  declinedBadge: {
+    backgroundColor: "#F44336", // Red
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  requestText: { 
+    fontSize: 15,
+    color: colors.text,
+    marginBottom: 8,
+  },
+  timestampText: {
+    fontSize: 12,
+    color: colors.subtitle,
+    marginBottom: 8,
+  },
+  createCampaignContainer: {
+    borderTopWidth: 1,
+    borderTopColor: isDarkMode ? "#333333" : "#EEEEEE",
+    marginTop: 8,
+    paddingTop: 12,
+  },
+  campaignInfoContainer: {
+    borderTopWidth: 1,
+    borderTopColor: isDarkMode ? "#333333" : "#EEEEEE",
+    marginTop: 8,
+    paddingTop: 12,
     alignItems: "center",
   },
-  acceptButton: { 
-    backgroundColor: colors.success || "green" 
+  campaignInfoText: {
+    color: "#4CAF50",
+    fontWeight: "500",
+    fontSize: 14,
   },
-  declineButton: { 
-    backgroundColor: colors.error || "red" 
+  adminStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    backgroundColor: "#FFF8E1",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  buttonText: { 
-    color: "#fff", 
-    fontSize: 16,
-    fontWeight: "600" 
+  adminStatusText: {
+    fontSize: 12,
+    color: "#FF9800",
+    marginLeft: 4,
+  },
+  createCampaignButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createCampaignText: {
+    color: colors.primary,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
   emptyText: { 
-    textAlign: "center", 
-    fontSize: 16, 
-    color: colors.subtitle 
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: colors.subtitle,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
   },
   emptyList: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+  },
+  notSellerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  notSellerText: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    zIndex: 100,
+  },
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.error || '#F44336',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   }
 });
 

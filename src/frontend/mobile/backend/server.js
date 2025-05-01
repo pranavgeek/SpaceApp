@@ -37,6 +37,62 @@ const saveData = (data) => {
   );
 };
 
+function initializeFollowingData() {
+  try {
+    const data = loadData();
+    
+    // Initialize following/followers arrays for all users
+    data.users.forEach(user => {
+      // For buyers, initialize following
+      if (user.account_type?.toLowerCase() === 'buyer') {
+        if (!user.following) user.following = [];
+      }
+      
+      // For sellers and influencers, initialize followers
+      if (['seller', 'influencer'].includes(user.account_type?.toLowerCase())) {
+        if (!user.followers) user.followers = [];
+        
+        // If they have a followers_count but no followers array or empty followers array,
+        // populate it with actual buyers
+        if (user.followers_count && (!user.followers || user.followers.length === 0)) {
+          // Find all buyers to use as sample followers
+          const buyers = data.users.filter(u => 
+            u.account_type.toLowerCase() === 'buyer' &&
+            String(u.user_id) !== String(user.user_id)
+          );
+          
+          // Calculate how many followers to create (min of followers_count or available buyers)
+          const followerCount = Math.min(user.followers_count, buyers.length);
+          
+          // Assign random buyers as followers
+          if (buyers.length > 0) {
+            // Shuffle the buyers array to get random followers each time
+            const shuffledBuyers = [...buyers].sort(() => 0.5 - Math.random());
+            
+            // Take the first 'followerCount' buyers
+            user.followers = shuffledBuyers
+              .slice(0, followerCount)
+              .map(buyer => String(buyer.user_id));
+            
+            console.log(`✅ Initialized ${user.followers.length} followers for ${user.name} (${user.user_id})`);
+          }
+        }
+        
+        // Set followers_count to match the actual followers array length
+        user.followers_count = user.followers.length;
+      }
+    });
+    
+    saveData(data);
+    console.log("✅ Following data structure initialized");
+  } catch (error) {
+    console.error("Error initializing following data:", error);
+  }
+}
+
+// Call this function when your server starts
+initializeFollowingData();
+
 // // Configure nodemailer
 // const transporter = nodeMailer.createTransport({
 //   service: "gmail", // or another service
@@ -87,6 +143,8 @@ const saveData = (data) => {
 //     return false;
 //   }
 // }
+
+
 
 // Generate OTP and store in user object
 app.post("/api/auth/request-reset", async (req, res) => {
@@ -1421,6 +1479,799 @@ app.delete("/api/admin/:id", async (req, res) => {
     return res.status(404).json({ error: "Admin action not found" });
   }
   res.json({ message: "Admin action deleted successfully" });
+});
+
+// Get all campaign requests
+app.get("/api/campaign-requests", async (req, res) => {
+  try {
+    const campaignRequests = await db.getCampaignRequests();
+    res.json(campaignRequests);
+  } catch (error) {
+    console.error("Error getting campaign requests:", error);
+    res.status(500).json({ error: "Failed to fetch campaign requests" });
+  }
+});
+
+// Get campaign requests for a specific influencer
+app.get("/api/campaign-requests/influencer/:influencerId", async (req, res) => {
+  try {
+    const { influencerId } = req.params;
+    const campaignRequests = await db.getInfluencerCampaignRequests(influencerId);
+    res.json(campaignRequests);
+  } catch (error) {
+    console.error("Error getting influencer campaign requests:", error);
+    res.status(500).json({ error: "Failed to fetch influencer campaign requests" });
+  }
+});
+
+// Get campaign requests for a specific seller
+app.get("/api/campaign-requests/seller/:sellerId", async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const campaignRequests = await db.getSellerCampaignRequests(sellerId);
+    res.json(campaignRequests);
+  } catch (error) {
+    console.error("Error getting seller campaign requests:", error);
+    res.status(500).json({ error: "Failed to fetch seller campaign requests" });
+  }
+});
+
+// Get a specific campaign request by ID
+app.get("/api/campaign-requests/:requestId", async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const campaignRequest = await db.getCampaignRequestById(requestId);
+    
+    if (!campaignRequest) {
+      return res.status(404).json({ error: "Campaign request not found" });
+    }
+    
+    res.json(campaignRequest);
+  } catch (error) {
+    console.error("Error getting campaign request:", error);
+    res.status(500).json({ error: "Failed to fetch campaign request" });
+  }
+});
+
+// Create a new campaign request
+app.post("/api/campaign-requests", async (req, res) => {
+  try {
+    const campaignRequest = req.body;
+    
+    // Validate required fields
+    if (!campaignRequest.influencerId || !campaignRequest.sellerId) {
+      return res.status(400).json({ error: "Missing required fields: influencerId and sellerId are required" });
+    }
+    
+    const newCampaignRequest = await db.createCampaignRequest(campaignRequest);
+    res.status(201).json(newCampaignRequest);
+  } catch (error) {
+    console.error("Error creating campaign request:", error);
+    res.status(500).json({ error: "Failed to create campaign request" });
+  }
+});
+
+// Update a campaign request
+app.put("/api/campaign-requests/:requestId", async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const updates = req.body;
+    
+    const updatedCampaignRequest = await db.updateCampaignRequest(requestId, updates);
+    res.json(updatedCampaignRequest);
+  } catch (error) {
+    console.error("Error updating campaign request:", error);
+    
+    if (error.message === "Campaign request not found") {
+      return res.status(404).json({ error: "Campaign request not found" });
+    }
+    
+    res.status(500).json({ error: "Failed to update campaign request" });
+  }
+});
+
+// Update campaign request status
+app.put("/api/campaign-requests/:requestId/status", async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ error: "Status is required" });
+    }
+    
+    const updatedCampaignRequest = await db.updateCampaignRequestStatus(requestId, status);
+    res.json(updatedCampaignRequest);
+  } catch (error) {
+    console.error("Error updating campaign request status:", error);
+    
+    if (error.message === "Campaign request not found") {
+      return res.status(404).json({ error: "Campaign request not found" });
+    }
+    
+    res.status(500).json({ error: "Failed to update campaign request status" });
+  }
+});
+
+// Delete a campaign request
+app.delete("/api/campaign-requests/:requestId", async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const deleted = await db.deleteCampaignRequest(requestId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: "Campaign request not found" });
+    }
+    
+    res.json({ message: "Campaign request deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting campaign request:", error);
+    res.status(500).json({ error: "Failed to delete campaign request" });
+  }
+});
+
+// Get all collaboration requests
+app.get("/api/collaboration-requests", (req, res) => {
+  try {
+    const data = loadData();
+    
+    // Make sure we return the existing data from the collaboration_requests array
+    if (data.collaboration_requests) {
+      // Sort by timestamp (newest first)
+      const sortedRequests = [...data.collaboration_requests].sort((a, b) => 
+        new Date(b.timestamp) - new Date(a.timestamp)
+      );
+      
+      // Remove duplicates (sometimes sample data has duplicates)
+      const uniqueRequests = Array.from(
+        new Map(sortedRequests.map(request => [request.requestId, request])).values()
+      );
+      
+      res.json(uniqueRequests);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error("Error fetching collaboration requests:", error);
+    res.status(500).json({ error: "Failed to fetch collaboration requests" });
+  }
+});
+
+// Get collaboration requests for a specific seller
+app.get("/api/collaboration-requests/seller/:sellerId", (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const data = loadData();
+    
+    if (data.collaboration_requests) {
+      // Filter by seller ID and sort by timestamp (newest first)
+      const sellerRequests = data.collaboration_requests
+        .filter(req => String(req.sellerId) === String(sellerId))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      // Remove duplicates
+      const uniqueRequests = Array.from(
+        new Map(sellerRequests.map(request => [request.requestId, request])).values()
+      );
+      
+      res.json(uniqueRequests);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error("Error fetching seller collaboration requests:", error);
+    res.status(500).json({ error: "Failed to fetch seller collaboration requests" });
+  }
+});
+
+// Get collaboration requests for a specific influencer
+app.get("/api/collaboration-requests/influencer/:influencerId", (req, res) => {
+  try {
+    const { influencerId } = req.params;
+    const data = loadData();
+    
+    if (data.collaboration_requests) {
+      // Filter by influencer ID and sort by timestamp (newest first)
+      const influencerRequests = data.collaboration_requests
+        .filter(req => String(req.influencerId) === String(influencerId))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      // Remove duplicates
+      const uniqueRequests = Array.from(
+        new Map(influencerRequests.map(request => [request.requestId, request])).values()
+      );
+      
+      res.json(uniqueRequests);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error("Error fetching influencer collaboration requests:", error);
+    res.status(500).json({ error: "Failed to fetch influencer collaboration requests" });
+  }
+});
+
+// Create a new collaboration request
+app.post("/api/collaboration-requests", (req, res) => {
+  try {
+    const requestData = req.body;
+    
+    // Validate required fields
+    if (!requestData.influencerId || !requestData.sellerId) {
+      return res.status(400).json({ error: "Missing required fields: influencerId and sellerId are required" });
+    }
+    
+    const data = loadData();
+    
+    // Ensure collaboration_requests exists in the data
+    if (!data.collaboration_requests) {
+      data.collaboration_requests = [];
+    }
+    
+    // Generate a unique request ID if not provided
+    const newRequest = {
+      ...requestData,
+      requestId: requestData.requestId || Date.now().toString(),
+      timestamp: requestData.timestamp || new Date().toISOString(),
+      status: requestData.status || "Pending"
+    };
+    
+    // Add the new request
+    data.collaboration_requests.push(newRequest);
+    saveData(data);
+    
+    res.status(201).json(newRequest);
+  } catch (error) {
+    console.error("Error creating collaboration request:", error);
+    res.status(500).json({ error: "Failed to create collaboration request" });
+  }
+});
+
+// Update collaboration request status
+app.put("/api/collaboration-requests/:requestId/status", (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ error: "Status is required" });
+    }
+    
+    const data = loadData();
+    
+    // Ensure collaboration_requests exists in the data
+    if (!data.collaboration_requests) {
+      data.collaboration_requests = [];
+      saveData(data);
+      return res.status(404).json({ error: "Collaboration request not found" });
+    }
+    
+    // Find and update the request
+    const requestIndex = data.collaboration_requests.findIndex(
+      req => String(req.requestId) === String(requestId)
+    );
+    
+    if (requestIndex === -1) {
+      return res.status(404).json({ error: "Collaboration request not found" });
+    }
+    
+    // Update the request
+    data.collaboration_requests[requestIndex] = {
+      ...data.collaboration_requests[requestIndex],
+      status,
+      statusUpdatedAt: new Date().toISOString()
+    };
+    
+    saveData(data);
+    
+    res.json(data.collaboration_requests[requestIndex]);
+  } catch (error) {
+    console.error("Error updating collaboration request status:", error);
+    res.status(500).json({ error: "Failed to update collaboration request status" });
+  }
+});
+
+// Delete a collaboration request
+app.delete("/api/collaboration-requests/:requestId", (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const data = loadData();
+    
+    // Ensure collaboration_requests exists in the data
+    if (!data.collaboration_requests) {
+      data.collaboration_requests = [];
+      saveData(data);
+      return res.status(404).json({ error: "Collaboration request not found" });
+    }
+    
+    // Find the request
+    const initialLength = data.collaboration_requests.length;
+    data.collaboration_requests = data.collaboration_requests.filter(
+      req => String(req.requestId) !== String(requestId)
+    );
+    
+    if (data.collaboration_requests.length === initialLength) {
+      return res.status(404).json({ error: "Collaboration request not found" });
+    }
+    
+    saveData(data);
+    
+    res.json({ message: "Collaboration request deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting collaboration request:", error);
+    res.status(500).json({ error: "Failed to delete collaboration request" });
+  }
+});
+
+// Follow a user
+app.post("/api/users/:followerId/follow", (req, res) => {
+  try {
+    const { followerId } = req.params;
+    const { followee_id } = req.body;
+    
+    if (!followerId || !followee_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Both follower and followee IDs are required" 
+      });
+    }
+    
+    const data = loadData();
+    
+    // Validate user IDs
+    const follower = data.users.find(u => String(u.user_id) === String(followerId));
+    const followee = data.users.find(u => String(u.user_id) === String(followee_id));
+    
+    if (!follower || !followee) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "One or both users not found" 
+      });
+    }
+    
+    // Validate account types - only buyers can follow others
+    if (follower.account_type.toLowerCase() !== 'buyer') {
+      return res.status(403).json({
+        success: false,
+        message: "Only buyers can follow other users"
+      });
+    }
+    
+    // Validate followee is seller or influencer
+    if (!['seller', 'influencer'].includes(followee.account_type.toLowerCase())) {
+      return res.status(403).json({
+        success: false,
+        message: "Can only follow sellers or influencers"
+      });
+    }
+    
+    // Initialize following/followers arrays if they don't exist
+    if (!follower.following) follower.following = [];
+    if (!followee.followers) followee.followers = [];
+    
+    // Check if already following
+    if (follower.following.some(id => String(id) === String(followee_id))) {
+      return res.status(200).json({
+        success: true,
+        message: "Already following this user"
+      });
+    }
+    
+    // Update following/followers
+    follower.following.push(followee_id);
+    followee.followers.push(followerId);
+    
+    // Update follower count for display
+    followee.followers_count = (followee.followers_count || 0) + 1;
+    
+    saveData(data);
+    
+    // Create notification for the followee
+    const notification = {
+      user_id: followee_id,
+      message: `${follower.name} started following you`,
+      date_timestamp: new Date().toISOString(),
+      notification_id: Date.now() // Simple way to generate unique ID
+    };
+    
+    if (!data.notifications) data.notifications = [];
+    data.notifications.push(notification);
+    saveData(data);
+    
+    res.json({
+      success: true,
+      message: "Successfully followed user"
+    });
+  } catch (error) {
+    console.error("Error following user:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error following user" 
+    });
+  }
+});
+
+// Unfollow a user
+app.post("/api/users/:followerId/unfollow", (req, res) => {
+  try {
+    const { followerId } = req.params;
+    const { followee_id } = req.body;
+    
+    if (!followerId || !followee_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Both follower and followee IDs are required" 
+      });
+    }
+    
+    const data = loadData();
+    
+    // Validate user IDs
+    const follower = data.users.find(u => String(u.user_id) === String(followerId));
+    const followee = data.users.find(u => String(u.user_id) === String(followee_id));
+    
+    if (!follower || !followee) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "One or both users not found" 
+      });
+    }
+    
+    // Check if follower has following list
+    if (!follower.following || !follower.following.length) {
+      return res.status(200).json({
+        success: true,
+        message: "Not following this user"
+      });
+    }
+    
+    // Check if followee has followers list
+    if (!followee.followers || !followee.followers.length) {
+      return res.status(200).json({
+        success: true,
+        message: "Not following this user"
+      });
+    }
+    
+    // Check if actually following
+    if (!follower.following.some(id => String(id) === String(followee_id))) {
+      return res.status(200).json({
+        success: true,
+        message: "Not following this user"
+      });
+    }
+    
+    // Update following/followers
+    follower.following = follower.following.filter(id => String(id) !== String(followee_id));
+    followee.followers = followee.followers.filter(id => String(id) !== String(followerId));
+    
+    // Update follower count for display (ensure it doesn't go below 0)
+    followee.followers_count = Math.max((followee.followers_count || 0) - 1, 0);
+    
+    saveData(data);
+    
+    res.json({
+      success: true,
+      message: "Successfully unfollowed user"
+    });
+  } catch (error) {
+    console.error("Error unfollowing user:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error unfollowing user" 
+    });
+  }
+});
+
+// Get users that a user is following
+app.get("/api/users/:userId/following", (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = loadData();
+    
+    // Find user
+    const user = data.users.find(u => String(u.user_id) === String(userId));
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Check if user has following list
+    if (!user.following || !user.following.length) {
+      return res.json([]);
+    }
+    
+    // Get user objects for all followed users
+    const followingUsers = user.following.map(followeeId => {
+      const followedUser = data.users.find(u => String(u.user_id) === String(followeeId));
+      
+      if (followedUser) {
+        // Return a subset of user data for privacy
+        return {
+          user_id: followedUser.user_id,
+          name: followedUser.name,
+          username: followedUser.username || followedUser.name.toLowerCase().replace(/\s+/g, '_'),
+          account_type: followedUser.account_type,
+          profile_image: followedUser.profile_image || 'default_profile.jpg',
+          followers_count: followedUser.followers_count || 0,
+          city: followedUser.city,
+          country: followedUser.country
+        };
+      }
+      
+      // Return minimal data if user not found
+      return {
+        user_id: followeeId,
+        name: `User ${followeeId}`,
+        account_type: 'Unknown',
+        profile_image: 'default_profile.jpg',
+        followers_count: 0
+      };
+    });
+    
+    res.json(followingUsers);
+  } catch (error) {
+    console.error("Error getting following:", error);
+    res.status(500).json({ error: "Error getting following" });
+  }
+});
+
+// Get users who are following a user
+app.get("/api/users/:userId/followers", (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = loadData();
+    
+    // Find user
+    const user = data.users.find(u => String(u.user_id) === String(userId));
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // If the user has a followers_count but no followers array, or if 
+    // the followers array doesn't match the count, we need to generate placeholder followers
+    let followerUsers = [];
+    
+    if ((!user.followers || user.followers.length === 0) && 
+        (user.followers_count && user.followers_count > 0)) {
+      
+      console.log(`User ${userId} has follower_count ${user.followers_count} but no followers array. Generating placeholder data.`);
+      
+      // Find all buyers to use as sample followers
+      const buyers = data.users.filter(u => 
+        u.account_type.toLowerCase() === 'buyer' && 
+        String(u.user_id) !== String(userId)
+      );
+      
+      // Generate placeholder followers using real buyer accounts if possible
+      const followerCount = Math.min(user.followers_count, buyers.length || 5);
+      
+      // Create placeholder followers from real buyers or generate fake ones
+      if (buyers.length > 0) {
+        // Use real buyers as followers (up to the follower_count)
+        followerUsers = buyers.slice(0, followerCount).map(buyer => ({
+          user_id: buyer.user_id,
+          name: buyer.name,
+          username: buyer.username || buyer.name.toLowerCase().replace(/\s+/g, '_'),
+          account_type: buyer.account_type,
+          profile_image: buyer.profile_image || 'default_profile.jpg',
+          city: buyer.city,
+          country: buyer.country
+        }));
+        
+        // Update the user's followers array
+        user.followers = followerUsers.map(f => f.user_id);
+        saveData(data);
+      } else {
+        // Generate placeholder follower data if no buyers are available
+        for (let i = 0; i < followerCount; i++) {
+          followerUsers.push({
+            user_id: `placeholder_${i}`,
+            name: `Follower ${i+1}`,
+            username: `follower_${i+1}`,
+            account_type: 'Buyer',
+            profile_image: 'default_profile.jpg',
+            city: 'Sample City',
+            country: 'Sample Country'
+          });
+        }
+      }
+    } else if (user.followers && user.followers.length > 0) {
+      // Normal case: Get user objects for all followers
+      followerUsers = user.followers.map(followerId => {
+        const follower = data.users.find(u => String(u.user_id) === String(followerId));
+        
+        if (follower) {
+          // Return a subset of user data for privacy
+          return {
+            user_id: follower.user_id,
+            name: follower.name,
+            username: follower.username || follower.name.toLowerCase().replace(/\s+/g, '_'),
+            account_type: follower.account_type,
+            profile_image: follower.profile_image || 'default_profile.jpg',
+            city: follower.city,
+            country: follower.country
+          };
+        }
+        
+        // Return minimal data if user not found
+        return {
+          user_id: followerId,
+          name: `User ${followerId}`,
+          account_type: 'Unknown',
+          profile_image: 'default_profile.jpg'
+        };
+      });
+    }
+    
+    // Make sure followers_count matches the followers array length
+    user.followers_count = followerUsers.length;
+    saveData(data);
+    
+    res.json(followerUsers);
+  } catch (error) {
+    console.error("Error getting followers:", error);
+    res.status(500).json({ error: "Error getting followers" });
+  }
+});
+
+// Get follower count for a user
+app.get("/api/users/:userId/followers/count", (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = loadData();
+    
+    // Find user
+    const user = data.users.find(u => String(u.user_id) === String(userId));
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Get follower count from array or stored count
+    let count = 0;
+    
+    if (user.followers && Array.isArray(user.followers)) {
+      count = user.followers.length;
+    } else if (user.followers_count !== undefined) {
+      count = user.followers_count;
+    }
+    
+    res.json({ count });
+  } catch (error) {
+    console.error("Error getting follower count:", error);
+    res.status(500).json({ error: "Error getting follower count" });
+  }
+});
+
+// Get suggested users to follow for a buyer
+app.get("/api/users/:userId/suggested-follows", (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = loadData();
+    
+    // Find user
+    const user = data.users.find(u => String(u.user_id) === String(userId));
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Validate user is a buyer
+    if (user.account_type.toLowerCase() !== 'buyer') {
+      return res.status(403).json({ error: "Only buyers can get suggested follows" });
+    }
+    
+    // Get user's current following list
+    const following = user.following || [];
+    
+    // Find all sellers and influencers not already followed
+    let suggestions = data.users.filter(u => 
+      (u.account_type.toLowerCase() === 'seller' || u.account_type.toLowerCase() === 'influencer') &&
+      String(u.user_id) !== String(userId) &&
+      !following.some(id => String(id) === String(u.user_id))
+    );
+    
+    // Sort by follower count (most followers first)
+    suggestions.sort((a, b) => {
+      const followersA = a.followers_count || 0;
+      const followersB = b.followers_count || 0;
+      return followersB - followersA;
+    });
+    
+    // Limit to 10 suggestions and filter data for response
+    suggestions = suggestions.slice(0, 10).map(u => ({
+      user_id: u.user_id,
+      name: u.name,
+      username: u.username || u.name.toLowerCase().replace(/\s+/g, '_'),
+      account_type: u.account_type,
+      profile_image: u.profile_image || 'default_profile.jpg',
+      followers_count: u.followers_count || 0,
+      city: u.city,
+      country: u.country
+    }));
+    
+    res.json(suggestions);
+  } catch (error) {
+    console.error("Error getting suggested follows:", error);
+    res.status(500).json({ error: "Error getting suggested follows" });
+  }
+});
+
+app.post("/api/create-follow-relationship", (req, res) => {
+  try {
+    const { buyerId, followeeId } = req.body;
+    
+    if (!buyerId || !followeeId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Both buyer ID and followee ID are required" 
+      });
+    }
+    
+    console.log(`Creating follow relationship: Buyer ${buyerId} -> User ${followeeId}`);
+    
+    const data = loadData();
+    
+    // Validate user IDs
+    const buyer = data.users.find(u => String(u.user_id) === String(buyerId));
+    const followee = data.users.find(u => String(u.user_id) === String(followeeId));
+    
+    if (!buyer || !followee) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "One or both users not found" 
+      });
+    }
+    
+    // Validate account types
+    if (buyer.account_type.toLowerCase() !== 'buyer') {
+      return res.status(403).json({
+        success: false,
+        message: "The follower must be a buyer"
+      });
+    }
+    
+    if (!['seller', 'influencer'].includes(followee.account_type.toLowerCase())) {
+      return res.status(403).json({
+        success: false,
+        message: "The followee must be a seller or influencer"
+      });
+    }
+    
+    // Initialize arrays if needed
+    if (!buyer.following) buyer.following = [];
+    if (!followee.followers) followee.followers = [];
+    
+    // Check if already following
+    if (buyer.following.some(id => String(id) === String(followeeId))) {
+      return res.status(200).json({
+        success: true,
+        message: "Already following this user"
+      });
+    }
+    
+    // Create follow relationship
+    buyer.following.push(followeeId);
+    followee.followers.push(buyerId);
+    
+    // Update follower count for display
+    followee.followers_count = (followee.followers_count || 0) + 1;
+    
+    saveData(data);
+    
+    res.json({
+      success: true,
+      message: "Follow relationship created successfully"
+    });
+  } catch (error) {
+    console.error("Error creating follow relationship:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error creating follow relationship" 
+    });
+  }
 });
 
 app.use((err, req, res, next) => {

@@ -19,6 +19,11 @@ import TrackNotification from "../screens/TrackNotification.js";
 import FavoritesScreen from "../screens/FavoritesScreen.js";
 import PayoutScreen from "../screens/PayoutScreen.js";
 import InfluencerOrderScreen from "../screens/InfluencerOrderScreen.js";
+import ActiveCampaignsScreen from "../screens/ActiveCampaignsScreen.js";
+import PendingCampaignsScreen from "../screens/PendingCampaignsScreen.js";
+import ClosedCampaignsScreen from "../screens/ClosedCampaignsScreen.js";
+import FollowerScreen from "../screens/FollowerScreen.js";
+import UserProfileScreen from "../screens/UserProfileScreen.js";
 
 const ProfileStack = createNativeStackNavigator();
 
@@ -114,6 +119,51 @@ const ProfileStackNavigator = () => {
       <ProfileStack.Screen
         name="SellersOrders"
         component={SellerOrderScreen}
+        options={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { }
+        }}
+      />
+      <ProfileStack.Screen
+        name="Followers"
+        component={FollowerScreen}
+        options={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { }
+        }}
+      />
+      <ProfileStack.Screen
+        name="ViewProfile"
+        component={UserProfileScreen}
+        options={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { }
+        }}
+      />
+      <ProfileStack.Screen
+        name="ActiveCampaigns"
+        component={ActiveCampaignsScreen}
+        options={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { }
+        }}
+      />
+       <ProfileStack.Screen
+        name="PendingCampaigns"
+        component={PendingCampaignsScreen}
+        options={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { }
+        }}
+      />
+      <ProfileStack.Screen
+        name="ClosedCampaigns"
+        component={ClosedCampaignsScreen}
         options={{
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
