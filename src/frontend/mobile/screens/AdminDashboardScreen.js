@@ -87,35 +87,32 @@ export default function AdminDashboardScreen() {
     try {
       setProcessingAction(true);
       console.log(`✅ Approving influencer application for user ${userId}`);
-
+  
       // Parse the application details
       let applicationDetails = {};
       try {
         applicationDetails = JSON.parse(details);
-        console.log(
-          "Successfully parsed application details:",
-          applicationDetails
-        );
+        console.log("Successfully parsed application details:", applicationDetails);
       } catch (error) {
         console.error("Error parsing application details:", error);
         throw new Error("Invalid application details format");
       }
-
+  
       // 1. Update the admin action status to approved
       console.log("Step 1: Updating admin action status");
       await updateAdminStatus(adminId, "approved");
       console.log("✓ Admin action status updated successfully");
-
+  
       // 2. Update the user role to influencer with the selected tier
       console.log("Step 2: Updating user role to influencer");
       const selectedTier = applicationDetails.selectedTier || "Starter Tier";
-
-      // Make sure we're passing the correct parameters to updateUserRole
-      await updateUserRole(userId, "influencer", selectedTier);
-      console.log(
-        `✓ User ${userId} role updated to influencer with tier: ${selectedTier}`
-      );
-
+  
+      // THIS IS THE KEY FIX: Make sure you're calling updateUserRole with proper values
+      // Role must be lowercase 'influencer' to match checks in your SettingsScreen
+      const result = await updateUserRole(userId, "influencer", selectedTier);
+      console.log(`✓ User ${userId} role updated to influencer with tier: ${selectedTier}`);
+      console.log("Update result:", result);
+  
       // 3. Create a notification for the user
       console.log("Step 3: Creating notification for user");
       const notificationData = {
@@ -123,25 +120,25 @@ export default function AdminDashboardScreen() {
         message: `Congratulations! Your application to become an influencer has been approved. Welcome to the ${selectedTier} program.`,
         date_timestamp: new Date().toISOString(),
       };
-
+  
       await createNotification(notificationData);
       console.log(`✓ Notification created for user ${userId}`);
-
+  
       // 4. Refresh admin data to update the UI
       console.log("Step 4: Refreshing admin dashboard data");
       await loadAdminDashboard();
       console.log("✓ Admin dashboard refreshed");
-
+  
       // Verify the user was updated correctly
       const updatedUsers = await fetchUsers();
       const updatedUser = updatedUsers.find((u) => u.user_id === userId);
-
+  
       console.log("User after approval:", updatedUser);
-
+  
       if (
         updatedUser &&
         (updatedUser.role === "influencer" ||
-          updatedUser.account_type === "Influencer")
+         updatedUser.account_type === "Influencer")
       ) {
         console.log(`✅ Confirmed: User ${userId} is now an influencer`);
       } else {
@@ -149,7 +146,7 @@ export default function AdminDashboardScreen() {
           `⚠️ Warning: User ${userId} role may not have updated properly. Current role: ${updatedUser?.role}, account type: ${updatedUser?.account_type}`
         );
       }
-
+  
       Alert.alert(
         "Success",
         `${updatedUser?.name || "User"}'s influencer application has been approved. They now have influencer access.`

@@ -12,59 +12,14 @@ import {
   ActivityIndicator,
   Dimensions,
   Platform,
-  Alert
+  Alert,
 } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-
-// Mock function to get user profile data - replace with your API call
-const getUserProfile = async (userId) => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Sample data
-  return {
-    id: userId,
-    name: "Jessica Miller",
-    username: "jess_designs",
-    bio: "Product designer and digital creator. Sharing design tips and creative content.",
-    accountType: "Seller",
-    city: "Portland",
-    country: "USA",
-    languages: ["English", "Spanish"],
-    profileImage: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-    coverImage: "https://images.unsplash.com/photo-1557682250-33bd709cbe85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
-    isFollowing: true,
-    stats: {
-      followers: 856,
-      following: 234,
-      products: 32,
-      reviews: 128,
-    },
-    products: [
-      {
-        id: "p1",
-        image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-        title: "Digital Design Template",
-        price: 49.99
-      },
-      {
-        id: "p2",
-        image: "https://images.unsplash.com/photo-1554306274-f23873d9a26c?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-        title: "UX Workshop Materials",
-        price: 29.99
-      },
-      {
-        id: "p3",
-        image: "https://images.unsplash.com/photo-1588345921523-c2dcdb7f1dcd?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-        title: "Creative Branding Package",
-        price: 99.99
-      }
-    ]
-  };
-};
+import { fetchUsers } from "../backend/db/API";
+import FollowingService from "../backend/db/FollowingService";
 
 export default function UserProfileScreen({ navigation, route }) {
   const { colors, isDarkMode } = useTheme();
@@ -78,8 +33,52 @@ export default function UserProfileScreen({ navigation, route }) {
       const fetchProfile = async () => {
         try {
           setLoading(true);
-          const data = await getUserProfile(userId);
-          setProfile(data);
+
+          // Get all users
+          const users = await fetchUsers();
+
+          // Find the specific user
+          const userData = users.find(
+            (u) => String(u.user_id) === String(userId)
+          );
+
+          if (!userData) {
+            throw new Error("User not found");
+          }
+
+          // Get following count
+          let followingCount = 0;
+          if (Array.isArray(userData.following)) {
+            followingCount = userData.following.length;
+          }
+
+          // Format the profile data
+          setProfile({
+            id: userData.user_id,
+            name: userData.name || "Unknown User",
+            username:
+              userData.username ||
+              userData.name?.toLowerCase().replace(/\s+/g, "_") ||
+              "user",
+            bio: userData.about_us || "",
+            accountType: userData.account_type || "Buyer",
+            city: userData.city || "Not specified",
+            country: userData.country || "Not specified",
+            languages: userData.languages || ["English"],
+            profileImage: userData.profile_image?.startsWith("http")
+              ? userData.profile_image
+              : "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+            coverImage: userData.cover_image?.startsWith("http")
+              ? userData.cover_image
+              : "https://images.unsplash.com/photo-1557682250-33bd709cbe85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+            isFollowing: false, // Will be updated below if relevant
+            stats: {
+              purchases: Array.isArray(userData.products_purchased)
+                ? userData.products_purchased.length
+                : 0,
+              following: followingCount,
+            },
+          });
         } catch (error) {
           console.error("Error fetching user profile:", error);
           Alert.alert("Error", "Failed to load user profile");
@@ -92,36 +91,63 @@ export default function UserProfileScreen({ navigation, route }) {
     }, [userId])
   );
 
-  const toggleFollow = () => {
+  const toggleFollow = async () => {
     if (!profile) return;
-    
-    setProfile({
-      ...profile,
-      isFollowing: !profile.isFollowing,
-      stats: {
-        ...profile.stats,
-        followers: profile.isFollowing 
-          ? profile.stats.followers - 1 
-          : profile.stats.followers + 1,
+
+    try {
+      // Get current user
+      const currentUser = await getUser(); // Replace with your function to get current user
+
+      if (!currentUser) {
+        Alert.alert("Error", "You must be logged in to follow users");
+        return;
       }
-    });
-    
-    // In a real app, make API call to follow/unfollow
-    // followUser(profile.id, !profile.isFollowing);
+
+      // Check if user is a buyer (only buyers can follow)
+      if (currentUser.account_type?.toLowerCase() !== "buyer") {
+        Alert.alert("Action not allowed", "Only buyers can follow other users");
+        return;
+      }
+
+      // Call the appropriate method based on current following status
+      if (profile.isFollowing) {
+        await FollowingService.unfollowUser(currentUser.user_id, profile.id);
+      } else {
+        await FollowingService.followUser(currentUser.user_id, profile.id);
+      }
+
+      // Update the UI
+      setProfile({
+        ...profile,
+        isFollowing: !profile.isFollowing,
+      });
+    } catch (error) {
+      console.error("Error toggling follow:", error);
+      Alert.alert("Error", "Failed to update follow status");
+    }
   };
 
-  const navigateToFollowers = () => {
-    navigation.navigate("Followers", { 
+  const navigateToFollowing = () => {
+    navigation.navigate("Followings", {
       userId: profile.id,
       name: profile.name,
-      isOtherUser: true
+      isOtherUser: true,
     });
   };
 
-  const navigateToProducts = () => {
-    navigation.navigate("UserProducts", { 
+  const navigateToChat = () => {
+    navigation.navigate('Messages', {
+      screen: 'Chat',
+      params: { 
+        chatPartner: profile.name 
+      }
+    });
+  };
+
+  const navigateToPurchaseHistory = () => {
+    navigation.navigate("PurchaseHistory", {
       userId: profile.id,
-      name: profile.name
+      name: profile.name,
     });
   };
 
@@ -136,9 +162,13 @@ export default function UserProfileScreen({ navigation, route }) {
   if (!profile) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={60} color={colors.error || "red"} />
+        <Ionicons
+          name="alert-circle-outline"
+          size={60}
+          color={colors.error || "red"}
+        />
         <Text style={styles.errorText}>User profile not found</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButtonAlt}
           onPress={() => navigation.goBack()}
         >
@@ -155,7 +185,7 @@ export default function UserProfileScreen({ navigation, route }) {
         backgroundColor="transparent"
         barStyle="light-content"
       />
-      
+
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
           <ImageBackground
@@ -166,22 +196,22 @@ export default function UserProfileScreen({ navigation, route }) {
               colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
               style={styles.gradient}
             />
-            
+
             {/* Back button */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
-            
+
             {/* Header Actions */}
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.shareButton}>
                 <Ionicons name="share-social-outline" size={22} color="white" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.headerContent}>
               <View style={styles.profileImageContainer}>
                 <Image
@@ -198,12 +228,14 @@ export default function UserProfileScreen({ navigation, route }) {
             <View style={styles.nameSection}>
               <Text style={styles.profileName}>{profile.name}</Text>
               <View style={styles.accountTypeBadge}>
-                <Text style={styles.accountTypeText}>{profile.accountType}</Text>
+                <Text style={styles.accountTypeText}>
+                  {profile.accountType}
+                </Text>
               </View>
             </View>
-            
+
             <Text style={styles.usernameText}>@{profile.username}</Text>
-            
+
             {profile.bio ? (
               <Text style={styles.bioText}>{profile.bio}</Text>
             ) : null}
@@ -212,21 +244,24 @@ export default function UserProfileScreen({ navigation, route }) {
               <TouchableOpacity
                 style={[
                   styles.primaryButton,
-                  profile.isFollowing ? styles.outlineButton : {}
+                  profile.isFollowing ? styles.outlineButton : {},
                 ]}
                 onPress={toggleFollow}
               >
                 <Text
                   style={[
                     styles.primaryButtonText,
-                    profile.isFollowing ? styles.outlineButtonText : {}
+                    profile.isFollowing ? styles.outlineButtonText : {},
                   ]}
                 >
                   {profile.isFollowing ? "Following" : "Follow"}
                 </Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.messageButton}>
+
+              <TouchableOpacity
+                style={styles.messageButton}
+                onPress={navigateToChat}
+              >
                 <Text style={styles.messageButtonText}>Message</Text>
               </TouchableOpacity>
             </View>
@@ -256,75 +291,24 @@ export default function UserProfileScreen({ navigation, route }) {
           </View>
 
           <View style={styles.statsContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.statItem}
-              onPress={navigateToFollowers}
+              onPress={navigateToPurchaseHistory}
             >
-              <Text style={styles.statValue}>{profile.stats.followers}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
+              <Text style={styles.statValue}>{profile.stats.purchases}</Text>
+              <Text style={styles.statLabel}>Purchases</Text>
             </TouchableOpacity>
-            
+
             <View style={styles.statDivider} />
-            
-            <TouchableOpacity style={styles.statItem}>
+
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={navigateToFollowing}
+            >
               <Text style={styles.statValue}>{profile.stats.following}</Text>
               <Text style={styles.statLabel}>Following</Text>
             </TouchableOpacity>
-            
-            <View style={styles.statDivider} />
-            
-            <TouchableOpacity 
-              style={styles.statItem}
-              onPress={navigateToProducts}
-            >
-              <Text style={styles.statValue}>{profile.stats.products}</Text>
-              <Text style={styles.statLabel}>Products</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile.stats.reviews}</Text>
-              <Text style={styles.statLabel}>Reviews</Text>
-            </View>
           </View>
-
-          {/* Products Section */}
-          {profile.accountType === "Seller" && profile.products.length > 0 && (
-            <View style={styles.productsSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Products</Text>
-                <TouchableOpacity 
-                  style={styles.seeAllButton}
-                  onPress={navigateToProducts}
-                >
-                  <Text style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.productsScrollContent}
-              >
-                {profile.products.map((product) => (
-                  <TouchableOpacity 
-                    key={product.id}
-                    style={styles.productCard}
-                    onPress={() => navigation.navigate("ProductDetails", { productId: product.id })}
-                  >
-                    <Image source={{ uri: product.image }} style={styles.productImage} />
-                    <View style={styles.productInfo}>
-                      <Text style={styles.productTitle} numberOfLines={1}>
-                        {product.title}
-                      </Text>
-                      <Text style={styles.productPrice}>${product.price.toFixed(2)}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -392,7 +376,7 @@ function getDynamicStyles(colors, isDarkMode) {
     },
     backButton: {
       position: "absolute",
-      top: Platform.OS === 'ios' ? 40 : StatusBar.currentHeight + 10,
+      top: Platform.OS === "ios" ? 40 : StatusBar.currentHeight + 10,
       left: 16,
       zIndex: 100,
       width: 40,
@@ -404,7 +388,7 @@ function getDynamicStyles(colors, isDarkMode) {
     },
     headerActions: {
       position: "absolute",
-      top: Platform.OS === 'ios' ? 40 : StatusBar.currentHeight + 10,
+      top: Platform.OS === "ios" ? 40 : StatusBar.currentHeight + 10,
       right: 16,
       zIndex: 100,
       flexDirection: "row",
@@ -507,7 +491,9 @@ function getDynamicStyles(colors, isDarkMode) {
       color: colors.primary,
     },
     messageButton: {
-      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.1)"
+        : "rgba(0,0,0,0.05)",
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: 8,
@@ -535,7 +521,9 @@ function getDynamicStyles(colors, isDarkMode) {
     },
     statsContainer: {
       flexDirection: "row",
-      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)',
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.08)"
+        : "rgba(0,0,0,0.03)",
       borderRadius: 12,
       padding: 16,
       marginBottom: 24,
@@ -557,60 +545,6 @@ function getDynamicStyles(colors, isDarkMode) {
     statDivider: {
       width: 1,
       backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
-    },
-    productsSection: {
-      marginBottom: 24,
-    },
-    sectionHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 16,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: "600",
-      color: colors.text,
-    },
-    seeAllButton: {
-      paddingVertical: 4,
-      paddingHorizontal: 8,
-    },
-    seeAllText: {
-      color: colors.primary,
-      fontWeight: "600",
-      fontSize: 14,
-    },
-    productsScrollContent: {
-      paddingBottom: 8,
-      paddingRight: 16,
-    },
-    productCard: {
-      width: 160,
-      marginRight: 14,
-      borderRadius: 12,
-      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)',
-      overflow: "hidden",
-    },
-    productImage: {
-      width: "100%",
-      height: 120,
-      borderTopLeftRadius: 12,
-      borderTopRightRadius: 12,
-    },
-    productInfo: {
-      padding: 10,
-    },
-    productTitle: {
-      fontSize: 14,
-      fontWeight: "500",
-      color: colors.text,
-      marginBottom: 4,
-    },
-    productPrice: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.primary,
     },
   });
 }

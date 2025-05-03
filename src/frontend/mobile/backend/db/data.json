@@ -171,7 +171,7 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 0,
+      "followers_count": 1,
       "earnings": 500,
       "received_orders": [
         {
@@ -263,7 +263,14 @@
       "verification_id": "1744934821300",
       "verification_expiry": 1744935121301,
       "temp_phone_number": "5192804167",
-      "followers": []
+      "followers": [
+        {
+          "user_id": 8,
+          "name": "Alex",
+          "profile_image": "default_profile.jpg",
+          "follow_date": "2025-05-03T00:35:56.790Z"
+        }
+      ]
     },
     {
       "user_id": 3,
@@ -299,10 +306,17 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 0,
+      "followers_count": 1,
       "earnings": 500,
       "orders": [],
-      "followers": []
+      "followers": [
+        {
+          "user_id": 8,
+          "name": "Alex",
+          "profile_image": "default_profile.jpg",
+          "follow_date": "2025-05-03T00:35:55.000Z"
+        }
+      ]
     },
     {
       "name": "Shubh Rai",
@@ -364,16 +378,15 @@
       "following": []
     },
     {
-      "name": "Pranav Geek",
+      "name": "Pranav geek",
       "email": "pranav@geek.com",
-      "password": "Geek@123",
-      "account_type": "Influencer",
-      "role": "influencer",
-      "about_us": "I love to promote cool tech products",
+      "password": "geek@123",
+      "account_type": "Seller",
+      "role": "seller",
+      "about_us": "",
       "address": "",
       "city": "",
       "country": "",
-      "social_media_instagram": "Instagram: pranavgeek",
       "social_media_x": "",
       "social_media_linkedin": "",
       "social_media_website": "",
@@ -381,7 +394,7 @@
       "gender": "",
       "age": null,
       "is_two_factor_enabled": false,
-      "phone_number": "5192804167",
+      "phone_number": "",
       "is_private_account": false,
       "privacy_settings": {
         "hideActivity": false,
@@ -390,21 +403,20 @@
         "allowMessagesFrom": "everyone"
       },
       "user_id": 7,
-      "tier": "Starter Tier",
       "followers": [],
       "followers_count": 0
     },
     {
-      "name": "Derrick Afful",
-      "email": "derrick@afful",
-      "password": "kspace@123",
+      "name": "Tory Lanez",
+      "email": "tory@lanex.com",
+      "password": "tory@123",
       "account_type": "Influencer",
       "role": "influencer",
-      "about_us": "I love to promote cool products",
+      "about_us": "Vdfnvjdfv",
       "address": "",
       "city": "",
       "country": "",
-      "social_media_instagram": "Instagram: derrick",
+      "social_media_instagram": "Instagram: ToryLanez88",
       "social_media_x": "",
       "social_media_linkedin": "",
       "social_media_website": "",
@@ -412,7 +424,7 @@
       "gender": "",
       "age": null,
       "is_two_factor_enabled": false,
-      "phone_number": "5192804167",
+      "phone_number": "9824183426",
       "is_private_account": false,
       "privacy_settings": {
         "hideActivity": false,
@@ -422,8 +434,7 @@
       },
       "user_id": 8,
       "tier": "Starter Tier",
-      "followers": [],
-      "followers_count": 0
+      "influencer_tier": "Starter Tier"
     }
   ],
   "products": [
@@ -760,16 +771,6 @@
       "receiver_id": 3,
       "timestamp": "2025-04-24T19:06:02.946Z",
       "content": "📦 Your order has shipped! Track it here: https://svg2jsx.com/"
-    },
-    {
-      "user_from": "Pranav Geek",
-      "user_to": "Shubh Rai",
-      "type_message": "text",
-      "message_content": "Hi",
-      "date_timestamp_sent": "2025-04-28T23:23:18.744Z",
-      "is_read": false,
-      "message_id": 19,
-      "add_file": null
     }
   ],
   "notifications": [
@@ -938,12 +939,6 @@
       "notification_id": 26
     },
     {
-      "user_id": "2",
-      "message": "Your campaign request with Pranav Geek for \"Keyboard\" has been approved.",
-      "date_timestamp": "2025-04-28T22:03:52.397Z",
-      "notification_id": 27
-    },
-    {
       "user_id": 5,
       "message": "✅ Your product \"iPad Pro\" has been verified and is now live!",
       "date_timestamp": "2025-04-29T03:26:34.112Z",
@@ -996,6 +991,42 @@
       "message": "Your campaign request with Derrick Afful for \"Wireless Headphones\" has been approved.",
       "date_timestamp": "2025-04-30T00:14:40.504Z",
       "notification_id": 36
+    },
+    {
+      "user_id": 3,
+      "message": "Jash Gohil started following you",
+      "date_timestamp": "2025-05-01T23:20:26.509Z",
+      "notification_id": 1746141626509
+    },
+    {
+      "user_id": 2,
+      "message": "Jash Gohil started following you",
+      "date_timestamp": "2025-05-01T23:20:41.411Z",
+      "notification_id": 1746141641412
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-02T23:11:41.888Z",
+      "notification_id": 38
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-02T23:40:42.273Z",
+      "notification_id": 39
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T02:11:20.172Z",
+      "notification_id": 40
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T03:02:34.308Z",
+      "notification_id": 41
     }
   ],
   "admin_data": [
@@ -1007,6 +1038,46 @@
       "details": "{\"campaignRequestId\":\"1745972038800\",\"productName\":\"Wireless Headphones\",\"influencerName\":\"Derrick Afful\",\"sellerName\":\"Sarah Smith\",\"campaignDuration\":50,\"commission\":10}",
       "admin_id": 1,
       "updated_at": "2025-04-30T00:14:40.411Z"
+    },
+    {
+      "user_id": 8,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Rudra Gota\",\"email\":\"rudra@gota\",\"phone\":\"51928041567\",\"socialMediaHandles\":\"Instagram: rudra88\",\"followers\":\"Instagram: 10K\",\"whyCollaborate\":\"I love promoting camera products\",\"priorExperience\":\"No\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-02T23:10:33.478Z\"}",
+      "status": "approved",
+      "created_at": "2025-05-02T23:10:33.478Z",
+      "date_timestamp": "2025-05-02T23:10:33.483Z",
+      "admin_id": 2,
+      "updated_at": "2025-05-02T23:11:41.869Z"
+    },
+    {
+      "user_id": 8,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Aashay kalakar\",\"email\":\"kalakar@bro.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"TikTok: kalakar88\",\"followers\":\"TikTok: 10K\",\"whyCollaborate\":\"I love promoting laptops\",\"priorExperience\":\"yes 1 year\",\"preferredContact\":\"message\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-02T23:40:13.207Z\"}",
+      "status": "approved",
+      "created_at": "2025-05-02T23:40:13.208Z",
+      "date_timestamp": "2025-05-02T23:40:13.209Z",
+      "admin_id": 3,
+      "updated_at": "2025-05-02T23:40:42.262Z"
+    },
+    {
+      "user_id": 8,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Alex\",\"email\":\"alex@gmail.com\",\"phone\":\"5198920323\",\"socialMediaHandles\":\"Sdcdc\",\"followers\":\"Csd Sdc\",\"whyCollaborate\":\"Csdc\",\"priorExperience\":\"Sdc Sdc\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-03T02:09:57.164Z\"}",
+      "status": "approved",
+      "created_at": "2025-05-03T02:09:57.164Z",
+      "date_timestamp": "2025-05-03T02:09:57.167Z",
+      "admin_id": 4,
+      "updated_at": "2025-05-03T02:11:20.159Z"
+    },
+    {
+      "user_id": 8,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"Tory Lanez\",\"email\":\"tory@lanex.com\",\"phone\":\"9824183426\",\"socialMediaHandles\":\"Instagram: ToryLanez88\",\"followers\":\"Insta: 10K\",\"whyCollaborate\":\"Vdfnvjdfv\",\"priorExperience\":\"Csd Sdc\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-03T03:01:59.919Z\"}",
+      "status": "approved",
+      "created_at": "2025-05-03T03:01:59.920Z",
+      "date_timestamp": "2025-05-03T03:01:59.922Z",
+      "admin_id": 5,
+      "updated_at": "2025-05-03T03:02:34.261Z"
     }
   ],
   "orders": [
@@ -1132,16 +1203,6 @@
       "product": "Smartphone",
       "status": "Pending",
       "timestamp": "2025-04-27T23:42:41.679Z"
-    },
-    {
-      "requestId": "1002",
-      "influencerId": "7",
-      "influencerName": "Pranav Geek",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "product": "Keyboard",
-      "status": "Accepted",
-      "timestamp": "2025-04-26T23:42:41.679Z"
     },
     {
       "requestId": "1003",

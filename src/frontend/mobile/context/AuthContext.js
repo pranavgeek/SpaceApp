@@ -201,10 +201,10 @@ export const AuthProvider = ({ children }) => {
         };
         
         // Add tier information if provided (for influencers)
-        if (tier) {
-          updatedUser.tier = tier;
-          console.log(`Setting user tier to: ${tier}`);
-        }
+      if (tier && normalizedRole === "influencer") {
+        updatedUser.influencer_tier = tier; // Use consistent property
+        updatedUser.tier = tier; // Keep this for backward compatibility
+      }
         
         // Log the update for debugging
         console.log("Sending update to server with:", {
@@ -220,7 +220,8 @@ export const AuthProvider = ({ children }) => {
           account_type: displayRole
         };
         
-        if (tier) {
+        if (tier && normalizedRole === "influencer") {
+          updateData.influencer_tier = tier;
           updateData.tier = tier;
         }
         
@@ -252,7 +253,7 @@ export const AuthProvider = ({ children }) => {
   
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, updateRole }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, updateRole, loading, isFirstLogin, setIsFirstLogin,  }}>
       {children}
     </AuthContext.Provider>
   );

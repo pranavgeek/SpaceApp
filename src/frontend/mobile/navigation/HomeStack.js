@@ -11,6 +11,7 @@ import { useNavigation } from "@react-navigation/native";
 import CheckoutScreen from "../screens/CheckoutScreen";
 import BuyerContactFormScreen from "../screens/BuyerContactFormScreen";
 import { useAuth } from "../context/AuthContext";
+import SuggestedAccountsScreen from "../screens/SuggestedAccountsScreen";
 
 const HomeStack = createNativeStackNavigator();
 
@@ -121,6 +122,15 @@ const HomeStackNavigation = () => {
       <HomeStack.Screen
         name="Checkout"
         component={CheckoutScreen}
+        options={{
+          headerStyle: { backgroundColor: "#141414" },
+          headerTintColor: "#fff",
+          headerTitleStyle: { fontWeight: "bold" },
+        }}
+      />
+      <HomeStack.Screen
+        name="SuggestedAccounts"
+        component={SuggestedAccountsScreen}
         options={{
           headerStyle: { backgroundColor: "#141414" },
           headerTintColor: "#fff",

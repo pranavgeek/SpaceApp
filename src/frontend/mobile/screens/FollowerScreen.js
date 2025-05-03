@@ -167,7 +167,7 @@ export default function FollowersScreen({ navigation, route }) {
 
   // Navigate to user profile
   const navigateToProfile = (userId) => {
-    navigation.navigate("UserProfile", { userId });
+    navigation.navigate("ViewProfile", { userId });
   };
   
   // Refresh followers list
@@ -187,22 +187,32 @@ export default function FollowersScreen({ navigation, route }) {
 
   // Render a single follower item
   const renderFollowerItem = ({ item }) => {
+    // Check if item is valid and has a user_id
+    if (!item) {
+      console.error("Invalid follower item:", item);
+      return null;
+    }
+    
+    // Use safe string conversion for user_id
+    const followerId = String(item.user_id || '');
+    const currentUserId = String(user?.user_id || '');
+    
     // Determine if the follow button should be shown
     // Only buyers can follow, and we don't show follow button for the current user
     const showFollowButton = 
       user && 
-      user.account_type.toLowerCase() === 'buyer' && 
-      String(item.user_id) !== String(user.user_id);
+      user.account_type?.toLowerCase() === 'buyer' && 
+      followerId !== currentUserId && followerId !== '';
       
     // Don't show follow button for other buyers
     const isFollowable = 
-      item.account_type.toLowerCase() === 'seller' || 
-      item.account_type.toLowerCase() === 'influencer';
+      item.account_type?.toLowerCase() === 'seller' || 
+      item.account_type?.toLowerCase() === 'influencer';
     
     return (
       <TouchableOpacity 
         style={styles.followerItem}
-        onPress={() => navigation.navigate("UserProfile", { userId: item.user_id })}
+        onPress={() => followerId ? navigation.navigate("ViewProfile", { userId: followerId }) : null}
         activeOpacity={0.7}
       >
         <Image 
@@ -215,14 +225,16 @@ export default function FollowersScreen({ navigation, route }) {
         />
         
         <View style={styles.followerInfo}>
-          <Text style={styles.followerName}>{item.name}</Text>
+          <Text style={styles.followerName}>{item.name || 'Unknown User'}</Text>
           <View style={styles.usernameRow}>
             <Text style={styles.followerUsername}>
-              @{item.username || item.name.toLowerCase().replace(/\s+/g, '_')}
+              @{item.username || (item.name ? item.name.toLowerCase().replace(/\s+/g, '_') : 'user')}
             </Text>
-            <View style={styles.accountTypeBadge}>
-              <Text style={styles.accountTypeText}>{item.account_type}</Text>
-            </View>
+            {item.account_type && (
+              <View style={styles.accountTypeBadge}>
+                <Text style={styles.accountTypeText}>{item.account_type}</Text>
+              </View>
+            )}
           </View>
         </View>
         
@@ -232,7 +244,7 @@ export default function FollowersScreen({ navigation, route }) {
               styles.followButton, 
               item.isFollowing ? styles.followingButton : {}
             ]}
-            onPress={() => toggleFollow(item.user_id, item.isFollowing)}
+            onPress={() => toggleFollow(followerId, item.isFollowing)}
           >
             <Text style={[
               styles.followButtonText,
@@ -319,7 +331,7 @@ export default function FollowersScreen({ navigation, route }) {
         <FlatList
           data={filteredFollowers}
           renderItem={renderFollowerItem}
-          keyExtractor={(item) => item.user_id.toString()}
+          keyExtractor={(item) => String(item.user_id || item.id || Math.random())}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshing={refreshing}

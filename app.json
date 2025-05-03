@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4c5dddf9-faef-4acf-90c0-3f6a58000b1f"
+      }
+    },
+    "android": {
+      "package": "com.pranavgotawala.krachisspaceapp"
+    }
+  }
+}

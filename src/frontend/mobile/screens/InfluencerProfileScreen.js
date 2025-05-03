@@ -22,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
+import { fetchUsers } from "../backend/db/API";
 
 export default function InfluencerProfileScreen({ navigation }) {
   const { colors, isDarkMode } = useTheme();
@@ -41,27 +42,56 @@ export default function InfluencerProfileScreen({ navigation }) {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [])
-  );
+  const refreshUserData = async () => {
+    try {
+      // Fetch the latest user data
+      const users = await fetchUsers(); // Import this from your API
+
+      // Find the current user
+      const refreshedUser = users.find(
+        (u) => String(u.user_id) === String(user.user_id)
+      );
+
+      if (refreshedUser) {
+        // Update the seller object with fresh data
+        setInfluencer({
+          name: refreshedUser.name || "User",
+          city: refreshedUser.city || "N/A",
+          country: refreshedUser.country || "N/A",
+          accountType: refreshedUser.account_type || "N/A",
+          campaigns: Array.isArray(refreshedUser.campaigns)
+            ? refreshedUser.campaigns
+            : [],
+          followers: refreshedUser.followers_count || 0,
+          earnings: refreshedUser.earnings || 0,
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
 
   const windowWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && windowWidth >= 992;
 
   // Example influencer data; replace with dynamic data as needed.
-  const influencer = {
-    name: user?.name || "pranav Influencer",
-    accountType: user.account_type || "N/A",
-    profileImage: user?.profileImage
-      ? `http://192.168.1.x:5000/images/${user.profile_image}`
-      : "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+  const [influencer, setInfluencer] = useState({
+    name: user?.name || "User",
+    city: user?.city || "N/A",
+    country: user?.country || "N/A",
+    accountType: user?.account_type || "N/A",
     campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
     followers: user?.followers_count || 0,
     earnings: user?.earnings || 0,
-  };
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      refreshUserData();
+    }, [])
+  );
 
   // Action Handlers (adjust navigation routes as needed)
   const handleActiveCampaigns = () => navigation.navigate("ActiveCampaigns");
@@ -95,7 +125,9 @@ export default function InfluencerProfileScreen({ navigation }) {
             <View style={styles.headerContent}>
               <View style={styles.profileImageContainer}>
                 <Image
-                  source={{ uri: influencer.profileImage }}
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+                  }}
                   style={styles.profileImage}
                 />
               </View>
@@ -190,10 +222,15 @@ export default function InfluencerProfileScreen({ navigation }) {
               <Text style={styles.statLabel}>Campaigns</Text>
             </View>
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() =>
+                navigation.navigate("Followers", { userId: user.user_id })
+              }
+            >
               <Text style={styles.statValue}>{influencer.followers}</Text>
               <Text style={styles.statLabel}>Followers</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>${influencer.earnings}</Text>

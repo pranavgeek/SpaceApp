@@ -293,7 +293,7 @@ export default function HomeScreen({ navigation }) {
               description: product.description,
               image: product.product_image.startsWith("http")
                 ? product.product_image
-                : `http://10.0.0.25:5001/${product.product_image}`,
+                : `http://3.99.169.179/api/${product.product_image}`,
               price: product.cost,
               likes: 0,
               summary: product.summary,

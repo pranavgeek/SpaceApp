@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
+import { fetchUsers } from "../backend/db/API";
 
 export default function ProfileScreen({ navigation }) {
   const { colors, isDarkMode } = useTheme();
@@ -39,25 +40,51 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const refreshUserData = async () => {
+    try {
+      // Fetch the latest user data
+      const users = await fetchUsers(); // Import this from your API
+      
+      // Find the current user
+      const refreshedUser = users.find(u => String(u.user_id) === String(user.user_id));
+      
+      if (refreshedUser) {
+        // Update the seller object with fresh data
+        setSeller({
+          name: refreshedUser.name || "User",
+          city: refreshedUser.city || "N/A",
+          country: refreshedUser.country || "N/A",
+          accountType: refreshedUser.account_type || "N/A",
+          campaigns: Array.isArray(refreshedUser.campaigns) ? refreshedUser.campaigns : [],
+          followers: refreshedUser.followers_count || 0,
+          earnings: refreshedUser.earnings || 0
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
+
+  const [seller, setSeller] = useState({
+    name: user?.name || "User",
+    city: user?.city || "N/A",
+    country: user?.country || "N/A",
+    accountType: user?.account_type || "N/A",
+    campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
+    followers: user?.followers_count || 0,
+    earnings: user?.earnings || 0
+  });
+
   useFocusEffect(
     useCallback(() => {
       loadData();
+      refreshUserData();
     }, [])
   );
 
   const windowWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && windowWidth >= 992;
-
-  const seller = {
-    name: user?.name || "Pranav",
-    city: user?.city || "N/A",
-    country: user?.country || "N/A",
-    accountType: user?.account_type || "N/A",
-    campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
-    followers: user?.followers_count || 0,
-    earnings: user?.earnings || 0,
-  };
 
   return (
     <SafeAreaView style={styles.container}>

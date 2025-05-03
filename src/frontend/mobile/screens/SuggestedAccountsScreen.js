@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   Platform,
   Dimensions,
+  TextInput,
   StatusBar,
   Alert
 } from "react-native";
@@ -17,6 +18,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { fetchUsers } from "../backend/db/API";
 import FollowingService from "../backend/db/FollowingService";
 
 export default function SuggestedAccountsScreen({ navigation }) {
@@ -24,78 +27,115 @@ export default function SuggestedAccountsScreen({ navigation }) {
   const styles = getDynamicStyles(colors, isDarkMode);
   const { user } = useAuth();
   const [accounts, setAccounts] = useState([]);
+  const [filteredAccounts, setFilteredAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [followingInProgress, setFollowingInProgress] = useState({});
-
-  // Load suggested accounts when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      const fetchSuggestedAccounts = async () => {
-        try {
-          if (!user) return;
-          
-          // Only show this screen for buyers
-          if (user.account_type.toLowerCase() !== 'buyer') {
-            navigation.replace('Home');
-            return;
-          }
-          
-          setLoading(true);
-          
-          // Fetch all accounts that are sellers or influencers
-          // We'll use the regular users endpoint with a filter
-          const response = await fetch(`${FollowingService.BASE_URL}/users`);
-          
-          if (!response.ok) {
-            throw new Error(`Failed to fetch accounts: ${response.status}`);
-          }
-          
-          const allUsers = await response.json();
-          
-          // Filter to only sellers and influencers
-          const suggestedAccounts = allUsers.filter(account => 
-            (account.account_type.toLowerCase() === 'seller' || 
-             account.account_type.toLowerCase() === 'influencer') &&
-            String(account.user_id) !== String(user.user_id)
-          );
-          
-          console.log(`Found ${suggestedAccounts.length} suggested accounts`);
-          
-          // Get list of accounts the user is already following
-          const following = await FollowingService.getFollowing(user.user_id);
-          const followingIds = following.map(f => String(f.user_id));
-          
-          // Mark accounts as already followed if appropriate
-          const accountsWithFollowStatus = suggestedAccounts.map(account => ({
-            ...account,
-            isFollowing: followingIds.includes(String(account.user_id))
-          }));
-          
-          // Sort by popularity (followers count)
-          accountsWithFollowStatus.sort((a, b) => 
-            (b.followers_count || 0) - (a.followers_count || 0)
-          );
-          
-          setAccounts(accountsWithFollowStatus);
-        } catch (error) {
-          console.error("Error fetching suggested accounts:", error);
-          Alert.alert(
-            "Error",
-            "Unable to load suggested accounts. Please try again later."
-          );
-        } finally {
-          setLoading(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("All");
+  
+  // Load all sellers and influencers when screen is focused
+  useEffect(() => {
+    const fetchSuggestedAccounts = async () => {
+      try {
+        if (!user) return;
+        
+        setLoading(true);
+        
+        // Fetch all users from the API
+        const allUsers = await fetchUsers();
+        
+        if (!allUsers || !Array.isArray(allUsers)) {
+          throw new Error("Failed to fetch users");
         }
-      };
+        
+        // Filter for sellers and influencers only
+        const sellersAndInfluencers = allUsers.filter(account => 
+          account.account_type?.toLowerCase() === 'seller' || 
+          account.account_type?.toLowerCase() === 'influencer'
+        );
+        
+        // Don't show current user
+        const filteredAccounts = sellersAndInfluencers.filter(account => 
+          String(account.user_id) !== String(user.user_id)
+        );
+        
+        console.log(`Found ${filteredAccounts.length} potential accounts to follow`);
+        
+        // Get list of accounts the user is already following (if any)
+        let followingIds = [];
+        try {
+          const following = await FollowingService.getFollowing(user.user_id);
+          followingIds = following.map(f => String(f.user_id));
+          console.log("User is following:", followingIds);
+        } catch (error) {
+          console.log("No existing following list found");
+        }
+        
+        // Mark accounts as already followed if appropriate
+        const accountsWithFollowStatus = filteredAccounts.map(account => ({
+          ...account,
+          isFollowing: followingIds.includes(String(account.user_id))
+        }));
+        
+        // Sort by account type (influencers first) and then by followers count
+        accountsWithFollowStatus.sort((a, b) => {
+          if (a.account_type?.toLowerCase() === 'influencer' && b.account_type?.toLowerCase() !== 'influencer') {
+            return -1;
+          }
+          if (a.account_type?.toLowerCase() !== 'influencer' && b.account_type?.toLowerCase() === 'influencer') {
+            return 1;
+          }
+          return (b.followers_count || 0) - (a.followers_count || 0);
+        });
+        
+        setAccounts(accountsWithFollowStatus);
+        setFilteredAccounts(accountsWithFollowStatus);
+      } catch (error) {
+        console.error("Error fetching suggested accounts:", error);
+        Alert.alert(
+          "Error",
+          "Unable to load suggested accounts. Please try again later."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchSuggestedAccounts();
-    }, [user, navigation])
-  );
+    fetchSuggestedAccounts();
+  }, [user]);
+  
+  // Filter accounts based on search and filter selection
+  useEffect(() => {
+    let result = accounts;
+    
+    // Apply search filter
+    if (searchQuery) {
+      result = result.filter(account => 
+        account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (account.username && account.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (account.about_us && account.about_us.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    // Apply account type filter
+    if (activeFilter !== "All") {
+      result = result.filter(account => 
+        account.account_type?.toLowerCase() === activeFilter.toLowerCase()
+      );
+    }
+    
+    setFilteredAccounts(result);
+  }, [searchQuery, activeFilter, accounts]);
 
   // Handle follow/unfollow
   const handleFollow = async (account) => {
     try {
+      if (!user) {
+        Alert.alert("Error", "You must be logged in to follow accounts");
+        return;
+      }
+      
       // Set loading state for this specific account
       setFollowingInProgress(prev => ({
         ...prev,
@@ -111,11 +151,20 @@ export default function SuggestedAccountsScreen({ navigation }) {
       }
       
       // Update state
-      setAccounts(accounts.map(a => 
+      const updatedAccounts = accounts.map(a => 
         a.user_id === account.user_id 
           ? { ...a, isFollowing: !a.isFollowing } 
           : a
-      ));
+      );
+      
+      setAccounts(updatedAccounts);
+      setFilteredAccounts(prev => 
+        prev.map(a => 
+          a.user_id === account.user_id 
+            ? { ...a, isFollowing: !a.isFollowing } 
+            : a
+        )
+      );
     } catch (error) {
       console.error("Error following/unfollowing account:", error);
       Alert.alert(
@@ -131,71 +180,33 @@ export default function SuggestedAccountsScreen({ navigation }) {
     }
   };
 
-  // Refresh accounts
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      
-      // Fetch all accounts that are sellers or influencers
-      const response = await fetch(`${FollowingService.BASE_URL}/users`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch accounts: ${response.status}`);
-      }
-      
-      const allUsers = await response.json();
-      
-      // Filter to only sellers and influencers
-      const suggestedAccounts = allUsers.filter(account => 
-        (account.account_type.toLowerCase() === 'seller' || 
-         account.account_type.toLowerCase() === 'influencer') &&
-        String(account.user_id) !== String(user.user_id)
-      );
-      
-      // Get list of accounts the user is already following
-      const following = await FollowingService.getFollowing(user.user_id);
-      const followingIds = following.map(f => String(f.user_id));
-      
-      // Mark accounts as already followed if appropriate
-      const accountsWithFollowStatus = suggestedAccounts.map(account => ({
-        ...account,
-        isFollowing: followingIds.includes(String(account.user_id))
-      }));
-      
-      // Sort by popularity (followers count)
-      accountsWithFollowStatus.sort((a, b) => 
-        (b.followers_count || 0) - (a.followers_count || 0)
-      );
-      
-      setAccounts(accountsWithFollowStatus);
-    } catch (error) {
-      console.error("Error refreshing accounts:", error);
-    } finally {
-      setRefreshing(false);
-    }
+  // Navigate to View Profile 
+  const navigateToProfile = (account) => {
+    navigation.navigate('Profile', { 
+      userId: account.user_id
+    });
   };
 
-  // Navigate to Home
-  const handleContinue = async () => {
+  // Handle filter selection
+  const handleFilterSelect = (filter) => {
+    setActiveFilter(filter);
+  };
+
+  // Continue to main app and mark as having seen suggestions
+  const continueToMainApp = async () => {
     try {
-      // Mark as seen in AuthContext
-      await markSuggestionsAsSeen();
+      // Mark that this user has seen suggestions
+      if (user) {
+        await AsyncStorage.setItem(`seen_suggestions_${user.user_id}`, 'true');
+      }
       
       // Navigate to the main app
       navigation.replace('MainApp');
     } catch (error) {
-      console.error("Error marking suggestions as seen:", error);
-      // Continue to MainApp anyway
+      console.error("Error saving seen status:", error);
+      // Still navigate even if saving fails
       navigation.replace('MainApp');
     }
-  };
-
-  // Go to user profile
-  const navigateToProfile = (account) => {
-    navigation.navigate('ViewProfile', { 
-      screen: 'ViewProfile', 
-      params: { userId: account.user_id }
-    });
   };
 
   // Render a single account card
@@ -280,40 +291,61 @@ export default function SuggestedAccountsScreen({ navigation }) {
         barStyle={isDarkMode ? "light-content" : "dark-content"}
       />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Suggested Accounts</Text>
-      </View>
-      
       {/* Welcome Message */}
       <View style={styles.welcomeContainer}>
         <Text style={styles.welcomeTitle}>Welcome to KSpace!</Text>
         <Text style={styles.welcomeText}>
-          Follow sellers and influencers to see their products and updates in your feed.
+          Follow sellers and influencers to see their products and campaigns in your feed.
         </Text>
       </View>
+      
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={colors.subtitle} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for accounts"
+          placeholderTextColor={colors.subtitle}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={() => setSearchQuery("")}>
+            <Ionicons name="close-circle" size={20} color={colors.subtitle} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      
+      {/* Filters */}
+      {/* <View style={styles.filtersContainer}>
+        <ScrollableFilters 
+          options={["All", "Seller", "Influencer"]} 
+          activeFilter={activeFilter}
+          onSelectFilter={handleFilterSelect}
+          colors={colors}
+          isDarkMode={isDarkMode}
+        />
+      </View> */}
       
       {/* Accounts List */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      ) : accounts.length > 0 ? (
+      ) : filteredAccounts.length > 0 ? (
         <FlatList
-          data={accounts}
+          data={filteredAccounts}
           renderItem={renderAccountCard}
-          keyExtractor={item => item.user_id.toString()}
+          keyExtractor={item => item.user_id?.toString()}
           contentContainerStyle={styles.accountsList}
           showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
         />
       ) : (
         <View style={styles.emptyContainer}>
           <Ionicons name="people" size={60} color={`${colors.primary}50`} />
-          <Text style={styles.emptyText}>No suggested accounts found</Text>
+          <Text style={styles.emptyText}>No accounts found</Text>
           <Text style={styles.emptySubText}>
-            Check back later for new accounts to follow
+            {searchQuery ? "Try a different search term" : "Check back later for new accounts to follow"}
           </Text>
         </View>
       )}
@@ -322,7 +354,7 @@ export default function SuggestedAccountsScreen({ navigation }) {
       <View style={styles.continueContainer}>
         <TouchableOpacity 
           style={styles.continueButton}
-          onPress={handleContinue}
+          onPress={continueToMainApp}
         >
           <Text style={styles.continueButtonText}>
             Continue to Home
@@ -332,6 +364,72 @@ export default function SuggestedAccountsScreen({ navigation }) {
     </SafeAreaView>
   );
 }
+
+// Scrollable Filter Component
+const ScrollableFilters = ({ options, activeFilter, onSelectFilter, colors, isDarkMode }) => {
+  return (
+    <ScrollView 
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingRight: 16
+      }}
+    >
+      {options.map((filter) => (
+        <TouchableOpacity
+          key={filter}
+          style={[
+            {
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+              marginRight: 8,
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+            },
+            activeFilter === filter ? { 
+              backgroundColor: colors.primary 
+            } : {}
+          ]}
+          onPress={() => onSelectFilter(filter)}
+        >
+          <Text
+            style={[
+              {
+                fontSize: 14,
+                color: colors.text,
+              },
+              activeFilter === filter ? { 
+                color: "#fff",
+                fontWeight: "600",
+              } : {}
+            ]}
+          >
+            {filter}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+};
+
+// ScrollView compatibility component for web
+const ScrollView = ({ children, ...props }) => {
+  return Platform.OS === 'web' ? (
+    <View {...props}>
+      <View style={props.contentContainerStyle}>
+        {children}
+      </View>
+    </View>
+  ) : (
+    <FlatList
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      data={[{ key: 'content' }]}
+      renderItem={() => <View>{children}</View>}
+      {...props}
+    />
+  );
+};
 
 function getDynamicStyles(colors, isDarkMode) {
   const { width } = Dimensions.get("window");
@@ -371,6 +469,30 @@ function getDynamicStyles(colors, isDarkMode) {
       fontSize: 14,
       color: colors.subtitle,
       lineHeight: 20,
+    },
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 12,
+      height: 44,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      height: "100%",
+      fontSize: 16,
+      color: colors.text,
+    },
+    filtersContainer: {
+      marginBottom: 16,
+      paddingLeft: 16,
     },
     accountsList: {
       padding: 16,

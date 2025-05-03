@@ -1437,26 +1437,57 @@ app.put("/api/users/:id/role", async (req, res) => {
     
     // Get the current data
     const data = loadData();
-    const userIndex = data.users.findIndex(u => u.user_id === userId);
     
-    if (userIndex === -1) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    // Update both role and account_type for compatibility
-    data.users[userIndex].role = role.toLowerCase();
-    data.users[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
-    
-    // Add tier information if provided (for influencers)
-    if (tier) {
-      data.users[userIndex].tier = tier;
+    // Find the user in the correct structure
+    // If data is an array of users
+    if (Array.isArray(data)) {
+      const userIndex = data.findIndex(u => u.user_id === userId);
+      
+      if (userIndex === -1) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update both role and account_type for compatibility
+      data[userIndex].role = role.toLowerCase();
+      data[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
+      
+      // Add tier information if provided (for influencers)
+      if (tier) {
+        data[userIndex].tier = tier;
+        data[userIndex].influencer_tier = tier; // Add both for compatibility
+      }
+    } 
+    // If data has a users array
+    else if (data.users && Array.isArray(data.users)) {
+      const userIndex = data.users.findIndex(u => u.user_id === userId);
+      
+      if (userIndex === -1) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update both role and account_type for compatibility
+      data.users[userIndex].role = role.toLowerCase();
+      data.users[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
+      
+      // Add tier information if provided (for influencers)
+      if (tier) {
+        data.users[userIndex].tier = tier;
+        data.users[userIndex].influencer_tier = tier; // Add both for compatibility
+      }
+    } else {
+      return res.status(500).json({ error: "Invalid data structure" });
     }
     
     // Save the updated data
     saveData(data);
     
+    // Return the updated user for confirmation
+    const updatedUser = Array.isArray(data) 
+      ? data.find(u => u.user_id === userId)
+      : data.users.find(u => u.user_id === userId);
+    
     console.log(`✅ Successfully updated user ${userId} to ${role} role`);
-    res.json(data.users[userIndex]);
+    res.json(updatedUser);
   } catch (error) {
     console.error("Failed to update user role:", error);
     res.status(500).json({ error: "Failed to update user role" });

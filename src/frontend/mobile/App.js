@@ -16,6 +16,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { Modalize } from "react-native-modalize";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuth, AuthProvider } from "./context/AuthContext";
+import { Host } from "react-native-portalize";
 
 import ButtonMain from "./components/ButtonMain";
 import ButtonSettings from "./components/ButtonSettings";
@@ -72,16 +73,34 @@ const AuthStack = () => {
 const AppNavigator = () => {
   const { user, isFirstLogin } = useAuth();
 
+  // Add these console.logs to debug
+  console.log("AppNavigator - User:", user?.name, user?.account_type);
+  console.log("AppNavigator - isFirstLogin:", isFirstLogin);
+
   // No user, show auth screens
   if (!user) {
     return <AuthStack />;
   }
 
   // User is a buyer logging in for the first time
-  if (isFirstLogin && (user.role?.toLowerCase() === 'buyer' || user.account_type?.toLowerCase() === 'buyer')) {
+  if (
+    isFirstLogin &&
+    (user.role?.toLowerCase() === "buyer" ||
+      user.account_type?.toLowerCase() === "buyer")
+  ) {
+    console.log(
+      "AppNavigator - Showing suggested accounts for first-time buyer"
+    );
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="SuggestedAccounts" component={SuggestedAccountsScreen} />
+        <Stack.Screen
+          name="SuggestedAccounts"
+          component={SuggestedAccountsScreen}
+          options={{
+            animation: "slide_from_bottom",
+            presentation: "modal",
+          }}
+        />
         <Stack.Screen name="MainApp" component={AppContent} />
       </Stack.Navigator>
     );
@@ -99,7 +118,9 @@ const App = () => (
           <CartProvider>
             <ForgetPasswordProvider>
               <NavigationContainer>
-                <AppNavigator />
+                <Host>
+                  <AppNavigator />
+                </Host>
               </NavigationContainer>
             </ForgetPasswordProvider>
           </CartProvider>

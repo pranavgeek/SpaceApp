@@ -23,7 +23,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import BuyerOrdersScreen from "./BuyerOrdersScreen";
 import { LinearGradient } from "expo-linear-gradient";
-import { fetchNotifications } from "../backend/db/API";
+import { fetchNotifications, fetchUsers } from "../backend/db/API";
 
 export default function BuyerProfileScreen({ navigation, route }) {
   const { colors, isDarkMode } = useTheme();
@@ -33,6 +33,53 @@ export default function BuyerProfileScreen({ navigation, route }) {
   const [location, setLocation] = useState("");
   const [languages, setLanguages] = useState([]);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
+
+  const refreshUserData = async () => {
+    try {
+      if (!user || !user.user_id) return;
+
+      console.log("Refreshing buyer profile data for user:", user.user_id);
+
+      // Fetch fresh user data
+      const users = await fetchUsers();
+      const refreshedUser = users.find(
+        (u) => String(u.user_id) === String(user.user_id)
+      );
+
+      if (refreshedUser) {
+        // Update the profile object with fresh data
+        setProfile({
+          name: refreshedUser.name || "User",
+          city: refreshedUser.city || "N/A",
+          country: refreshedUser.country || "N/A",
+          accountType: refreshedUser.account_type || "N/A",
+          productPurchased: Array.isArray(refreshedUser.products_purchased)
+            ? refreshedUser.products_purchased
+            : [],
+          followingCount:
+            refreshedUser.following_count ||
+            (Array.isArray(refreshedUser.following)
+              ? refreshedUser.following.length
+              : 0),
+          campaigns: Array.isArray(refreshedUser.campaigns)
+            ? refreshedUser.campaigns
+            : [],
+          followers: refreshedUser.followers_count || 0,
+          earnings: refreshedUser.earnings || 0,
+        });
+
+        console.log(
+          "Updated buyer profile. Following count:",
+          refreshedUser.following_count ||
+            (Array.isArray(refreshedUser.following)
+              ? refreshedUser.following.length
+              : 0)
+        );
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
 
   // Load notifications when screen is focused
   useFocusEffect(
@@ -48,6 +95,7 @@ export default function BuyerProfileScreen({ navigation, route }) {
           if (user && user.user_id) {
             checkForNewNotifications();
           }
+          refreshUserData();
         } catch (error) {
           console.error("Error loading data from AsyncStorage", error);
         }
@@ -85,7 +133,7 @@ export default function BuyerProfileScreen({ navigation, route }) {
   const isWeb = Platform.OS === "web";
   const isDesktopWeb = isWeb && windowWidth >= 992;
 
-  const profile = {
+  const [profile, setProfile] = useState({
     name: user?.name || "Pranav",
     city: user?.city || "N/A",
     country: user?.country || "N/A",
@@ -97,7 +145,7 @@ export default function BuyerProfileScreen({ navigation, route }) {
     campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
     followers: user?.followers_count || 0,
     earnings: user?.earnings || 0,
-  };
+  });
 
   // Render the stats section based on the account type
   const renderStats = () => {
@@ -111,10 +159,15 @@ export default function BuyerProfileScreen({ navigation, route }) {
           <Text style={styles.statLabel}>Purchases</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() =>
+            navigation.navigate("Followings", { userId: user.user_id })
+          }
+        >
           <Text style={styles.statValue}>{profile.followingCount}</Text>
-          <Text style={styles.statLabel}>Following</Text>
-        </View>
+          <Text style={styles.statLabel}>Followings</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -134,8 +187,6 @@ export default function BuyerProfileScreen({ navigation, route }) {
           <Text style={styles.buttonText}>Orders</Text>
         </TouchableOpacity>
 
-
-
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => navigation.navigate("Notifications")}
@@ -149,7 +200,7 @@ export default function BuyerProfileScreen({ navigation, route }) {
           </View>
           <Text style={styles.buttonText}>Notifications</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => navigation.navigate("Favorites")}

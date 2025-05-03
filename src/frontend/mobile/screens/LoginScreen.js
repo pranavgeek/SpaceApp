@@ -52,6 +52,8 @@ const LoginScreen = ({ navigation }) => {
   // State to track whether we're in login or signup mode
   const [isSignupMode, setIsSignupMode] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const { setIsFirstLogin } = useAuth();
+
 
   const [signupAccountType, setSignupAccountType] = useState("buyer");
   const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -322,6 +324,7 @@ const LoginScreen = ({ navigation }) => {
 
 // Modified handleSignUp with direct navigation
 const handleSignUp = async () => {
+
   // Validate form
   if (!signupName.trim()) {
     Alert.alert("Error", "Please enter your name");
@@ -438,6 +441,10 @@ const handleSignUp = async () => {
 
     // Clear loading state
     setIsSignupLoading(false);
+
+    if (signupAccountType === "buyer") {
+      setIsFirstLogin(true);
+    }
 
     // Show success message
     Alert.alert(
