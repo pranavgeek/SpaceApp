@@ -1,3 +1,4 @@
+const { checkSubscriptionLimits } = require("./db/subscription-middleware.js");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -6,7 +7,7 @@ const path = require("path");
 const db = require("./db/database");
 const fs = require("fs");
 const nodeMailer = require("nodemailer");
-
+ 
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -36,6 +37,8 @@ const saveData = (data) => {
     JSON.stringify(data, null, 2)
   );
 };
+
+const subscriptionMiddleware = checkSubscriptionLimits(loadData, saveData);
 
 function initializeFollowingData() {
   try {
@@ -144,7 +147,28 @@ initializeFollowingData();
 //   }
 // }
 
-
+app.patch(
+  "/api/users/:userId/role",
+  // allow bypassing subscription checks during the role switch…
+  (req, res, next) => { req.body.force = true; next(); },
+  async (req, res) => {
+    try {
+      const { role, tier } = req.body;
+      // updateUserRole should load your JSON or your database,
+      // set user.role & user.tier, then save it back.
+      const updated = await API.updateUserRole(
+        Number(req.params.userId),
+        role,
+        tier,
+        true
+      );
+      res.json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
 
 // Generate OTP and store in user object
 app.post("/api/auth/request-reset", async (req, res) => {
@@ -275,6 +299,56 @@ app.post("/api/users/:buyerId/orders/create", async (req, res) => {
       .json({ error: "Failed to create order", details: error.message });
   }
 });
+
+app.get("/api/sellers/:sellerId/subscription", subscriptionMiddleware, (req, res) => {
+  try {
+    // Return the limits and current usage from the middleware
+    res.json({
+      tier: req.sellerLimits.tier,
+      limits: {
+        products: req.sellerLimits.productLimit,
+        collaborations: req.sellerLimits.collaborationLimit,
+        fee_percentage: req.sellerLimits.feePercentage
+      },
+      usage: {
+        products: req.sellerStats.productCount,
+        collaborations: req.sellerStats.collaborationCount,
+        products_remaining: Math.max(0, req.sellerLimits.productLimit - req.sellerStats.productCount),
+        collaborations_remaining: Math.max(0, req.sellerLimits.collaborationLimit - req.sellerStats.collaborationCount)
+      },
+      is_at_limit: {
+        products: req.sellerStats.productCount >= req.sellerLimits.productLimit,
+        collaborations: req.sellerStats.collaborationCount >= req.sellerLimits.collaborationLimit
+      }
+    });
+  } catch (error) {
+    console.error("Error getting seller subscription details:", error);
+    res.status(500).json({ error: "Failed to get seller subscription details" });
+  }
+});
+
+
+// Helper function to get base URL for loading data
+function getUtilsModule() {
+  // Return an object with the loadData and saveData functions
+  return {
+    loadData: () => {
+      const rawData = fs.readFileSync(
+        path.join(__dirname, "db", "data.json"),
+        "utf-8"
+      );
+      return JSON.parse(rawData);
+    },
+    
+    saveData: (data) => {
+      fs.writeFileSync(
+        path.join(__dirname, "db", "data.json"),
+        JSON.stringify(data, null, 2)
+      );
+    }
+  };
+}
+
 
 // GET: Get seller's received orders
 app.get("/api/users/:sellerId/received-orders", async (req, res) => {
@@ -854,6 +928,7 @@ app.post("/api/retrieve-token", async (req, res) => {
     });
   }
 });
+// ------------------------------------------------------------------------------ //
 
 app.get("/", async (req, res) => {
   try {
@@ -948,12 +1023,35 @@ app.get("/api/products/:id", async (req, res) => {
 });
 
 // Create New Product
-app.post("/api/products", async (req, res) => {
+app.post("/api/products", checkSubscriptionLimits, async (req, res) => {
   try {
     const product = req.body;
+    const sellerId = parseInt(product.user_seller);
+    
+    // Check if seller has reached their product limit
+    if (req.sellerStats && req.sellerLimits) {
+      if (req.sellerStats.productCount >= req.sellerLimits.productLimit) {
+        return res.status(403).json({ 
+          error: "Product limit reached", 
+          message: `Your current plan (${req.sellerLimits.tier}) allows a maximum of ${req.sellerLimits.productLimit} products. Please upgrade your subscription to add more products.`,
+          upgrade_required: true,
+          current_tier: req.sellerLimits.tier,
+          current_count: req.sellerStats.productCount,
+          max_allowed: req.sellerLimits.productLimit
+        });
+      }
+    }
+    
+    // Apply fee percentage based on the subscription tier
+    if (req.sellerLimits) {
+      product.fee_percentage = req.sellerLimits.feePercentage;
+    }
+    
+    // Continue with product creation
     const newProduct = await db.createProduct(product);
     res.status(201).json(newProduct);
   } catch (error) {
+    console.error("Failed to create product:", error);
     res.status(500).json({ error: "Failed to create product" });
   }
 });
@@ -1427,9 +1525,9 @@ app.get("/api/users/role/:role", async (req, res) => {
 app.put("/api/users/:id/role", async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, tier } = req.body;
+    const { role, tier, force } = req.body;
     
-    console.log(`Updating user ${userId} role to: ${role}, tier: ${tier || 'none'}`);
+    console.log(`Updating user ${userId} role to: ${role}, tier: ${tier || 'none'}, force: ${force}`);
     
     if (!role) {
       return res.status(400).json({ error: "Role is required" });
@@ -1438,55 +1536,45 @@ app.put("/api/users/:id/role", async (req, res) => {
     // Get the current data
     const data = loadData();
     
-    // Find the user in the correct structure
-    // If data is an array of users
-    if (Array.isArray(data)) {
-      const userIndex = data.findIndex(u => u.user_id === userId);
-      
-      if (userIndex === -1) {
-        return res.status(404).json({ error: "User not found" });
+    // Find the user
+    const userIndex = data.users.findIndex(u => u.user_id === userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // If force flag is set, clear any subscription data that might interfere
+    if (force === true && tier === 'basic') {
+      console.log(`Force flag set - resetting subscription data for user ${userId}`);
+      // Clear any active subscriptions
+      if (data.subscriptions) {
+        data.subscriptions = data.subscriptions.filter(
+          sub => sub.user_id !== userId
+        );
       }
+    }
+    
+    // Update both role and account_type for compatibility
+    data.users[userIndex].role = role.toLowerCase();
+    data.users[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
+    
+    // Add tier information if provided
+    if (tier) {
+      data.users[userIndex].tier = tier;
       
-      // Update both role and account_type for compatibility
-      data[userIndex].role = role.toLowerCase();
-      data[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
-      
-      // Add tier information if provided (for influencers)
-      if (tier) {
-        data[userIndex].tier = tier;
-        data[userIndex].influencer_tier = tier; // Add both for compatibility
+      // For influencers, also update influencer_tier for compatibility
+      if (role.toLowerCase() === 'influencer') {
+        data.users[userIndex].influencer_tier = tier;
       }
-    } 
-    // If data has a users array
-    else if (data.users && Array.isArray(data.users)) {
-      const userIndex = data.users.findIndex(u => u.user_id === userId);
-      
-      if (userIndex === -1) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      // Update both role and account_type for compatibility
-      data.users[userIndex].role = role.toLowerCase();
-      data.users[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
-      
-      // Add tier information if provided (for influencers)
-      if (tier) {
-        data.users[userIndex].tier = tier;
-        data.users[userIndex].influencer_tier = tier; // Add both for compatibility
-      }
-    } else {
-      return res.status(500).json({ error: "Invalid data structure" });
     }
     
     // Save the updated data
     saveData(data);
     
     // Return the updated user for confirmation
-    const updatedUser = Array.isArray(data) 
-      ? data.find(u => u.user_id === userId)
-      : data.users.find(u => u.user_id === userId);
+    const updatedUser = data.users[userIndex];
     
-    console.log(`✅ Successfully updated user ${userId} to ${role} role`);
+    console.log(`✅ Successfully updated user ${userId} to ${role} role with tier ${tier || 'none'}`);
     res.json(updatedUser);
   } catch (error) {
     console.error("Failed to update user role:", error);
@@ -1723,12 +1811,27 @@ app.get("/api/collaboration-requests/influencer/:influencerId", (req, res) => {
 });
 
 // Create a new collaboration request
-app.post("/api/collaboration-requests", (req, res) => {
+app.post("/api/collaboration-requests", checkSubscriptionLimits, (req, res) => {
   try {
     const requestData = req.body;
+    const sellerId = parseInt(requestData.sellerId);
+    
+    // Check if seller has reached their collaboration limit
+    if (req.sellerStats && req.sellerLimits) {
+      if (req.sellerStats.collaborationCount >= req.sellerLimits.collaborationLimit) {
+        return res.status(403).json({ 
+          error: "Collaboration limit reached", 
+          message: `Your current plan (${req.sellerLimits.tier}) allows a maximum of ${req.sellerLimits.collaborationLimit} active collaborations. Please upgrade your subscription to add more collaborations.`,
+          upgrade_required: true,
+          current_tier: req.sellerLimits.tier,
+          current_count: req.sellerStats.collaborationCount,
+          max_allowed: req.sellerLimits.collaborationLimit
+        });
+      }
+    }
     
     // Validate required fields
-    if (!requestData.influencerId || !requestData.sellerId) {
+    if (!requestData.influencerId || !sellerId) {
       return res.status(400).json({ error: "Missing required fields: influencerId and sellerId are required" });
     }
     
@@ -1744,7 +1847,8 @@ app.post("/api/collaboration-requests", (req, res) => {
       ...requestData,
       requestId: requestData.requestId || Date.now().toString(),
       timestamp: requestData.timestamp || new Date().toISOString(),
-      status: requestData.status || "Pending"
+      status: requestData.status || "Pending",
+      fee_percentage: req.sellerLimits ? req.sellerLimits.feePercentage : 5
     };
     
     // Add the new request

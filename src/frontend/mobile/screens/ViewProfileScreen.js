@@ -254,7 +254,7 @@ export default function ViewProfileScreen({ navigation, route }) {
           </TouchableOpacity>
 
           <View style={styles.statDivider} />
-          
+
           <TouchableOpacity
             style={styles.statItem}
             onPress={navigateToFollowers}
@@ -545,12 +545,17 @@ export default function ViewProfileScreen({ navigation, route }) {
               {/* Message button */}
               <TouchableOpacity
                 style={styles.messageButton}
-                onPress={() =>
-                  navigation.navigate("Chat", {
-                    recipientId: profile.id,
-                    recipientName: profile.name,
-                  })
-                }
+                onPress={() => {
+                  // Navigate to the Messages tab first
+                  navigation.navigate("TabMessages", {
+                    // Then navigate to the Chat screen with params
+                    screen: "Chat",
+                    params: {
+                      chatPartner: profile.name,
+                      recipientId: profile.id,
+                    },
+                  });
+                }}
               >
                 <Text style={styles.messageButtonText}>Message</Text>
               </TouchableOpacity>

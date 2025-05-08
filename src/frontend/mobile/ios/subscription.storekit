@@ -1,0 +1,210 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "12F36D8E",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6741033320",
+    "_developerTeamID" : "P65AA242M9",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 768228573.87634695,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21676599",
+      "localizations" : [
+
+      ],
+      "name" : "Enterprise Seller",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "69.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6745154491",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Advanced tools — $99.99/mo. Cancel anytime.",
+              "displayName" : "Seller Enterprise Monthly",
+              "locale" : "en_CA"
+            }
+          ],
+          "productID" : "com.thespaceapp.sellerenterprise.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Seller Enterprise Monthly",
+          "subscriptionGroupID" : "21676599",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "899.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6745373028",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Advanced tools — $1199.99/mo. Cancel anytime.",
+              "displayName" : "Seller Enterprise Yearly",
+              "locale" : "en_CA"
+            }
+          ],
+          "productID" : "com.thespaceapp.sellerenterprise.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Seller Enterprise Yearly",
+          "subscriptionGroupID" : "21676599",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    },
+    {
+      "id" : "21676484",
+      "localizations" : [
+
+      ],
+      "name" : "Pro Seller",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "22.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6745154515",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "50 Collaboration — $29.99/mo. Cancel anytime.",
+              "displayName" : "Seller Pro Monthly",
+              "locale" : "en_CA"
+            }
+          ],
+          "productID" : "com.thespaceapp.sellerpro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Seller Pro Monthly",
+          "subscriptionGroupID" : "21676484",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "249.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6745372986",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "600 Collaboration — $9.99/mo. Cancel anytime.",
+              "displayName" : "Seller Pro Yearly",
+              "locale" : "en_CA"
+            }
+          ],
+          "productID" : "com.thespaceapp.sellerpro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Seller Pro Yearly",
+          "subscriptionGroupID" : "21676484",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

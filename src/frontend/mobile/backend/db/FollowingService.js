@@ -12,7 +12,7 @@ const BASE_URL =
  * Service for handling following/follower relationships
  */
 export const FollowingService = {
-  followUser: async (buyerId, targetUserId) => {
+  followUser: async (buyerId, targetUserId, { updateUserSilently } = {}) => {
     try {
       console.log(
         `FollowingService: User ${buyerId} following user ${targetUserId}`
@@ -21,55 +21,57 @@ export const FollowingService = {
       if (!buyerId || !targetUserId)
         throw new Error("Both buyer ID and target user ID are required");
 
+      let isFollowingOperation = true;
+    
       const users = await fetchUsers();
-
+  
       // Find the buyer and target user
       const buyer = users.find((u) => String(u.user_id) === String(buyerId));
       const targetUser = users.find(
         (u) => String(u.user_id) === String(targetUserId)
       );
-
+  
       if (!buyer) throw new Error(`Buyer with ID ${buyerId} not found`);
       if (!targetUser)
         throw new Error(`Target user with ID ${targetUserId} not found`);
-
+  
       // Validate account types
       const buyerRole =
         buyer.account_type?.toLowerCase() || buyer.role?.toLowerCase();
       const targetRole =
         targetUser.account_type?.toLowerCase() ||
         targetUser.role?.toLowerCase();
-
+  
       if (buyerRole !== "buyer") {
         throw new Error(
           `Only buyers can follow. Current user is a ${buyerRole}`
         );
       }
-
+  
       if (targetRole !== "seller" && targetRole !== "influencer") {
         throw new Error(
           `Cannot follow users with role ${targetRole}. Only sellers and influencers can be followed.`
         );
       }
-
+  
       // 1. UPDATE TARGET USER (SELLER/INFLUENCER)
       // Initialize followers array if it doesn't exist
       if (!targetUser.followers) {
         targetUser.followers = [];
       }
-
+  
       // Check if buyer is already following
       const alreadyFollowing = targetUser.followers.some((follower) =>
         typeof follower === "object"
           ? String(follower.user_id) === String(buyerId)
           : String(follower) === String(buyerId)
       );
-
+  
       if (alreadyFollowing) {
         console.log(`Buyer ${buyerId} is already following ${targetUserId}`);
         return false; // No change needed
       }
-
+  
       // Add buyer to followers array
       targetUser.followers.push({
         user_id: buyerId,
@@ -77,26 +79,27 @@ export const FollowingService = {
         profile_image: buyer.profile_image || "default_profile.jpg",
         follow_date: new Date().toISOString(),
       });
-
+  
       // Update followers count
       targetUser.followers_count = targetUser.followers.length;
-
-      // Update target user in database
+  
+      // Update target user in database WITHOUT triggering a reload
       await updateUser(targetUserId, {
         followers: targetUser.followers,
         followers_count: targetUser.followers_count,
+        _preventReload: true // Add flag to prevent UI refresh
       });
-
+  
       console.log(
         `Updated followers for user ${targetUserId}: Count=${targetUser.followers_count}`
       );
-
+  
       // 2. UPDATE BUYER
       // Initialize following array if it doesn't exist
       if (!buyer.following) {
         buyer.following = [];
       }
-
+  
       // Add target user to following array (as complete object)
       buyer.following.push({
         user_id: targetUserId,
@@ -105,24 +108,38 @@ export const FollowingService = {
         account_type: targetUser.account_type,
         follow_date: new Date().toISOString(),
       });
-
+  
       // Update following count
       buyer.following_count = buyer.following.length;
-
-      // Update buyer in database
+  
+      // CRITICAL CHANGE: Use silent update for the buyer to prevent app refresh
+      if (updateUserSilently) {
+        // Use the silent update function to update the frontend state
+        await updateUserSilently({
+          following: buyer.following,
+          following_count: buyer.following_count,
+          _preventReload: true
+        });
+      }
+  
+      // Update buyer in database with flag to prevent reload
       await updateUser(buyerId, {
         following: buyer.following,
         following_count: buyer.following_count,
+        _preventReload: true // Add flag to prevent UI refresh
       });
-
+  
       console.log(
         `Updated following for user ${buyerId}: Count=${buyer.following_count}`
       );
-
+  
       return true;
     } catch (error) {
       console.error("Error following user:", error);
       throw error;
+    } finally {
+      // Reset the operation flag
+      isFollowingOperation = false;
     }
   },
 

@@ -136,11 +136,14 @@ export default function UserProfileScreen({ navigation, route }) {
   };
 
   const navigateToChat = () => {
-    navigation.navigate('Messages', {
-      screen: 'Chat',
-      params: { 
-        chatPartner: profile.name 
-      }
+    // Navigate to the Messages tab first
+    navigation.navigate("TabMessages", {
+      // Then navigate to the Chat screen with params
+      screen: "Chat",
+      params: {
+        chatPartner: profile.name,
+        recipientId: profile.id,
+      },
     });
   };
 

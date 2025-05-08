@@ -1,7 +1,6 @@
-import React, { createContext, useState, useContext, useEffect, Platform } from "react";
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef, Platform } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiLogin } from "../backend/db/API"; // Rename the imported function
-import { updateUser } from "../backend/db/API";
+import { apiLogin, updateUser } from "../backend/db/API";
 
 const AuthContext = createContext(null);
 
@@ -9,7 +8,18 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFirstLogin, setIsFirstLogin] = useState(false);
+  // Add a ref to track if update is in progress
+  const isUpdating = useRef(false);
 
+  useEffect(() => {
+    console.log("🧠 AuthContext user changed:", user?.user_id);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      console.trace("🔁 setUser() triggered — stack trace here");
+    }
+  }, [user]);
 
   // On app load, try to load the user from persistent storage
   useEffect(() => {
@@ -29,30 +39,23 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  // Adjusted to use the API login
-  // const login = async (email, password) => {
-  //   try {
-  //     const userData = await apiLogin(email, password); // Fetch user info from local JSON/API
-  //     const storedRole = await AsyncStorage.getItem("userRole");
-
-  //     // Only apply storedRole if it matches one of the allowed roles for the user
-  //     const validRoles = ["buyer", "seller", "influencer"];
-  //     const roleFromAPI = userData.account_type?.toLowerCase() || "buyer";
-  //     const role = validRoles.includes(storedRole) ? storedRole : roleFromAPI;
-
-  //     const updatedUser = {
-  //       ...userData,
-  //       role, // use valid role only
-  //       id: userData.user_id.toString(),
-  //     };
-  //     setUser(updatedUser);
-  //     await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-  //     await AsyncStorage.setItem("userRole", updatedUser.role);
-  //   } catch (error) {
-  //     console.error("Login failed", error);
-  //     throw new Error(error.message || "Login failed");
-  //   }
-  // };
+  // Add this function to update user data without triggering refreshes
+  const updateUserSilently = async (patch) => {
+    try {
+      const storedUserStr = await AsyncStorage.getItem("user");
+      if (!storedUserStr) return;
+      const storedUser = JSON.parse(storedUserStr);
+  
+      const newUser = { ...storedUser, ...patch };
+  
+      await AsyncStorage.setItem("user", JSON.stringify(newUser));
+      console.log("✅ User silently updated in AsyncStorage");
+      
+      // 🚫 Don't call setUser(newUser) here
+    } catch (error) {
+      console.error("Failed to silently update user:", error);
+    }
+  };
 
   const login = async (email, password) => {
     setLoading(true);
@@ -158,84 +161,45 @@ export const AuthProvider = ({ children }) => {
     await storage.removeItem("userRole");
   };
 
-  // const updateRole = async (newRole) => {
-  //   if (user) {
-  //     try {
-  //       const updatedUser = { ...user, account_type: newRole, role: newRole };
-  //       console.log("Sending update to server with:", updatedUser);
-  
-  //       await updateUser(user.user_id, { account_type: newRole });
-  
-  //       setUser(updatedUser);
-  //       await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-  //       await AsyncStorage.setItem("userRole", newRole);
-  //       await AsyncStorage.setItem("switchedRole", newRole);
-        
-  //       const storedUser = await AsyncStorage.getItem("user");
-  //       console.log("✅ Updated AsyncStorage user:", JSON.parse(storedUser));
-  //     } catch (error) {
-  //       console.error("Failed to update role on server:", error);
-  //     }
-  //   }
-  // };
-
   const updateRole = async (newRole, tier = null) => {
     if (user) {
       setLoading(true);
       try {
-        console.log(`AuthContext: Updating user ${user.user_id} to role ${newRole} with tier ${tier || 'none'}`);
+        console.log(`Updating user ${user.user_id} to role ${newRole} with tier ${tier || 'none'}`);
         
-        // Normalize role format
         const normalizedRole = newRole.toLowerCase();
         const displayRole = normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
         
-        // Get the most recent user data from storage
         const storedUserStr = await AsyncStorage.getItem("user");
         const storedUser = storedUserStr ? JSON.parse(storedUserStr) : user;
         
-        // Create the updated user object
         const updatedUser = { 
           ...storedUser,  
           account_type: displayRole,
           role: normalizedRole
         };
         
-        // Add tier information if provided (for influencers)
-      if (tier && normalizedRole === "influencer") {
-        updatedUser.influencer_tier = tier; // Use consistent property
-        updatedUser.tier = tier; // Keep this for backward compatibility
-      }
-        
-        // Log the update for debugging
-        console.log("Sending update to server with:", {
-          user_id: user.user_id,
-          role: normalizedRole,
-          account_type: displayRole,
-          tier: tier || 'none'
-        });
-        
-        // Update the user in the backend
-        const updateData = { 
-          role: normalizedRole,
-          account_type: displayRole
-        };
-        
-        if (tier && normalizedRole === "influencer") {
-          updateData.influencer_tier = tier;
-          updateData.tier = tier;
+        // 👇 FIX: Ensure tier is updated correctly for sellers
+        if (tier && (normalizedRole === "influencer" || normalizedRole === "seller")) {
+          updatedUser.tier = tier;
+          if (normalizedRole === "influencer") {
+            updatedUser.influencer_tier = tier;
+          }
+        } else if (normalizedRole === "seller" && !tier) {
+          updatedUser.tier = "basic"; // default tier for sellers
         }
         
-        await updateUser(user.user_id, updateData);
+        await updateUser(user.user_id, {
+          role: normalizedRole,
+          account_type: displayRole,
+          tier: updatedUser.tier,
+        });
         console.log("✅ User role updated in the backend");
   
-        // Update the local state
         setUser(updatedUser);
-        console.log("✅ User state updated in context");
-        
-        // Update AsyncStorage
         await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
         await AsyncStorage.setItem("userRole", normalizedRole);
-        await AsyncStorage.setItem("switchedRole", displayRole);
+        await AsyncStorage.setItem("userTier", updatedUser.tier);
         console.log("✅ User data saved to AsyncStorage");
         
         return updatedUser;
@@ -251,9 +215,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
   
-
+  
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, updateRole, loading, isFirstLogin, setIsFirstLogin,  }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        login, 
+        logout, 
+        updateRole, 
+        loading, 
+        isFirstLogin, 
+        setIsFirstLogin, 
+        updateUserSilently // Add the new function to the context
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

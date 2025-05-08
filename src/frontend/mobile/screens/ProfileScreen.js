@@ -21,6 +21,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { fetchUsers } from "../backend/db/API";
+import SubscriptionBadge from "../components/SubscriptionBadge";
 
 export default function ProfileScreen({ navigation }) {
   const { colors, isDarkMode } = useTheme();
@@ -44,10 +45,12 @@ export default function ProfileScreen({ navigation }) {
     try {
       // Fetch the latest user data
       const users = await fetchUsers(); // Import this from your API
-      
+
       // Find the current user
-      const refreshedUser = users.find(u => String(u.user_id) === String(user.user_id));
-      
+      const refreshedUser = users.find(
+        (u) => String(u.user_id) === String(user.user_id)
+      );
+
       if (refreshedUser) {
         // Update the seller object with fresh data
         setSeller({
@@ -55,9 +58,11 @@ export default function ProfileScreen({ navigation }) {
           city: refreshedUser.city || "N/A",
           country: refreshedUser.country || "N/A",
           accountType: refreshedUser.account_type || "N/A",
-          campaigns: Array.isArray(refreshedUser.campaigns) ? refreshedUser.campaigns : [],
+          campaigns: Array.isArray(refreshedUser.campaigns)
+            ? refreshedUser.campaigns
+            : [],
           followers: refreshedUser.followers_count || 0,
-          earnings: refreshedUser.earnings || 0
+          earnings: refreshedUser.earnings || 0,
         });
       }
     } catch (error) {
@@ -72,7 +77,7 @@ export default function ProfileScreen({ navigation }) {
     accountType: user?.account_type || "N/A",
     campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
     followers: user?.followers_count || 0,
-    earnings: user?.earnings || 0
+    earnings: user?.earnings || 0,
   });
 
   useFocusEffect(
@@ -126,8 +131,20 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.profileInfoSection}>
             <View style={styles.nameSection}>
               <Text style={styles.profileName}>{seller.name}</Text>
-              <View style={styles.accountTypeBadge}>
-                <Text style={styles.accountTypeText}>{seller.accountType}</Text>
+              <View style={styles.badgeContainer}>
+                <View style={styles.accountTypeBadge}>
+                  <Text style={styles.accountTypeText}>
+                    {seller.accountType}
+                  </Text>
+                </View>
+                {/* Add the subscription badge if user is a seller */}
+                {seller.accountType.toLowerCase() === "seller" && (
+                  <SubscriptionBadge
+                    navigation={navigation}
+                    user={user}
+                    colors={colors}
+                  />
+                )}
               </View>
             </View>
 
@@ -351,15 +368,18 @@ function getDynamicStyles(colors, isDarkMode) {
       marginBottom: 20,
     },
     nameSection: {
-      flexDirection: "row",
-      alignItems: "center",
       marginBottom: 12,
     },
     profileName: {
       fontSize: 24,
       fontWeight: "bold",
       color: colors.text,
-      marginRight: 10,
+      marginBottom: 8, // Added margin to separate name from badges
+    },
+    badgeContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
     },
     accountTypeBadge: {
       backgroundColor: `${colors.primary}20`,

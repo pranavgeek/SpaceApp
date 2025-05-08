@@ -3,7 +3,7 @@
     "name": "KrachisSpaceApp",
     "slug": "KrachisSpaceApp",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "all",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pranavgotawala.MySpace"
+      "bundleIdentifier": "com.kspace.SpaceApp2025"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.pranavgotawala.MySpace"
+      "package": "com.kspace.SpaceApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"

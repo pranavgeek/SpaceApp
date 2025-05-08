@@ -15,6 +15,7 @@ import CollaborationScreen from "../screens/CollaborationScreen"
 import InfluencerApplicationScreen from "../screens/InfluencerApplicationScreen.js";
 import { useTheme } from "../theme/ThemeContext.js";
 
+
 const SettingsStack = createNativeStackNavigator();
 
 const SettingsStackNavigator = () => {
@@ -75,6 +76,11 @@ const SettingsStackNavigator = () => {
         component={SellerPlansScreen}
         //   options={{headerShown: false}}
       />
+      {/* <SettingsStack.Screen
+        name="SubscriptionPayment"
+        component={SubscriptionPaymentScreen}
+        //   options={{headerShown: false}}
+      /> */}
     </SettingsStack.Navigator>
   );
 };

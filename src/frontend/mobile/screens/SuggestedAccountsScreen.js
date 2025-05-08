@@ -12,7 +12,7 @@ import {
   Dimensions,
   TextInput,
   StatusBar,
-  Alert
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
@@ -25,7 +25,7 @@ import FollowingService from "../backend/db/FollowingService";
 export default function SuggestedAccountsScreen({ navigation }) {
   const { colors, isDarkMode } = useTheme();
   const styles = getDynamicStyles(colors, isDarkMode);
-  const { user } = useAuth();
+  const { user, updateUserSilently } = useAuth();
   const [accounts, setAccounts] = useState([]);
   const [filteredAccounts, setFilteredAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,62 +33,79 @@ export default function SuggestedAccountsScreen({ navigation }) {
   const [followingInProgress, setFollowingInProgress] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
-  
+
+  console.log("🟩 SuggestedAccountsScreen mounted");
+
+  useEffect(() => {
+    return () => {
+      console.log("🟥 SuggestedAccountsScreen unmounted");
+    };
+  }, []);
+
   // Load all sellers and influencers when screen is focused
   useEffect(() => {
     const fetchSuggestedAccounts = async () => {
       try {
         if (!user) return;
-        
+
         setLoading(true);
-        
+
         // Fetch all users from the API
         const allUsers = await fetchUsers();
-        
+
         if (!allUsers || !Array.isArray(allUsers)) {
           throw new Error("Failed to fetch users");
         }
-        
+
         // Filter for sellers and influencers only
-        const sellersAndInfluencers = allUsers.filter(account => 
-          account.account_type?.toLowerCase() === 'seller' || 
-          account.account_type?.toLowerCase() === 'influencer'
+        const sellersAndInfluencers = allUsers.filter(
+          (account) =>
+            account.account_type?.toLowerCase() === "seller" ||
+            account.account_type?.toLowerCase() === "influencer"
         );
-        
+
         // Don't show current user
-        const filteredAccounts = sellersAndInfluencers.filter(account => 
-          String(account.user_id) !== String(user.user_id)
+        const filteredAccounts = sellersAndInfluencers.filter(
+          (account) => String(account.user_id) !== String(user.user_id)
         );
-        
-        console.log(`Found ${filteredAccounts.length} potential accounts to follow`);
-        
+
+        console.log(
+          `Found ${filteredAccounts.length} potential accounts to follow`
+        );
+
         // Get list of accounts the user is already following (if any)
         let followingIds = [];
         try {
           const following = await FollowingService.getFollowing(user.user_id);
-          followingIds = following.map(f => String(f.user_id));
+          followingIds = following.map((f) => String(f.user_id));
           console.log("User is following:", followingIds);
         } catch (error) {
           console.log("No existing following list found");
         }
-        
+
         // Mark accounts as already followed if appropriate
-        const accountsWithFollowStatus = filteredAccounts.map(account => ({
+        const accountsWithFollowStatus = filteredAccounts.map((account) => ({
           ...account,
-          isFollowing: followingIds.includes(String(account.user_id))
+          isFollowing: followingIds.includes(String(account.user_id)),
         }));
-        
+
         // Sort by account type (influencers first) and then by followers count
         accountsWithFollowStatus.sort((a, b) => {
-          if (a.account_type?.toLowerCase() === 'influencer' && b.account_type?.toLowerCase() !== 'influencer') {
+          if (
+            a.account_type?.toLowerCase() === "influencer" &&
+            b.account_type?.toLowerCase() !== "influencer"
+          ) {
             return -1;
           }
-          if (a.account_type?.toLowerCase() !== 'influencer' && b.account_type?.toLowerCase() === 'influencer') {
+          if (
+            a.account_type?.toLowerCase() !== "influencer" &&
+            b.account_type?.toLowerCase() === "influencer"
+          ) {
             return 1;
           }
           return (b.followers_count || 0) - (a.followers_count || 0);
         });
-        
+
         setAccounts(accountsWithFollowStatus);
         setFilteredAccounts(accountsWithFollowStatus);
       } catch (error) {
@@ -104,64 +121,79 @@ export default function SuggestedAccountsScreen({ navigation }) {
 
     fetchSuggestedAccounts();
   }, [user]);
-  
+
   // Filter accounts based on search and filter selection
   useEffect(() => {
     let result = accounts;
-    
+
     // Apply search filter
     if (searchQuery) {
-      result = result.filter(account => 
-        account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (account.username && account.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (account.about_us && account.about_us.toLowerCase().includes(searchQuery.toLowerCase()))
+      result = result.filter(
+        (account) =>
+          account.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (account.username &&
+            account.username
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase())) ||
+          (account.about_us &&
+            account.about_us.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
-    
+
     // Apply account type filter
     if (activeFilter !== "All") {
-      result = result.filter(account => 
-        account.account_type?.toLowerCase() === activeFilter.toLowerCase()
+      result = result.filter(
+        (account) =>
+          account.account_type?.toLowerCase() === activeFilter.toLowerCase()
       );
     }
-    
+
     setFilteredAccounts(result);
   }, [searchQuery, activeFilter, accounts]);
 
   // Handle follow/unfollow
   const handleFollow = async (account) => {
     try {
+      console.log("➡️ FOLLOW clicked for", account.user_id);
+
       if (!user) {
         Alert.alert("Error", "You must be logged in to follow accounts");
         return;
       }
-      
-      // Set loading state for this specific account
-      setFollowingInProgress(prev => ({
+
+      // Show loading for this account
+      setFollowingInProgress((prev) => ({
         ...prev,
-        [account.user_id]: true
+        [account.user_id]: true,
       }));
-      
-      if (account.isFollowing) {
-        // Unfollow
-        await FollowingService.unfollowUser(user.user_id, account.user_id);
+
+      if (!account.isFollowing) {
+        await FollowingService.followUser(user.user_id, account.user_id, {
+          updateUserSilently,
+        });
+
+        // ✅ Mark this user as having seen suggestions and exit to main app
+        await AsyncStorage.setItem(`seen_suggestions_${user.user_id}`, "true");
+        // navigation.replace("MainApp");
       } else {
-        // Follow
-        await FollowingService.followUser(user.user_id, account.user_id);
+        await FollowingService.unfollowUser(user.user_id, account.user_id, {
+          updateUserSilently,
+        });
       }
-      
-      // Update state
-      const updatedAccounts = accounts.map(a => 
-        a.user_id === account.user_id 
-          ? { ...a, isFollowing: !a.isFollowing } 
-          : a
+
+      // Update local state
+      setAccounts((prevAccounts) =>
+        prevAccounts.map((a) =>
+          a.user_id === account.user_id
+            ? { ...a, isFollowing: !a.isFollowing }
+            : a
+        )
       );
-      
-      setAccounts(updatedAccounts);
-      setFilteredAccounts(prev => 
-        prev.map(a => 
-          a.user_id === account.user_id 
-            ? { ...a, isFollowing: !a.isFollowing } 
+
+      setFilteredAccounts((prevAccounts) =>
+        prevAccounts.map((a) =>
+          a.user_id === account.user_id
+            ? { ...a, isFollowing: !a.isFollowing }
             : a
         )
       );
@@ -169,21 +201,20 @@ export default function SuggestedAccountsScreen({ navigation }) {
       console.error("Error following/unfollowing account:", error);
       Alert.alert(
         "Error",
-        `Failed to ${account.isFollowing ? 'unfollow' : 'follow'} this account. Please try again.`
+        `Failed to ${account.isFollowing ? "unfollow" : "follow"} this account. Please try again.`
       );
     } finally {
-      // Clear loading state for this account
-      setFollowingInProgress(prev => ({
+      setFollowingInProgress((prev) => ({
         ...prev,
-        [account.user_id]: false
+        [account.user_id]: false,
       }));
     }
   };
 
-  // Navigate to View Profile 
+  // Navigate to View Profile
   const navigateToProfile = (account) => {
-    navigation.navigate('Profile', { 
-      userId: account.user_id
+    navigation.navigate("Profile", {
+      userId: account.user_id,
     });
   };
 
@@ -197,22 +228,20 @@ export default function SuggestedAccountsScreen({ navigation }) {
     try {
       // Mark that this user has seen suggestions
       if (user) {
-        await AsyncStorage.setItem(`seen_suggestions_${user.user_id}`, 'true');
+        await AsyncStorage.setItem(`seen_suggestions_${user.user_id}`, "true");
       }
-      
+
       // Navigate to the main app
-      navigation.replace('MainApp');
+      navigation.navigate("TabHome");
     } catch (error) {
       console.error("Error saving seen status:", error);
-      // Still navigate even if saving fails
-      navigation.replace('MainApp');
     }
   };
 
   // Render a single account card
   const renderAccountCard = ({ item: account }) => {
     const isLoading = followingInProgress[account.user_id];
-    
+
     return (
       <View style={styles.accountCard}>
         <TouchableOpacity
@@ -220,35 +249,40 @@ export default function SuggestedAccountsScreen({ navigation }) {
           onPress={() => navigateToProfile(account)}
           activeOpacity={0.7}
         >
-          <Image 
-            source={{ 
-              uri: account.profile_image?.startsWith('http') 
-                ? account.profile_image 
-                : 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80'
-            }} 
-            style={styles.profileImage} 
+          <Image
+            source={{
+              uri: account.profile_image?.startsWith("http")
+                ? account.profile_image
+                : "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+            }}
+            style={styles.profileImage}
           />
-          
+
           <View style={styles.accountInfo}>
             <Text style={styles.accountName}>{account.name}</Text>
             <Text style={styles.accountUsername}>
-              @{account.username || account.name.toLowerCase().replace(/\s+/g, '_')}
+              @
+              {account.username ||
+                account.name.toLowerCase().replace(/\s+/g, "_")}
             </Text>
-            
+
             <View style={styles.detailsRow}>
               <View style={styles.accountTypeBadge}>
-                <Text style={styles.accountTypeText}>{account.account_type}</Text>
+                <Text style={styles.accountTypeText}>
+                  {account.account_type}
+                </Text>
               </View>
-              
-              {(account.followers_count > 0) && (
+
+              {account.followers_count > 0 && (
                 <Text style={styles.followerCount}>
                   <Text style={styles.followerCountNumber}>
                     {account.followers_count}
-                  </Text> {account.followers_count === 1 ? 'follower' : 'followers'}
+                  </Text>{" "}
+                  {account.followers_count === 1 ? "follower" : "followers"}
                 </Text>
               )}
             </View>
-            
+
             {account.about_us && (
               <Text style={styles.accountBio} numberOfLines={2}>
                 {account.about_us}
@@ -256,25 +290,27 @@ export default function SuggestedAccountsScreen({ navigation }) {
             )}
           </View>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.followButton,
-            account.isFollowing ? styles.followingButton : {}
+            account.isFollowing ? styles.followingButton : {},
           ]}
           onPress={() => handleFollow(account)}
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator 
-              size="small" 
-              color={account.isFollowing ? colors.primary : "#FFF"} 
+            <ActivityIndicator
+              size="small"
+              color={account.isFollowing ? colors.primary : "#FFF"}
             />
           ) : (
-            <Text style={[
-              styles.followButtonText,
-              account.isFollowing ? styles.followingButtonText : {}
-            ]}>
+            <Text
+              style={[
+                styles.followButtonText,
+                account.isFollowing ? styles.followingButtonText : {},
+              ]}
+            >
               {account.isFollowing ? "Following" : "Follow"}
             </Text>
           )}
@@ -290,18 +326,24 @@ export default function SuggestedAccountsScreen({ navigation }) {
         backgroundColor="transparent"
         barStyle={isDarkMode ? "light-content" : "dark-content"}
       />
-      
+
       {/* Welcome Message */}
       <View style={styles.welcomeContainer}>
         <Text style={styles.welcomeTitle}>Welcome to KSpace!</Text>
         <Text style={styles.welcomeText}>
-          Follow sellers and influencers to see their products and campaigns in your feed.
+          Follow sellers and influencers to see their products and campaigns in
+          your feed.
         </Text>
       </View>
-      
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={colors.subtitle} style={styles.searchIcon} />
+        <Ionicons
+          name="search"
+          size={20}
+          color={colors.subtitle}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder="Search for accounts"
@@ -315,7 +357,7 @@ export default function SuggestedAccountsScreen({ navigation }) {
           </TouchableOpacity>
         ) : null}
       </View>
-      
+
       {/* Filters */}
       {/* <View style={styles.filtersContainer}>
         <ScrollableFilters 
@@ -326,7 +368,7 @@ export default function SuggestedAccountsScreen({ navigation }) {
           isDarkMode={isDarkMode}
         />
       </View> */}
-      
+
       {/* Accounts List */}
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -336,7 +378,7 @@ export default function SuggestedAccountsScreen({ navigation }) {
         <FlatList
           data={filteredAccounts}
           renderItem={renderAccountCard}
-          keyExtractor={item => item.user_id?.toString()}
+          keyExtractor={(item) => item.user_id?.toString()}
           contentContainerStyle={styles.accountsList}
           showsVerticalScrollIndicator={false}
         />
@@ -345,20 +387,20 @@ export default function SuggestedAccountsScreen({ navigation }) {
           <Ionicons name="people" size={60} color={`${colors.primary}50`} />
           <Text style={styles.emptyText}>No accounts found</Text>
           <Text style={styles.emptySubText}>
-            {searchQuery ? "Try a different search term" : "Check back later for new accounts to follow"}
+            {searchQuery
+              ? "Try a different search term"
+              : "Check back later for new accounts to follow"}
           </Text>
         </View>
       )}
-      
+
       {/* Continue Button */}
       <View style={styles.continueContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.continueButton}
           onPress={continueToMainApp}
         >
-          <Text style={styles.continueButtonText}>
-            Continue to Home
-          </Text>
+          <Text style={styles.continueButtonText}>Continue to Home</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -366,13 +408,19 @@ export default function SuggestedAccountsScreen({ navigation }) {
 }
 
 // Scrollable Filter Component
-const ScrollableFilters = ({ options, activeFilter, onSelectFilter, colors, isDarkMode }) => {
+const ScrollableFilters = ({
+  options,
+  activeFilter,
+  onSelectFilter,
+  colors,
+  isDarkMode,
+}) => {
   return (
-    <ScrollView 
+    <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{
-        paddingRight: 16
+        paddingRight: 16,
       }}
     >
       {options.map((filter) => (
@@ -384,11 +432,15 @@ const ScrollableFilters = ({ options, activeFilter, onSelectFilter, colors, isDa
               paddingVertical: 8,
               borderRadius: 20,
               marginRight: 8,
-              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              backgroundColor: isDarkMode
+                ? "rgba(255,255,255,0.08)"
+                : "rgba(0,0,0,0.05)",
             },
-            activeFilter === filter ? { 
-              backgroundColor: colors.primary 
-            } : {}
+            activeFilter === filter
+              ? {
+                  backgroundColor: colors.primary,
+                }
+              : {},
           ]}
           onPress={() => onSelectFilter(filter)}
         >
@@ -398,10 +450,12 @@ const ScrollableFilters = ({ options, activeFilter, onSelectFilter, colors, isDa
                 fontSize: 14,
                 color: colors.text,
               },
-              activeFilter === filter ? { 
-                color: "#fff",
-                fontWeight: "600",
-              } : {}
+              activeFilter === filter
+                ? {
+                    color: "#fff",
+                    fontWeight: "600",
+                  }
+                : {},
             ]}
           >
             {filter}
@@ -414,17 +468,15 @@ const ScrollableFilters = ({ options, activeFilter, onSelectFilter, colors, isDa
 
 // ScrollView compatibility component for web
 const ScrollView = ({ children, ...props }) => {
-  return Platform.OS === 'web' ? (
+  return Platform.OS === "web" ? (
     <View {...props}>
-      <View style={props.contentContainerStyle}>
-        {children}
-      </View>
+      <View style={props.contentContainerStyle}>{children}</View>
     </View>
   ) : (
     <FlatList
       horizontal
       showsHorizontalScrollIndicator={false}
-      data={[{ key: 'content' }]}
+      data={[{ key: "content" }]}
       renderItem={() => <View>{children}</View>}
       {...props}
     />
@@ -433,7 +485,7 @@ const ScrollView = ({ children, ...props }) => {
 
 function getDynamicStyles(colors, isDarkMode) {
   const { width } = Dimensions.get("window");
-  
+
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -442,10 +494,12 @@ function getDynamicStyles(colors, isDarkMode) {
     header: {
       alignItems: "center",
       justifyContent: "center",
-      paddingTop: Platform.OS === 'ios' ? 10 : StatusBar.currentHeight + 10,
+      paddingTop: Platform.OS === "ios" ? 10 : StatusBar.currentHeight + 10,
       paddingBottom: 16,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+      borderBottomColor: isDarkMode
+        ? "rgba(255,255,255,0.1)"
+        : "rgba(0,0,0,0.1)",
     },
     headerTitle: {
       fontSize: 20,
@@ -455,9 +509,9 @@ function getDynamicStyles(colors, isDarkMode) {
     welcomeContainer: {
       paddingHorizontal: 20,
       paddingVertical: 16,
-      backgroundColor: isDarkMode 
-        ? 'rgba(255,255,255,0.05)' 
-        : 'rgba(0,0,0,0.02)',
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.05)"
+        : "rgba(0,0,0,0.02)",
     },
     welcomeTitle: {
       fontSize: 18,
@@ -473,7 +527,9 @@ function getDynamicStyles(colors, isDarkMode) {
     searchContainer: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.08)"
+        : "rgba(0,0,0,0.05)",
       borderRadius: 10,
       paddingHorizontal: 12,
       marginHorizontal: 16,
@@ -499,7 +555,7 @@ function getDynamicStyles(colors, isDarkMode) {
       paddingBottom: 80, // Extra padding at bottom for the Continue button
     },
     accountCard: {
-      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.05)" : "#FFFFFF",
       borderRadius: 12,
       marginBottom: 16,
       padding: 16,
@@ -615,7 +671,7 @@ function getDynamicStyles(colors, isDarkMode) {
       padding: 16,
       backgroundColor: colors.background,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+      borderTopColor: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
     },
     continueButton: {
       backgroundColor: colors.primary,

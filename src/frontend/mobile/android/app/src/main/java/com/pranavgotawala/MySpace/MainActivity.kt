@@ -1,9 +1,9 @@
-package com.pranavgotawala.MySpace
+package com.kspace.SpaceApp
 
 import android.os.Build
 import android.os.Bundle
-import com.pranavgotawala.MySpace.BuildConfig
-import com.pranavgotawala.MySpace.R
+import com.kspace.SpaceApp.BuildConfig
+import com.kspace.SpaceApp.R
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

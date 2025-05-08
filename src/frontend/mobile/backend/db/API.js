@@ -7,6 +7,11 @@ const BASE_URL = Platform.OS === "web"
   ? "http://localhost:5001/api"
   : "http://10.0.0.25:5001/api";
 
+// const BASE_URL = Platform.OS === "web" 
+//   ? "http://3.99.169.179/api"
+//   : "http://3.99.169.179/api";
+
+
 console.log(`Using API base URL: ${BASE_URL}`);
 
 //LOGIN
@@ -55,6 +60,186 @@ export const resetPassword = async (email, new_password) => {
   });
   if (!res.ok) throw new Error("Failed to reset password");
   return res.json();
+};
+
+
+// Add these functions to your API.js file
+
+/**
+ * Create a new subscription with Moneris
+ * @param {Object} subscriptionData - Subscription details
+ * @returns {Promise<Object>} - The created subscription
+ */
+export const createSubscription = async (subscriptionData) => {
+  try {
+    const response = await fetch('/api/subscription-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscriptionData)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Error creating subscription:', errorData);
+      throw new Error('Failed to create subscription');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error in createSubscription:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all subscriptions for a user
+ * @param {number|string} userId - The user ID
+ * @returns {Promise<Array>} - Array of subscriptions
+ */
+export const getUserSubscriptions = async (userId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/users/${userId}/subscriptions`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch subscriptions');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching user subscriptions:', error);
+    return [];
+  }
+};
+
+/**
+ * Cancel a subscription
+ * @param {string} subscriptionId - The subscription ID to cancel
+ * @param {string} reason - Reason for cancellation
+ * @returns {Promise<Object>} - Result of cancellation
+ */
+export const cancelSubscription = async (subscriptionId, reason = 'User requested cancellation') => {
+  try {
+    const response = await fetch(`/api/subscriptions/${subscriptionId}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to cancel subscription');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
+    throw error;
+  }
+};
+
+/**
+ * Retrieve a token from Moneris using the receipt ticket
+ * @param {string} ticket - The Moneris receipt ticket
+ * @param {number|string} userId - The user ID
+ * @returns {Promise<Object>} - The token data
+ */
+export const retrievePaymentToken = async (ticket, userId) => {
+  try {
+    const response = await fetch('/api/retrieve-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        ticket,
+        userId
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Error retrieving token:', errorData);
+      throw new Error('Failed to retrieve payment token');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error in retrievePaymentToken:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if a user has an active subscription for a specific plan
+ * @param {number|string} userId - The user ID
+ * @param {string} planId - The plan ID to check
+ * @returns {Promise<boolean>} - Whether the user has an active subscription
+ */
+export const hasActiveSubscription = async (userId, planId) => {
+  try {
+    const subscriptions = await getUserSubscriptions(userId);
+    return subscriptions.some(
+      sub => sub.plan_id === planId && sub.status === 'active'
+    );
+  } catch (error) {
+    console.error('Error checking active subscription:', error);
+    return false;
+  }
+};
+
+/**
+ * Get all available subscription plans
+ * @returns {Array} - Array of subscription plans
+ */
+export const getSubscriptionPlans = () => {
+  return [
+    {
+      id: 'basic',
+      title: 'Seller Basic',
+      price: '$0',
+      priceMonthly: '$0',
+      originalPrice: '$0',
+      bullets: [
+        '3 Products',
+        '1 Collaboration feature',
+        'Fees 5%',
+        'Basic analytics',
+        'Minimal branding',
+        'Community access',
+      ],
+    },
+    {
+      id: 'pro',
+      title: 'Seller Pro',
+      price: '$359.99',
+      priceMonthly: '$29.99',
+      originalPrice: '$359.88',
+      bullets: [
+        'All sellers features',
+        '25 Products',
+        '50 Collaboration features',
+        'Fees 3%',
+        'Advanced analytics',
+        'Custom branding',
+        'Priority support',
+        'More robust tools',
+      ],
+    },
+    {
+      id: 'enterprise',
+      title: 'Seller Enterprise',
+      price: '$1199.99',
+      priceMonthly: '$99.99',
+      originalPrice: '$1199.88',
+      bullets: [
+        'Unlimited Pro features + advanced tools',
+        'Unlimited Products',
+        'Unlimited Collaboration features',
+        'Fees 2%',
+        'Dedicated account manager',
+        'White label solution',
+        'Extended usage & resources',
+        'Enterprise-level support',
+      ],
+    },
+  ];
 };
 
 
@@ -178,11 +363,16 @@ export const createUser = async (userData) => {
 };
 
 export const updateUser = async (id, userData) => {
+  // Create a shallow copy and remove _preventReload if present
+  const dataToSend = { ...userData };
+  delete dataToSend._preventReload;
+
   const response = await fetch(`${BASE_URL}/users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(userData),
+    body: JSON.stringify(dataToSend),
   });
+
   if (!response.ok) throw new Error("Failed to update user");
   return response.json();
 };
@@ -738,9 +928,9 @@ export const updateAdminStatus = async (adminId, status) => {
   }
 };
 
-export const updateUserRole = async (userId, role, tier = null) => {
+export const updateUserRole = async (userId, role, tier = null, force = false) => {
   try {
-    console.log(`Updating user ${userId} to role: ${role} with tier: ${tier || 'none'}`);
+    console.log(`Updating user ${userId} to role: ${role} with tier: ${tier || 'none'}, force: ${force}`);
     
     // Normalize the role and create the appropriate account_type
     const normalizedRole = role.toLowerCase();
@@ -767,7 +957,8 @@ export const updateUserRole = async (userId, role, tier = null) => {
     // Create a payload with both role and account_type
     const payload = { 
       role: normalizedRole,
-      account_type: accountType
+      account_type: accountType,
+      force: force // Add force flag to bypass any server-side validation
     };
     
     // Add tier if provided
@@ -794,6 +985,13 @@ export const updateUserRole = async (userId, role, tier = null) => {
     
     const result = await response.json();
     console.log("User role update result:", result);
+    
+    // Also update in AsyncStorage to ensure consistency
+    await AsyncStorage.setItem('userRole', normalizedRole);
+    if (tier) {
+      await AsyncStorage.setItem('userTier', tier);
+    }
+    
     return result;
   } catch (error) {
     console.error("Error updating user role:", error);

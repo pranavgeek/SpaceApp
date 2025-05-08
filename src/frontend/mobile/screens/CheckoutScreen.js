@@ -22,8 +22,15 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [processingPayment, setProcessingPayment] = useState(false);
 
   // Use different base URLs based on platform
-  const BASE_URL =
-    Platform.OS === "web" ? "http://localhost:5001" : "http://10.0.0.25:5001";
+  const BASE_URL = Platform.OS === "web" 
+  ? "http://localhost:5001/api"
+  : "http://10.0.0.25:5001/api";
+
+
+  // const BASE_URL = Platform.OS === "web" 
+  // ? "http://3.99.169.179/api"
+  // : "http://3.99.169.179/api";
+
 
   const {
     productId,
@@ -61,7 +68,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (Platform.OS === "web") {
       const handleWebMessage = async (event) => {
         // Check origin based on environment
-        if (event.origin !== "http://localhost:5001") return;
+        if (event.origin !== "http://3.99.169.179") return;
 
         try {
           console.log("Received message from iframe:", event.data);

@@ -40,7 +40,6 @@
         "hideProducts": false,
         "allowMessagesFrom": "everyone"
       },
-      "account_type": "Seller",
       "products_purchased": [
         {
           "product_id": 101,
@@ -55,8 +54,7 @@
           "price": 199.99
         }
       ],
-      "following_count": 5,
-      "role": "buyer",
+      "following_count": 0,
       "orders": [
         {
           "order_id": "ORD-1744052528949-10",
@@ -127,7 +125,10 @@
       "otp_expires_at": 1744921895595,
       "otp_verified": true,
       "tier": "Starter Tier",
-      "following": []
+      "following": [],
+      "followers": [],
+      "followers_count": 0,
+      "_preventReload": true
     },
     {
       "user_id": 2,
@@ -270,7 +271,11 @@
           "profile_image": "default_profile.jpg",
           "follow_date": "2025-05-03T00:35:56.790Z"
         }
-      ]
+      ],
+      "_preventReload": true,
+      "role": "seller",
+      "tier": "basic",
+      "influencer_tier": "pro"
     },
     {
       "user_id": 3,
@@ -316,7 +321,8 @@
           "profile_image": "default_profile.jpg",
           "follow_date": "2025-05-03T00:35:55.000Z"
         }
-      ]
+      ],
+      "_preventReload": true
     },
     {
       "name": "Shubh Rai",
@@ -349,9 +355,42 @@
       "followers_count": 0
     },
     {
-      "name": "Emily Picot",
-      "email": "emily@picot",
-      "password": "Ginger@123",
+      "name": "Taylor",
+      "email": "taylor@scsdc.com",
+      "password": "taylor@1234",
+      "account_type": "Influencer",
+      "role": "influencer",
+      "about_us": "Fdvdfvdfv",
+      "address": "",
+      "city": "",
+      "country": "",
+      "social_media_instagram": "Dsvdfvdfv",
+      "social_media_x": "",
+      "social_media_linkedin": "",
+      "social_media_website": "",
+      "profile_image": "default_profile.jpg",
+      "gender": "",
+      "age": null,
+      "is_two_factor_enabled": false,
+      "phone_number": "324234234",
+      "is_private_account": false,
+      "privacy_settings": {
+        "hideActivity": false,
+        "hideContacts": false,
+        "hideProducts": false,
+        "allowMessagesFrom": "everyone"
+      },
+      "user_id": 6,
+      "tier": "Starter Tier",
+      "influencer_tier": "Starter Tier",
+      "followers": [],
+      "followers_count": 0,
+      "_preventReload": true
+    },
+    {
+      "name": "Dhruvi Mai",
+      "email": "dhruvi@mai.com",
+      "password": "dhruvi@123",
       "account_type": "Buyer",
       "role": "buyer",
       "about_us": "",
@@ -373,68 +412,9 @@
         "hideProducts": false,
         "allowMessagesFrom": "everyone"
       },
-      "user_id": 6,
-      "id": "6",
-      "following": []
-    },
-    {
-      "name": "Pranav geek",
-      "email": "pranav@geek.com",
-      "password": "geek@123",
-      "account_type": "Seller",
-      "role": "seller",
-      "about_us": "",
-      "address": "",
-      "city": "",
-      "country": "",
-      "social_media_x": "",
-      "social_media_linkedin": "",
-      "social_media_website": "",
-      "profile_image": "default_profile.jpg",
-      "gender": "",
-      "age": null,
-      "is_two_factor_enabled": false,
-      "phone_number": "",
-      "is_private_account": false,
-      "privacy_settings": {
-        "hideActivity": false,
-        "hideContacts": false,
-        "hideProducts": false,
-        "allowMessagesFrom": "everyone"
-      },
       "user_id": 7,
-      "followers": [],
-      "followers_count": 0
-    },
-    {
-      "name": "Tory Lanez",
-      "email": "tory@lanex.com",
-      "password": "tory@123",
-      "account_type": "Influencer",
-      "role": "influencer",
-      "about_us": "Vdfnvjdfv",
-      "address": "",
-      "city": "",
-      "country": "",
-      "social_media_instagram": "Instagram: ToryLanez88",
-      "social_media_x": "",
-      "social_media_linkedin": "",
-      "social_media_website": "",
-      "profile_image": "default_profile.jpg",
-      "gender": "",
-      "age": null,
-      "is_two_factor_enabled": false,
-      "phone_number": "9824183426",
-      "is_private_account": false,
-      "privacy_settings": {
-        "hideActivity": false,
-        "hideContacts": false,
-        "hideProducts": false,
-        "allowMessagesFrom": "everyone"
-      },
-      "user_id": 8,
-      "tier": "Starter Tier",
-      "influencer_tier": "Starter Tier"
+      "following": [],
+      "following_count": 0
     }
   ],
   "products": [
@@ -1027,6 +1007,78 @@
       "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
       "date_timestamp": "2025-05-03T03:02:34.308Z",
       "notification_id": 41
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T05:18:16.219Z",
+      "notification_id": 42
+    },
+    {
+      "user_id": 8,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-03T19:30:32.845Z",
+      "notification_id": 43
+    },
+    {
+      "user_id": 8,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-03T19:30:38.880Z",
+      "notification_id": 44
+    },
+    {
+      "user_id": 8,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-03T19:30:43.361Z",
+      "notification_id": 45
+    },
+    {
+      "user_id": 8,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-03T19:30:46.875Z",
+      "notification_id": 46
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T19:31:22.446Z",
+      "notification_id": 47
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T19:46:04.913Z",
+      "notification_id": 48
+    },
+    {
+      "user_id": 8,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T20:11:59.100Z",
+      "notification_id": 49
+    },
+    {
+      "user_id": 7,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T20:38:21.549Z",
+      "notification_id": 50
+    },
+    {
+      "user_id": 6,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-03T20:50:51.139Z",
+      "notification_id": 51
+    },
+    {
+      "user_id": 6,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-03T20:51:01.925Z",
+      "notification_id": 52
+    },
+    {
+      "user_id": 6,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-03T20:51:09.243Z",
+      "notification_id": 53
     }
   ],
   "admin_data": [
@@ -1040,44 +1092,34 @@
       "updated_at": "2025-04-30T00:14:40.411Z"
     },
     {
-      "user_id": 8,
+      "user_id": 6,
       "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Rudra Gota\",\"email\":\"rudra@gota\",\"phone\":\"51928041567\",\"socialMediaHandles\":\"Instagram: rudra88\",\"followers\":\"Instagram: 10K\",\"whyCollaborate\":\"I love promoting camera products\",\"priorExperience\":\"No\",\"preferredContact\":\"email\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-02T23:10:33.478Z\"}",
+      "details": "{\"fullName\":\"Taylor Swift\",\"email\":\"taylor@gmail.com\",\"phone\":\"23123123\",\"socialMediaHandles\":\"Sdcsdc\",\"followers\":\"Vdfvdfv\",\"whyCollaborate\":\"Fdvdfv\",\"priorExperience\":\"Sdcsdc\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-03T20:43:50.044Z\"}",
       "status": "approved",
-      "created_at": "2025-05-02T23:10:33.478Z",
-      "date_timestamp": "2025-05-02T23:10:33.483Z",
+      "created_at": "2025-05-03T20:43:50.044Z",
+      "date_timestamp": "2025-05-03T20:43:50.045Z",
       "admin_id": 2,
-      "updated_at": "2025-05-02T23:11:41.869Z"
+      "updated_at": "2025-05-03T20:51:01.914Z"
     },
     {
-      "user_id": 8,
+      "user_id": 6,
       "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Aashay kalakar\",\"email\":\"kalakar@bro.com\",\"phone\":\"5192804167\",\"socialMediaHandles\":\"TikTok: kalakar88\",\"followers\":\"TikTok: 10K\",\"whyCollaborate\":\"I love promoting laptops\",\"priorExperience\":\"yes 1 year\",\"preferredContact\":\"message\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-02T23:40:13.207Z\"}",
-      "status": "approved",
-      "created_at": "2025-05-02T23:40:13.208Z",
-      "date_timestamp": "2025-05-02T23:40:13.209Z",
+      "details": "{\"fullName\":\"Taylor\",\"email\":\"taylor@jhdcs.com\",\"phone\":\"34234234\",\"socialMediaHandles\":\"Sverdlovsk\",\"followers\":\"Sdcsdc\",\"whyCollaborate\":\"Dfvdfvfd\",\"priorExperience\":\"Vdfvdfv\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-03T20:47:37.472Z\"}",
+      "status": "rejected",
+      "created_at": "2025-05-03T20:47:37.473Z",
+      "date_timestamp": "2025-05-03T20:47:37.474Z",
       "admin_id": 3,
-      "updated_at": "2025-05-02T23:40:42.262Z"
+      "updated_at": "2025-05-03T20:51:09.237Z"
     },
     {
-      "user_id": 8,
+      "user_id": 6,
       "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Alex\",\"email\":\"alex@gmail.com\",\"phone\":\"5198920323\",\"socialMediaHandles\":\"Sdcdc\",\"followers\":\"Csd Sdc\",\"whyCollaborate\":\"Csdc\",\"priorExperience\":\"Sdc Sdc\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-03T02:09:57.164Z\"}",
-      "status": "approved",
-      "created_at": "2025-05-03T02:09:57.164Z",
-      "date_timestamp": "2025-05-03T02:09:57.167Z",
+      "details": "{\"fullName\":\"Taylor\",\"email\":\"taylor@scsdc.com\",\"phone\":\"324234234\",\"socialMediaHandles\":\"Dsvdfvdfv\",\"followers\":\"Fdvdfvdfv\",\"whyCollaborate\":\"Fdvdfvdfv\",\"priorExperience\":\"Vdfvdfv\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-03T20:50:37.992Z\"}",
+      "status": "rejected",
+      "created_at": "2025-05-03T20:50:37.992Z",
+      "date_timestamp": "2025-05-03T20:50:37.993Z",
       "admin_id": 4,
-      "updated_at": "2025-05-03T02:11:20.159Z"
-    },
-    {
-      "user_id": 8,
-      "action": "Request to become an influencer",
-      "details": "{\"fullName\":\"Tory Lanez\",\"email\":\"tory@lanex.com\",\"phone\":\"9824183426\",\"socialMediaHandles\":\"Instagram: ToryLanez88\",\"followers\":\"Insta: 10K\",\"whyCollaborate\":\"Vdfnvjdfv\",\"priorExperience\":\"Csd Sdc\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-03T03:01:59.919Z\"}",
-      "status": "approved",
-      "created_at": "2025-05-03T03:01:59.920Z",
-      "date_timestamp": "2025-05-03T03:01:59.922Z",
-      "admin_id": 5,
-      "updated_at": "2025-05-03T03:02:34.261Z"
+      "updated_at": "2025-05-03T20:50:51.136Z"
     }
   ],
   "orders": [
@@ -1354,5 +1396,6 @@
       "status": "Pending",
       "timestamp": "2025-04-24T17:44:32.420Z"
     }
-  ]
+  ],
+  "subscriptions": []
 }

@@ -7,6 +7,7 @@ import {
   Image,
   Platform,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer, useNavigation } from "@react-navigation/native";
@@ -17,6 +18,8 @@ import { Modalize } from "react-native-modalize";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import { Host } from "react-native-portalize";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CommonActions } from '@react-navigation/native';
 
 import ButtonMain from "./components/ButtonMain";
 import ButtonSettings from "./components/ButtonSettings";
@@ -40,6 +43,7 @@ import InfluencerProgramScreen from "./screens/InfluencerProgramScreen";
 import InfluencerApplicationScreen from "./screens/InfluencerApplicationScreen.js";
 import CollaborationModal from "./components/CollaborationModal.js";
 import SuggestedAccountsScreen from "./screens/SuggestedAccountsScreen.js";
+import FollowingService from "./backend/db/FollowingService.js";
 
 console.log("AuthProvider:", AuthProvider);
 console.log("useAuth:", useAuth);
@@ -66,16 +70,66 @@ const AuthStack = () => {
         name="Influencer Form"
         component={InfluencerApplicationScreen}
       />
+      <Stack.Screen name="MainApp" component={AppContent} />
     </Stack.Navigator>
   );
 };
 
 const AppNavigator = () => {
-  const { user, isFirstLogin } = useAuth();
+  const { user, isFirstLogin, setIsFirstLogin } = useAuth();
+  const [followingCount, setFollowingCount] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Add these console.logs to debug
   console.log("AppNavigator - User:", user?.name, user?.account_type);
   console.log("AppNavigator - isFirstLogin:", isFirstLogin);
+
+  useEffect(() => {
+    const fetchFollowingData = async () => {
+      if (
+        user &&
+        (user.role?.toLowerCase() === "buyer" ||
+          user.account_type?.toLowerCase() === "buyer")
+      ) {
+        try {
+          setIsLoading(true);
+
+          // Check if user has already seen the suggestions
+          const hasSeenSuggestions = await AsyncStorage.getItem(
+            `seen_suggestions_${user.user_id}`
+          );
+          if (hasSeenSuggestions === "true") {
+            console.log("User has already seen suggestions");
+            setIsFirstLogin(false);
+            setIsLoading(false);
+            return;
+          }
+
+          // Get following list using your existing FollowingService
+          const following = await FollowingService.getFollowing(user.user_id);
+          const count = following?.length || 0;
+
+          setFollowingCount(count);
+          console.log("Following count for user:", count);
+        } catch (error) {
+          console.error("Error fetching following data:", error);
+          // Default to 0 on error to be safe
+          setFollowingCount(0);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        // Not a buyer, no need to load following count
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchFollowingData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user, setIsFirstLogin]);
 
   // No user, show auth screens
   if (!user) {
@@ -83,13 +137,14 @@ const AppNavigator = () => {
   }
 
   // User is a buyer logging in for the first time
-  if (
-    isFirstLogin &&
-    (user.role?.toLowerCase() === "buyer" ||
-      user.account_type?.toLowerCase() === "buyer")
-  ) {
+  const isBuyer =
+    user.role?.toLowerCase() === "buyer" ||
+    user.account_type?.toLowerCase() === "buyer";
+  const shouldShowSuggestions = isFirstLogin && isBuyer && followingCount === 0;
+
+  if (shouldShowSuggestions) {
     console.log(
-      "AppNavigator - Showing suggested accounts for first-time buyer"
+      "AppNavigator - Showing suggested accounts for first-time buyer with 0 followings"
     );
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -99,6 +154,7 @@ const AppNavigator = () => {
           options={{
             animation: "slide_from_bottom",
             presentation: "modal",
+            gestureEnabled: false,
           }}
         />
         <Stack.Screen name="MainApp" component={AppContent} />
@@ -226,17 +282,17 @@ const AppContent = () => {
             headerShown: false,
             tabBarIcon: ({ focused, color, size }) => {
               let iconName;
-              if (route.name === "Home") {
+              if (route.name === "TabHome") {
                 iconName = focused ? "home" : "home-outline";
-              } else if (route.name === "Settings") {
+              } else if (route.name === "TabSettings") {
                 iconName = focused ? "settings" : "settings-outline";
-              } else if (route.name === "Messages") {
+              } else if (route.name === "TabMessages") {
                 iconName = focused ? "chatbubbles" : "chatbubbles-outline";
-              } else if (route.name === "Profile") {
+              } else if (route.name === "TabProfile") {
                 iconName = focused ? "person" : "person-outline";
               } else if (route.name === "Dashboard") {
                 iconName = focused ? "grid" : "grid-outline";
-              } else if (route.name === "Tracker") {
+              } else if (route.name === "TabTracker") {
                 iconName = focused ? "stats-chart" : "stats-chart-outline";
               }
               return <Ionicons name={iconName} size={24} color={color} />;
@@ -256,8 +312,32 @@ const AppContent = () => {
             },
           })}
         >
-          <Tab.Screen name="Home" component={HomeStack} />
-          <Tab.Screen name="Messages" component={MessagesStackNavigator} />
+          <Tab.Screen name="TabHome" component={HomeStack} />
+          <Tab.Screen
+            name="TabMessages"
+            component={MessagesStackNavigator}
+            listeners={({ navigation, route }) => ({
+              tabPress: (e) => {
+                // Prevent default behavior
+                e.preventDefault();
+                // Reset the Messages stack to its first screen when the tab is pressed
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [
+                      { 
+                        name: 'TabMessages',
+                        state: {
+                          routes: [{ name: 'Messages' }],
+                          index: 0,
+                        }
+                      },
+                    ],
+                  })
+                );
+              },
+            })}
+          />
 
           {/* Middle button - conditionally rendered based on user role */}
           <Tab.Screen
@@ -353,10 +433,10 @@ const AppContent = () => {
           />
 
           <Tab.Screen
-            name={isAdmin ? "Tracker" : "Profile"}
+            name={isAdmin ? "TabTracker" : "TabProfile"}
             component={isAdmin ? UserTrackingScreen : ProfileRouter}
           />
-          <Tab.Screen name="Settings" component={SettingsStack} />
+          <Tab.Screen name="TabSettings" component={SettingsStack} />
         </Tab.Navigator>
 
         {/* Create New Listing Modal (only for sellers) */}

@@ -41,9 +41,10 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function ChatScreen({ navigation, route }) {
+  
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
-  const { chatPartner, requestStatus: initialRequestStatus } = route.params;
+  const { chatPartner, recipientName, requestStatus: initialRequestStatus } = route.params;
   const { user: currentUser } = useAuth();
 
   const [messages, setMessages] = useState([]);

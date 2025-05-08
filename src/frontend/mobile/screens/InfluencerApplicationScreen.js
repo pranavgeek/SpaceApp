@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from "@expo/vector-icons";
+import { CommonActions } from '@react-navigation/native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -197,7 +198,12 @@ const InfluencerFormScreen = ({ route, navigation }) => {
             {
               text: "Continue to Home",
               onPress: () => {
-                navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+                setTimeout(() => {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainApp' }],
+                  });
+                }, 100);
               },
             },
           ]
@@ -211,7 +217,7 @@ const InfluencerFormScreen = ({ route, navigation }) => {
             {
               text: "OK",
               onPress: () => {
-                navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+                navigation.navigate({ index: 0, routes: [{ name: "Home" }] });
               },
             },
           ]
