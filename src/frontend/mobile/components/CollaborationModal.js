@@ -16,13 +16,14 @@ import { Ionicons } from "@expo/vector-icons";
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { useTheme } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import { fetchUsers, createCollaborationRequest } from "../backend/db/API";
+import { fetchUsers, createCollaborationRequest, sendMessage } from "../backend/db/API";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const CARD_HEIGHT = Platform.OS === "web" ? SCREEN_HEIGHT * 0.4 : SCREEN_HEIGHT * 0.40;
 
-const CollaborationModal = ({ modalRef, isVisible }) => {
+const CollaborationModal = ({ modalRef, isVisible, navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuth();
   const [sellers, setSellers] = useState([]);
@@ -57,6 +58,85 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
     }
   };
 
+  // Function to update message previews for both users
+  const updateMessagePreviews = async (senderId, senderName, recipientId, recipientName, messageContent, timestamp) => {
+    try {
+      // Store conversation preview data in AsyncStorage
+      const conversationKey = "conversation_previews";
+      const stored = await AsyncStorage.getItem(conversationKey);
+      const conversations = stored ? JSON.parse(stored) : [];
+      
+      console.log(`Updating message previews between ${senderName}(${senderId}) and ${recipientName}(${recipientId})`);
+      
+      // Create or update conversation previews for both participants
+      
+      // Sender's preview (showing the recipient)
+      const senderPreviewIndex = conversations.findIndex(
+        c => c.userId === senderId && c.otherPartyId === recipientId
+      );
+      
+      if (senderPreviewIndex !== -1) {
+        // Update existing preview
+        conversations[senderPreviewIndex] = {
+          ...conversations[senderPreviewIndex],
+          lastMessage: messageContent,
+          timestamp: timestamp,
+          isOutgoing: true
+        };
+        console.log(`Updated existing preview for sender ${senderId}`);
+      } else {
+        // Create new preview
+        conversations.push({
+          userId: senderId,
+          userName: senderName,
+          otherPartyId: recipientId,
+          otherPartyName: recipientName,
+          lastMessage: messageContent,
+          timestamp: timestamp,
+          isOutgoing: true
+        });
+        console.log(`Created new preview for sender ${senderId}`);
+      }
+      
+      // Recipient's preview (showing the sender)
+      const recipientPreviewIndex = conversations.findIndex(
+        c => c.userId === recipientId && c.otherPartyId === senderId
+      );
+      
+      if (recipientPreviewIndex !== -1) {
+        // Update existing preview
+        conversations[recipientPreviewIndex] = {
+          ...conversations[recipientPreviewIndex],
+          lastMessage: messageContent,
+          timestamp: timestamp,
+          isOutgoing: false
+        };
+        console.log(`Updated existing preview for recipient ${recipientId}`);
+      } else {
+        // Create new preview
+        conversations.push({
+          userId: recipientId,
+          userName: recipientName,
+          otherPartyId: senderId,
+          otherPartyName: senderName,
+          lastMessage: messageContent,
+          timestamp: timestamp,
+          isOutgoing: false
+        });
+        console.log(`Created new preview for recipient ${recipientId}`);
+      }
+      
+      // Save updated conversations
+      await AsyncStorage.setItem(conversationKey, JSON.stringify(conversations));
+      
+      console.log(`Message previews updated for conversation between ${senderName} and ${recipientName}`);
+      return true;
+    } catch (error) {
+      console.error("Error updating message previews:", error);
+      return false;
+    }
+  };
+
   const handleSwipeRight = async (cardIndex) => {
     const selectedSeller = sellers[cardIndex];
     
@@ -69,11 +149,12 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
     
     try {
       // Create the collaboration request directly on the backend
+      const requestId = Date.now().toString();
       const request = {
-        requestId: Date.now().toString(),
+        requestId: requestId,
         sellerId: selectedSeller.user_id.toString(),
         sellerName: selectedSeller.name,
-        influencerId: user.id || user.user_id.toString(),
+        influencerId: user.user_id.toString(),
         influencerName: user.name,
         product: "Collaboration Request",
         status: "Pending",
@@ -85,9 +166,90 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
       // Send to the backend
       const createdRequest = await createCollaborationRequest(request);
       console.log("Created request:", createdRequest);
-
-      // Show success message
+    
+      // Send initial message with debugging logs
+      try {
+        // Create message with the specific requested text
+        const messageTime = new Date().toISOString();
+        const messageContent = "Hi, I'm interested in collaborating on your products!";
+        const messageId = `msg-${Date.now()}`;
+        
+        // Log IDs for debugging
+        console.log("Creating initial message with:");
+        console.log("- Influencer ID:", user.user_id.toString());
+        console.log("- Seller ID:", selectedSeller.user_id.toString());
+        console.log("- Influencer Name:", user.name);
+        console.log("- Seller Name:", selectedSeller.name);
+        
+        // Prepare message object with consistent format
+        const initialMessage = {
+          message_id: messageId,
+          user_from: user.user_id.toString(),
+          user_to: selectedSeller.user_id.toString(),
+          sender_id: user.user_id.toString(), // Add for compatibility
+          receiver_id: selectedSeller.user_id.toString(), // Add for compatibility
+          from_name: user.name, // Add name fields for better matching
+          to_name: selectedSeller.name, // Add name fields for better matching
+          type_message: "text",
+          message_content: messageContent,
+          date_timestamp_sent: messageTime,
+          timestamp: messageTime, // Add for compatibility
+          is_read: false
+        };
+        
+        console.log("Sending initial message:", JSON.stringify(initialMessage));
+        
+        // First, send through the API
+        const sentMessage = await sendMessage(initialMessage);
+        console.log("Message sent through API response:", sentMessage);
+        
+        // Then, manually save to local storage to ensure it's available
+        try {
+          // Get current messages
+          const stored = await AsyncStorage.getItem("messages");
+          const messages = stored ? JSON.parse(stored) : [];
+          
+          // Check if a similar message already exists to avoid duplicates
+          const isDuplicate = messages.some(
+            msg => 
+              (msg.user_from === initialMessage.user_from || msg.sender_id === initialMessage.sender_id) && 
+              (msg.user_to === initialMessage.user_to || msg.receiver_id === initialMessage.receiver_id) && 
+              msg.message_content === initialMessage.message_content
+          );
+          
+          if (!isDuplicate) {
+            // Add the new message
+            messages.push(initialMessage);
+            console.log("Saving message to local storage");
+            await AsyncStorage.setItem("messages", JSON.stringify(messages));
+            console.log("Successfully saved message to local storage");
+          } else {
+            console.log("Skipping save to local storage - duplicate message found");
+          }
+        } catch (storageError) {
+          console.error("Error saving message to local storage:", storageError);
+        }
+        
+      } catch (messageError) {
+        console.error("Error sending initial message:", messageError);
+      }
+    
+      // Show success message and navigate to chat
       showCollaboationSuccessIndicator(selectedSeller.name);
+      
+      setTimeout(() => {
+        modalRef.current?.close();
+        if (navigation) {
+          navigation.navigate('Chat', {
+            chatPartner: selectedSeller.name,
+            recipientName: selectedSeller.name,
+            requestStatus: 'Pending',
+            fromCollaborationModal: true,
+            collaborationRequest: true,
+            isNewRequest: true  // Add this flag to indicate this is a brand new request
+          });
+        }
+      }, 2000);
     } catch (error) {
       console.error("Error sending request:", error);
       Alert.alert("Error", "Something went wrong while sending your request.");
@@ -95,7 +257,7 @@ const CollaborationModal = ({ modalRef, isVisible }) => {
       setIsSending(false);
     }
   };
-
+  
   // Success indicator that appears briefly
   const [successMessage, setSuccessMessage] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);

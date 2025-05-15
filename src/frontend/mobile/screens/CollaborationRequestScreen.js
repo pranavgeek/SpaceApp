@@ -68,7 +68,7 @@ const CollaborationRequestScreen = ({ navigation }) => {
       }
       
       // First sync collaboration requests between local storage and backend
-      await syncCollaborationRequests();
+      // await syncCollaborationRequests();
       
       // Get all campaign requests to check against
       const allCampaignRequests = await loadCampaignRequests();
@@ -145,11 +145,87 @@ const CollaborationRequestScreen = ({ navigation }) => {
     }, [loadCollaborationRequests])
   );
   
+  const handleAcceptRequest = async (item) => {
+    try {
+      // Show confirmation dialog
+      Alert.alert(
+        "Accept Collaboration",
+        `Are you sure you want to accept collaboration with ${item.influencerName}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Accept", 
+            onPress: async () => {
+              setLoading(true);
+              const success = await updateRequestStatus(item.requestId, "Accepted");
+              setLoading(false);
+              
+              if (success) {
+                // Navigate to the chat screen with this influencer
+                // and pass the Accepted status
+                navigation.navigate("Chat", {
+                  chatPartner: item.influencerName,
+                  initialRequestStatus: "Accepted",
+                  fromCollaborationScreen: true
+                });
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Error accepting collaboration request:", error);
+      Alert.alert("Error", "Failed to accept collaboration request.");
+      setLoading(false);
+    }
+  };
+  
+  // Handle declining a collaboration request
+  const handleDeclineRequest = async (item) => {
+    try {
+      // Show confirmation dialog
+      Alert.alert(
+        "Decline Collaboration",
+        `Are you sure you want to decline collaboration with ${item.influencerName}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Decline", 
+            style: "destructive",
+            onPress: async () => {
+              setLoading(true);
+              const success = await updateRequestStatus(item.requestId, "Declined");
+              setLoading(false);
+              
+              if (success) {
+                // Refresh the request list to show updated status
+                loadCollaborationRequests();
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Error declining collaboration request:", error);
+      Alert.alert("Error", "Failed to decline collaboration request.");
+      setLoading(false);
+    }
+  };
+  
+  // Modify handleSelectInfluencer to only create campaigns for Accepted requests
   const handleSelectInfluencer = (item) => {
+    // If request is pending, handle acceptance first
+    if (item.status === "Pending") {
+      handleAcceptRequest(item);
+      return;
+    }
+    
+    // For Accepted requests, proceed with campaign creation
     // Check if any campaigns have already been created for this influencer
     const existingCampaign = requests.find(
       req => req.influencerId === item.influencerId && 
-             req.status === "Accepted"
+             req.status === "Accepted" &&
+             req.campaignRequestId
     );
     
     if (existingCampaign) {
@@ -187,9 +263,17 @@ const CollaborationRequestScreen = ({ navigation }) => {
   };
 
   // Update collaboration request status
-  const updateRequestStatus = async (requestId, status, campaignRequestId = null, productName = null) => {
+  const updateRequestStatus = async (requestId, statusValue, campaignRequestId = null, productName = null) => {
     try {
-      const updatedRequest = { status };
+      // IMPORTANT: Make sure we're sending a string value for status, not an object
+      const status = typeof statusValue === 'object' ? statusValue.status : statusValue;
+      
+      console.log(`Updating request ${requestId} to status: ${status}`);
+      
+      const updatedRequest = { 
+        status, // Send just the status string, not an object
+        sellerId: user.id || user.user_id
+      };
       
       // If we have a campaign request ID, associate it with the collaboration request
       if (campaignRequestId) {
@@ -201,20 +285,96 @@ const CollaborationRequestScreen = ({ navigation }) => {
         updatedRequest.productName = productName;
       }
       
-      await updateCollaborationRequestStatus(requestId, updatedRequest);
-      
-      // Refresh the list
-      loadCollaborationRequests();
+      // Call the API with the proper format
+      try {
+        const response = await updateCollaborationRequestStatus(requestId, status);
+        
+        // Handle response data
+        if (response.error === "Collaboration limit reached") {
+          Alert.alert(
+            "Subscription Limit Reached",
+            response.message || "You have reached your collaboration limit. Please upgrade your subscription to continue.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { 
+                text: "Upgrade", 
+                onPress: () => navigation.navigate("SubscriptionScreen")
+              }
+            ]
+          );
+          return false;
+        }
+        
+        // Refresh the list
+        loadCollaborationRequests();
+        return true;
+      } catch (error) {
+        console.error("API error:", error);
+        
+        // Try to update locally
+        try {
+          const stored = await AsyncStorage.getItem("collaborationRequests");
+          const requests = stored ? JSON.parse(stored) : [];
+          
+          // Find the index of the request
+          const requestIndex = requests.findIndex(
+            req => String(req.requestId) === String(requestId)
+          );
+          
+          if (requestIndex !== -1) {
+            // Update the request
+            requests[requestIndex] = {
+              ...requests[requestIndex],
+              status,
+              statusUpdatedAt: new Date().toISOString()
+            };
+            
+            // Save back to storage
+            await AsyncStorage.setItem("collaborationRequests", JSON.stringify(requests));
+            console.log(`Updated request in local storage: ${requestId} -> ${status}`);
+            
+            // Refresh the list
+            loadCollaborationRequests();
+            return true;
+          } else {
+            // Create a new request if it doesn't exist
+            const newRequest = {
+              requestId,
+              status,
+              sellerId: user.id || user.user_id,
+              sellerName: user.name,
+              influencerId: item.influencerId || "6", // Hardcoded Taylor's ID if not available
+              influencerName: item.influencerName || "Taylor",
+              timestamp: new Date().toISOString(),
+              statusUpdatedAt: new Date().toISOString()
+            };
+            
+            requests.push(newRequest);
+            await AsyncStorage.setItem("collaborationRequests", JSON.stringify(requests));
+            console.log(`Created new request in local storage: ${requestId} -> ${status}`);
+            
+            // Refresh the list
+            loadCollaborationRequests();
+            return true;
+          }
+        } catch (localError) {
+          console.error("Local storage error:", localError);
+        }
+        
+        Alert.alert("Error", "Failed to update request status.");
+        return false;
+      }
     } catch (error) {
       console.error("Error updating request status:", error);
       Alert.alert("Error", "Failed to update request status.");
+      return false;
     }
   };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.requestItem} 
-      onPress={() => item.status === "Pending" ? handleSelectInfluencer(item) : null}
+      onPress={() => item.status === "Accepted" ? null : handleSelectInfluencer(item)}
       activeOpacity={item.status === "Pending" ? 0.7 : 1}
     >
       <View style={styles.requestHeader}>
@@ -237,8 +397,26 @@ const CollaborationRequestScreen = ({ navigation }) => {
         {new Date(item.timestamp).toLocaleDateString()}
       </Text>
       
-      {/* Only show Create Campaign button for Pending requests */}
+      {/* Accept/Decline buttons for Pending requests */}
       {item.status === "Pending" && (
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.acceptButton]}
+            onPress={() => handleAcceptRequest(item)}
+          >
+            <Text style={styles.actionButtonText}>Accept</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.declineButton]}
+            onPress={() => handleDeclineRequest(item)}
+          >
+            <Text style={styles.actionButtonText}>Decline</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      
+      {/* Only show Create Campaign button for Accepted requests without a campaign */}
+      {item.status === "Accepted" && !item.campaignRequestId && (
         <View style={styles.createCampaignContainer}>
           <TouchableOpacity
             style={styles.createCampaignButton}
@@ -250,18 +428,16 @@ const CollaborationRequestScreen = ({ navigation }) => {
         </View>
       )}
       
-      {/* For Accepted requests, show campaign details if available */}
-      {item.status === "Accepted" && (
+      {/* For Accepted requests with campaign details */}
+      {item.status === "Accepted" && item.campaignRequestId && (
         <View style={styles.campaignInfoContainer}>
           <Text style={styles.campaignInfoText}>
             Campaign created successfully
           </Text>
-          {item.campaignRequestId && (
-            <View style={styles.adminStatusContainer}>
-              <Ionicons name="time-outline" size={14} color="#FF9800" />
-              <Text style={styles.adminStatusText}>Awaiting admin approval</Text>
-            </View>
-          )}
+          <View style={styles.adminStatusContainer}>
+            <Ionicons name="time-outline" size={14} color="#FF9800" />
+            <Text style={styles.adminStatusText}>Awaiting admin approval</Text>
+          </View>
         </View>
       )}
     </TouchableOpacity>

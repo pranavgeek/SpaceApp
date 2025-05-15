@@ -27,6 +27,8 @@ const MessagesStackNavigator = () => {
                 headerTintColor: '#fff', 
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerShown: false,
+                detachPreviousScreen: false,
+                freezeOnBlur: true
                 // headerRight: () => (
                 //   <TouchableOpacity style={{marginRight: 15}}>
                 //     <Icon name="notifications-outline" size={24} color="#fff" />

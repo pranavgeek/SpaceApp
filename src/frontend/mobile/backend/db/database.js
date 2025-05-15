@@ -469,6 +469,7 @@ const db = {
       return result[0];
     }
     const data = loadData();
+   
     message.message_id = data.messages.length + 1;
     data.messages.push(message);
     saveData(data);
@@ -528,40 +529,6 @@ const db = {
     return Array.from(conversations);
   },
 
-  // Update existing createMessage function to ensure it has all required fields
-  createMessage: async (message) => {
-    if (USE_CLOUD_DB) {
-      const query = `
-      INSERT INTO messages (user_from, user_to, type_message, message_content, add_file, date_timestamp_sent, is_read)
-      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-      const params = [
-        message.user_from,
-        message.user_to,
-        message.type_message || "text",
-        message.message_content,
-        message.add_file || null,
-        message.date_timestamp_sent || new Date().toISOString(),
-        message.is_read || false,
-      ];
-      const result = await runQuery(query, params);
-      return result[0];
-    }
-
-    const data = loadData();
-    message.message_id = data.messages.length + 1;
-
-    // Make sure all fields are set
-    message.type_message = message.type_message || "text";
-    message.add_file = message.add_file || null;
-    message.date_timestamp_sent =
-      message.date_timestamp_sent || new Date().toISOString();
-    message.is_read = message.is_read || false;
-
-    data.messages.push(message);
-    saveData(data);
-    return message;
-  },
-
   // Mark message as read
   markMessageAsRead: async (messageId) => {
     if (USE_CLOUD_DB) {
@@ -601,6 +568,28 @@ const db = {
     ).length;
   },
 
+  deleteMessage: async (messageId) => {
+    if (USE_CLOUD_DB) {
+      const query = `DELETE FROM messages WHERE message_id = $1 RETURNING *`;
+      const result = await runQuery(query, [messageId]);
+      return result.length > 0;
+    }
+  
+    // JSON fallback
+    const data = loadData();
+    const index = data.messages.findIndex(
+      (msg) => String(msg.message_id) === String(messageId)
+    );
+  
+    if (index !== -1) {
+      data.messages.splice(index, 1);
+      saveData(data);
+      return true;
+    }
+  
+    return false;
+  },
+  
   // Get Notifications by User ID
   getNotifications: async (user_id) => {
     if (USE_CLOUD_DB) {

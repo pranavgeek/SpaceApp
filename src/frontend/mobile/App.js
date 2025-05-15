@@ -250,7 +250,12 @@ const AppContent = () => {
   // Close the modal before navigating
   const navigateToFormScreen = (category) => {
     closeModal();
-    navigation.navigate("Form", { category });
+    navigation.dispatch(
+      CommonActions.navigate({
+          name: 'Form',
+          params: { category: category },
+      })
+  );
   };
 
   // Toggle profile dropdown visibility (if needed)

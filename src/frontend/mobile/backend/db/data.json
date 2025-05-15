@@ -172,7 +172,7 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 1,
+      "followers_count": 0,
       "earnings": 500,
       "received_orders": [
         {
@@ -264,18 +264,12 @@
       "verification_id": "1744934821300",
       "verification_expiry": 1744935121301,
       "temp_phone_number": "5192804167",
-      "followers": [
-        {
-          "user_id": 8,
-          "name": "Alex",
-          "profile_image": "default_profile.jpg",
-          "follow_date": "2025-05-03T00:35:56.790Z"
-        }
-      ],
+      "followers": [],
       "_preventReload": true,
       "role": "seller",
-      "tier": "basic",
-      "influencer_tier": "pro"
+      "tier": "enterprise",
+      "influencer_tier": "pro",
+      "subscription_end_date": "2025-06-14T23:34:30.886Z"
     },
     {
       "user_id": 3,
@@ -352,7 +346,8 @@
       "user_id": 5,
       "id": "5",
       "followers": [],
-      "followers_count": 0
+      "followers_count": 0,
+      "tier": "basic"
     },
     {
       "name": "Taylor",
@@ -589,168 +584,32 @@
   ],
   "messages": [
     {
-      "message_id": 301,
-      "user_from": 2,
-      "user_to": 1,
+      "message_id": 1,
+      "user_from": "6",
+      "user_to": "5",
+      "sender_id": "6",
+      "receiver_id": "5",
+      "from_name": "Taylor",
+      "to_name": "Shubh Rai",
       "type_message": "text",
-      "message_content": "Hi, is this product still available?",
-      "add_file": null,
-      "date_timestamp_sent": "2025-03-20T12:00:00Z",
-      "is_read": true
-    },
-    {
-      "message_id": 302,
-      "user_from": 1,
-      "user_to": 2,
-      "type_message": "text",
-      "message_content": "Yes, it's available. Would you like more details?",
-      "add_file": null,
-      "date_timestamp_sent": "2025-03-20T12:05:00Z",
+      "message_content": "Hi, I'm interested in collaborating on your products!",
+      "date_timestamp_sent": "2025-05-15T00:17:00.036Z",
+      "timestamp": "2025-05-15T00:17:00.036Z",
       "is_read": false
     },
     {
-      "sender_id": 2,
-      "receiver_id": 1,
-      "timestamp": "2025-04-08T20:03:40.577Z",
-      "content": "📦 Your order has shipped! Track it here: https://esqa.moneris.com/mpg/admin/chkt_config/index.php"
-    },
-    {
-      "sender_id": 2,
-      "receiver_id": 1,
-      "timestamp": "2025-04-09T00:23:15.733Z",
-      "content": "📦 Your order has shipped! Track it here: https://ariweinkle.com/"
-    },
-    {
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
+      "message_id": 2,
+      "user_from": "5",
+      "user_to": "Taylor",
+      "sender_id": "5",
+      "receiver_id": "Taylor",
+      "from_name": "Shubh Rai",
+      "to_name": "Taylor",
       "type_message": "text",
-      "message_content": "Hi, is this product still available?",
-      "date_timestamp_sent": "2025-04-14T22:08:55.988Z",
-      "is_read": false,
-      "message_id": 5,
-      "add_file": null
-    },
-    {
-      "user_from": "Sarah Smith",
-      "user_to": "John Doe",
-      "type_message": "text",
-      "message_content": "hii",
-      "date_timestamp_sent": "2025-04-14T23:55:22.215Z",
-      "is_read": false,
-      "message_id": 7,
-      "add_file": null
-    },
-    {
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
-      "type_message": "text",
-      "message_content": "How are you?",
-      "date_timestamp_sent": "2025-04-14T23:55:34.522Z",
-      "is_read": false,
-      "message_id": 8,
-      "add_file": null
-    },
-    {
-      "user_from": "Sarah Smith",
-      "user_to": "John Doe",
-      "type_message": "text",
-      "message_content": "Hi",
-      "date_timestamp_sent": "2025-04-15T23:31:51.969Z",
-      "is_read": false,
-      "message_id": 8,
-      "add_file": null
-    },
-    {
-      "user_from": "Sarah Smith",
-      "user_to": "John Doe",
-      "type_message": "text",
-      "message_content": "product is available",
-      "date_timestamp_sent": "2025-04-15T23:35:05.411Z",
-      "is_read": false,
-      "message_id": 9,
-      "add_file": null
-    },
-    {
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
-      "type_message": "text",
-      "message_content": "Ok",
-      "date_timestamp_sent": "2025-04-15T23:35:21.858Z",
-      "is_read": false,
-      "message_id": 10,
-      "add_file": null
-    },
-    {
-      "sender_id": 2,
-      "receiver_id": 1,
-      "timestamp": "2025-04-16T01:15:34.715Z",
-      "content": "📦 Your order has shipped! Track it here: https://basicappleguy.com/"
-    },
-    {
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
-      "type_message": "text",
-      "message_content": "**********4",
-      "date_timestamp_sent": "2025-04-23T00:31:01.448Z",
-      "is_read": false,
-      "message_id": 12,
-      "add_file": null
-    },
-    {
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
-      "type_message": "text",
-      "message_content": "***********",
-      "date_timestamp_sent": "2025-04-23T00:31:17.218Z",
-      "is_read": false,
-      "message_id": 13,
-      "add_file": null
-    },
-    {
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
-      "type_message": "text",
-      "message_content": "*******",
-      "date_timestamp_sent": "2025-04-23T00:32:24.728Z",
-      "is_read": false,
-      "message_id": 14,
-      "add_file": null
-    },
-    {
-      "user_from": "John Doe",
-      "user_to": "Sarah Smith",
-      "type_message": "text",
-      "message_content": "Hi",
-      "date_timestamp_sent": "2025-04-23T00:32:36.128Z",
-      "is_read": false,
-      "message_id": 15,
-      "add_file": null
-    },
-    {
-      "user_from": "Sarah Smith",
-      "user_to": "John Doe",
-      "type_message": "text",
-      "message_content": "Hi",
-      "date_timestamp_sent": "2025-04-23T00:33:04.444Z",
-      "is_read": false,
-      "message_id": 16,
-      "add_file": null
-    },
-    {
-      "user_from": "Sarah Smith",
-      "user_to": "Mike Influencer",
-      "type_message": "text",
-      "message_content": "Hi",
-      "date_timestamp_sent": "2025-04-24T00:16:28.552Z",
-      "is_read": false,
-      "message_id": 17,
-      "add_file": null
-    },
-    {
-      "sender_id": 2,
-      "receiver_id": 3,
-      "timestamp": "2025-04-24T19:06:02.946Z",
-      "content": "📦 Your order has shipped! Track it here: https://svg2jsx.com/"
+      "message_content": "I've accepted your collaboration request. Let's work together!",
+      "date_timestamp_sent": "2025-05-15T00:17:09.713Z",
+      "timestamp": "2025-05-15T00:17:09.713Z",
+      "is_read": false
     }
   ],
   "notifications": [
@@ -1079,6 +938,72 @@
       "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
       "date_timestamp": "2025-05-03T20:51:09.243Z",
       "notification_id": 53
+    },
+    {
+      "user_id": 2,
+      "message": "Congratulations! Your subscription upgrade to Pro plan has been approved.",
+      "date_timestamp": "2025-05-08T21:59:49.242Z",
+      "notification_id": 54
+    },
+    {
+      "user_id": 2,
+      "message": "Congratulations! Your subscription upgrade to Pro plan has been approved.",
+      "date_timestamp": "2025-05-08T23:26:43.848Z",
+      "notification_id": 55
+    },
+    {
+      "user_id": 2,
+      "message": "Congratulations! Your subscription upgrade to Pro plan has been approved.",
+      "date_timestamp": "2025-05-08T23:52:58.664Z",
+      "notification_id": 56
+    },
+    {
+      "user_id": 2,
+      "message": "Your subscription change request could not be approved at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-09T00:01:24.030Z",
+      "notification_id": 57
+    },
+    {
+      "user_id": 2,
+      "message": "Your subscription change request could not be approved at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-09T00:01:53.856Z",
+      "notification_id": 58
+    },
+    {
+      "user_id": 2,
+      "message": "Your subscription change request could not be approved at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-09T00:06:12.117Z",
+      "notification_id": 59
+    },
+    {
+      "user_id": 2,
+      "message": "Your subscription change request could not be approved at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-09T00:06:20.428Z",
+      "notification_id": 60
+    },
+    {
+      "user_id": 2,
+      "message": "Congratulations! Your subscription upgrade to Pro plan has been approved.",
+      "date_timestamp": "2025-05-09T00:06:25.526Z",
+      "notification_id": 61
+    },
+    {
+      "user_id": 2,
+      "message": "Congratulations! Your subscription upgrade to Pro plan has been approved.",
+      "date_timestamp": "2025-05-09T00:36:36.886Z",
+      "notification_id": 62
+    },
+    {
+      "user_id": "6",
+      "message": "Your campaign for \"iPad Pro\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-05-14T17:57:00.629Z",
+      "notification_id": 63
+    },
+    {
+      "user_id": "5",
+      "message": "Your campaign request with Taylor for \"iPad Pro\" has been approved.",
+      "date_timestamp": "2025-05-14T17:57:00.645Z",
+      "notification_id": 64
     }
   ],
   "admin_data": [
@@ -1120,6 +1045,23 @@
       "date_timestamp": "2025-05-03T20:50:37.993Z",
       "admin_id": 4,
       "updated_at": "2025-05-03T20:50:51.136Z"
+    },
+    {
+      "action": "Campaign Approval Request",
+      "user_id": "5",
+      "status": "approved",
+      "date_timestamp": "2025-05-14T17:55:35.994Z",
+      "details": "{\"campaignRequestId\":\"1747245335958\",\"productName\":\"iPad Pro\",\"influencerName\":\"Taylor\",\"sellerName\":\"Shubh Rai\",\"campaignDuration\":1,\"commission\":5}",
+      "admin_id": 5,
+      "updated_at": "2025-05-14T17:57:00.520Z"
+    },
+    {
+      "action": "Campaign Approval Request",
+      "user_id": "2",
+      "status": "pending",
+      "date_timestamp": "2025-05-14T20:02:21.079Z",
+      "details": "{\"campaignRequestId\":\"1747252941018\",\"productName\":\"Keyboard\",\"influencerName\":\"Taylor\",\"sellerName\":\"Sarah Smith\",\"campaignDuration\":1,\"commission\":10}",
+      "admin_id": 6
     }
   ],
   "orders": [
@@ -1225,177 +1167,19 @@
       "statusUpdatedAt": "2025-04-30T00:14:40.486Z"
     }
   ],
+  "subscriptions": [],
   "collaboration_requests": [
     {
-      "requestId": "1745971972549",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "8",
-      "influencerName": "Derrick Afful",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-30T00:12:52.549Z"
-    },
-    {
-      "requestId": "1001",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "product": "Smartphone",
-      "status": "Pending",
-      "timestamp": "2025-04-27T23:42:41.679Z"
-    },
-    {
-      "requestId": "1003",
-      "influencerId": "8",
-      "influencerName": "Derrick Afful",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "product": "Wireless Headphones",
-      "status": "Declined",
-      "timestamp": "2025-04-25T23:42:41.679Z"
-    },
-    {
-      "requestId": "1745890430279",
+      "requestId": "1747252021697",
       "sellerId": "5",
       "sellerName": "Shubh Rai",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "General Collaboration",
-      "status": "Pending",
-      "timestamp": "2025-04-29T01:33:50.279Z"
-    },
-    {
-      "requestId": "1745895369781",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T02:56:09.781Z"
-    },
-    {
-      "requestId": "1745896358495",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T03:12:38.495Z"
-    },
-    {
-      "requestId": "1745896380962",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T03:13:00.962Z"
-    },
-    {
-      "requestId": "1745896683814",
-      "sellerId": "5",
-      "sellerName": "Shubh Rai",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T03:18:03.814Z"
-    },
-    {
-      "requestId": "1745896828681",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T03:20:28.681Z"
-    },
-    {
-      "requestId": "1745896841131",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T03:20:41.131Z"
-    },
-    {
-      "requestId": "1745896844245",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T03:20:44.245Z"
-    },
-    {
-      "requestId": "1745896872897",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T03:21:12.897Z"
-    },
-    {
-      "requestId": "1745900688223",
-      "sellerId": "5",
-      "sellerName": "Shubh Rai",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T04:24:48.223Z"
-    },
-    {
-      "requestId": "1745901821195",
-      "sellerId": "5",
-      "sellerName": "Shubh Rai",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-29T04:43:41.195Z"
-    },
-    {
-      "requestId": "1745971606199",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-30T00:06:46.199Z"
-    },
-    {
-      "requestId": "1744064726103",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
+      "influencerId": "6",
+      "influencerName": "Taylor",
       "product": "Collaboration Request",
       "status": "Accepted",
-      "timestamp": "2025-04-30T22:47:54.512Z"
-    },
-    {
-      "requestId": "1745516672420",
-      "sellerId": "5",
-      "sellerName": "Shubh Rai",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Pending",
-      "timestamp": "2025-04-24T17:44:32.420Z"
+      "timestamp": "2025-05-14T19:47:01.697Z",
+      "request_id": "req-1747252021705",
+      "statusUpdatedAt": "2025-05-15T00:20:42.389Z"
     }
-  ],
-  "subscriptions": []
+  ]
 }

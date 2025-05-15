@@ -188,6 +188,23 @@ export default function MessagesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [storedUsers, setStoredUsers] = useState([]);
+
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersData = await AsyncStorage.getItem("users");
+        if (usersData) {
+          setStoredUsers(JSON.parse(usersData));
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     if (!currentUser || !currentUser.name) return;
@@ -200,16 +217,22 @@ export default function MessagesScreen({ navigation }) {
     
     try {
       setRefreshing(true);
-      const [messages, storedRequests] = await Promise.all([
+      const [messages, storedRequests, usersData] = await Promise.all([
         fetchMessages(),
-        AsyncStorage.getItem("collaborationRequests")
+        AsyncStorage.getItem("collaborationRequests"),
+        AsyncStorage.getItem("users")
       ]);
-
+  
+      // Set users if available
+      if (usersData) {
+        setStoredUsers(JSON.parse(usersData));
+      }
+  
       const allRequests = storedRequests ? JSON.parse(storedRequests) : [];
       setCollabRequests(allRequests);
-
+  
       let updatedMessages = [...messages];
-
+  
       if (currentUser.account_type === "Influencer") {
         const hasPending = allRequests.find(
           (req) =>
@@ -217,13 +240,13 @@ export default function MessagesScreen({ navigation }) {
             req.sellerName === "Sarah Smith" &&
             req.status === "Pending"
         );
-
+  
         const alreadyMessaged = messages.some(
           (msg) =>
             msg.user_from === currentUser.name &&
             msg.user_to === "Sarah Smith"
         );
-
+  
         if (hasPending && !alreadyMessaged) {
           updatedMessages.push({
             message_id: 999,
@@ -235,7 +258,7 @@ export default function MessagesScreen({ navigation }) {
           });
         }
       }
-
+  
       setMessagesData(updatedMessages);
     } catch (error) {
       console.error("Error loading messages or requests:", error);
@@ -248,14 +271,55 @@ export default function MessagesScreen({ navigation }) {
     if (!currentUser || !currentUser.name) return [];
     
     const map = {};
-
+    const currentUserId = String(currentUser.id || currentUser.user_id);
+    const currentUserName = currentUser.name;
+  
     messagesData.forEach((msg) => {
-      const isSender = msg.user_from === currentUser.name;
-      const isReceiver = msg.user_to === currentUser.name;
-
+      // Get all possible identifiers from the message
+      const fromId = String(msg.user_from || msg.sender_id || '');
+      const toId = String(msg.user_to || msg.receiver_id || '');
+      const fromName = String(msg.from_name || '');
+      const toName = String(msg.to_name || '');
+      
+      // Check if the current user is the sender or recipient using either ID or name
+      const isSender = 
+        fromId === currentUserId || 
+        fromName === currentUserName || 
+        msg.user_from === currentUserName;
+        
+      const isReceiver = 
+        toId === currentUserId || 
+        toName === currentUserName || 
+        msg.user_to === currentUserName;
+  
+      // Skip if not relevant to current user
       if (!isSender && !isReceiver) return;
-
-      const partnerName = isSender ? msg.user_to : msg.user_from;
+  
+      // Determine the chat partner name
+      let partnerName;
+      if (isSender) {
+        // Current user is sender, partner is recipient
+        partnerName = toName || msg.user_to || toId;
+      } else {
+        // Current user is recipient, partner is sender
+        partnerName = fromName || msg.user_from || fromId;
+      }
+      
+      // Skip if no partner name found
+      if (!partnerName) return;
+      
+      // Look up the actual name if we have an ID
+      if (partnerName.match(/^\d+$/)) {
+        // This looks like an ID, try to find the name
+        const partnerUser = (storedUsers || []).find(u => 
+          String(u.user_id) === partnerName || 
+          String(u.id) === partnerName
+        );
+        
+        if (partnerUser) {
+          partnerName = partnerUser.name;
+        }
+      }
       
       // Get timestamp - handle different message formats
       let timestamp;
@@ -290,7 +354,7 @@ export default function MessagesScreen({ navigation }) {
         };
       }
     });
-
+  
     // Convert to array and sort by timestamp (newest first)
     return Object.values(map).sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -316,18 +380,20 @@ export default function MessagesScreen({ navigation }) {
       });
       return;
     }
-
+  
+    // Try to find collaboration request by name or ID
     const request = collabRequests.find(
       (req) =>
-        req.sellerName === currentUser.name &&
-        req.influencerName === chatName
+        (req.sellerName === currentUser.name && req.influencerName === chatName) ||
+        (String(req.sellerId) === String(currentUser.user_id) && 
+          (String(req.influencerId) === chatName || req.influencerName === chatName))
     );
-
+  
     let requestStatus = "Accepted";
     if (request) {
       requestStatus = request.status;
     }
-
+  
     navigation.navigate("Chat", {
       chatPartner: chatName,
       requestStatus,
@@ -348,10 +414,35 @@ export default function MessagesScreen({ navigation }) {
               // Get all messages
               const messages = await fetchMessages();
               
+              // Get current user ID and name
+              const currentUserId = String(currentUser.id || currentUser.user_id);
+              
+              // Try to find chat partner ID
+              let chatPartnerId = null;
+              const partnerUser = storedUsers.find(u => u.name === chatName);
+              if (partnerUser) {
+                chatPartnerId = String(partnerUser.id || partnerUser.user_id);
+              }
+              
               // Filter out messages for this conversation
               const filteredMessages = messages.filter(msg => {
-                return !((msg.user_from === currentUser.name && msg.user_to === chatName) || 
-                         (msg.user_from === chatName && msg.user_to === currentUser.name));
+                // Check sender/recipient combinations using both ID and name
+                const fromId = String(msg.user_from || msg.sender_id || '');
+                const toId = String(msg.user_to || msg.receiver_id || '');
+                const fromName = String(msg.from_name || msg.user_from || '');
+                const toName = String(msg.to_name || msg.user_to || '');
+                
+                // Check if this message is between current user and chat partner
+                const isMessageInConversation = 
+                  // User is sender, partner is recipient
+                  ((fromId === currentUserId || fromName === currentUser.name) && 
+                   (toId === chatPartnerId || toName === chatName)) || 
+                  // User is recipient, partner is sender
+                  ((toId === currentUserId || toName === currentUser.name) && 
+                   (fromId === chatPartnerId || fromName === chatName));
+                
+                // Keep messages that are NOT in this conversation
+                return !isMessageInConversation;
               });
               
               // Save filtered messages
@@ -434,7 +525,6 @@ export default function MessagesScreen({ navigation }) {
                   <Ionicons name="search" size={22} color={colors.primary} />
                 </TouchableOpacity>
                 
-                {/* {currentUser.account_type === "Seller" && (
                   <TouchableOpacity
                     onPress={() => Alert.alert(
                       "Reset Data",
@@ -452,7 +542,7 @@ export default function MessagesScreen({ navigation }) {
                   >
                     <Ionicons name="refresh-outline" size={22} color={colors.primary} />
                   </TouchableOpacity>
-                )} */}
+
               </View>
             </>
           )}

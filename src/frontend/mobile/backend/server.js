@@ -38,6 +38,118 @@ const saveData = (data) => {
   );
 };
 
+// Helper: Load and Save data for collaboration requests ====================================
+
+function readData() {
+  try {
+    const dataFilePath = path.join(__dirname, "db", "data.json");
+    const rawData = fs.readFileSync(dataFilePath, 'utf8');
+    return JSON.parse(rawData);
+  } catch (error) {
+    console.error('Error reading data file:', error);
+    return { collaboration_requests: [] };
+  }
+}
+
+// Function to write data back to file
+function writeData(data) {
+  try {
+    const dataFilePath = path.join(__dirname, "db", "data.json");
+    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    console.error('Error writing data file:', error);
+    return false;
+  }
+}
+
+app.put('/api/collaboration-requests/update-status', (req, res) => {
+  try {
+    // Get the parameters from the request body
+    const { sellerId, influencerId, status } = req.body;
+    
+    console.log(`Updating collaboration status: Seller=${sellerId}, Influencer=${influencerId}, Status=${status}`);
+    console.log("Request body:", req.body);
+    
+    // IMPORTANT: Make sure status is a string, not an object
+    const statusValue = typeof status === 'object' ? status.status : status;
+    
+    console.log(`Using status value: ${statusValue}`);
+    
+    // Read the current data
+    const dataPath = path.join(__dirname, 'db', 'data.json');
+    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    
+    // Initialize if needed
+    if (!data.collaboration_requests) {
+      data.collaboration_requests = [];
+    }
+    
+    // Find the matching request
+    let foundIndex = data.collaboration_requests.findIndex(req => 
+      String(req.sellerId) === String(sellerId) && 
+      String(req.influencerId) === String(influencerId)
+    );
+    
+    // If not found, try by name or with flexible matching
+    if (foundIndex === -1) {
+      // Try other matching techniques
+      foundIndex = data.collaboration_requests.findIndex(req => 
+        (req.sellerName === sellerId || String(req.sellerId) === String(sellerId)) &&
+        (req.influencerName === influencerId || String(req.influencerId) === String(influencerId))
+      );
+    }
+    
+    // If found, update the request
+    if (foundIndex !== -1) {
+      // Update the status as a STRING, not an object
+      data.collaboration_requests[foundIndex].status = statusValue;
+      data.collaboration_requests[foundIndex].statusUpdatedAt = new Date().toISOString();
+      
+      // Save the data
+      fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), 'utf8');
+      
+      // Return the updated request
+      res.json({
+        success: true,
+        message: "Collaboration request status updated successfully",
+        request: data.collaboration_requests[foundIndex]
+      });
+    } else {
+      // Create a new request if not found
+      const newRequest = {
+        requestId: `req-${Date.now()}`,
+        request_id: `req-${Date.now()}`,
+        sellerId: String(sellerId),
+        influencerId: String(influencerId),
+        sellerName: req.body.sellerName || "Unknown Seller",
+        influencerName: req.body.influencerName || influencerId,
+        product: "Collaboration Request",
+        status: statusValue, // Use the STRING value
+        timestamp: new Date().toISOString()
+      };
+      
+      data.collaboration_requests.push(newRequest);
+      fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), 'utf8');
+      
+      res.status(201).json({
+        success: true,
+        message: "Created new collaboration request",
+        request: newRequest
+      });
+    }
+  } catch (error) {
+    console.error(`Error in update-status endpoint: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+// ================================================================
+
 const subscriptionMiddleware = checkSubscriptionLimits(loadData, saveData);
 
 function initializeFollowingData() {
@@ -324,6 +436,192 @@ app.get("/api/sellers/:sellerId/subscription", subscriptionMiddleware, (req, res
   } catch (error) {
     console.error("Error getting seller subscription details:", error);
     res.status(500).json({ error: "Failed to get seller subscription details" });
+  }
+});
+
+async function checkExpiredSubscriptions() {
+  try {
+    console.log("🔄 Running scheduled check for expired subscriptions...");
+    
+    // Load the current data
+    const data = loadData();
+    
+    // Get current date at midnight for comparison
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    // Count of downgrades performed
+    let downgradeCount = 0;
+    
+    // Check each user for expired subscriptions
+    for (let i = 0; i < data.users.length; i++) {
+      const user = data.users[i];
+      
+      // Skip users without a subscription end date or who are already on basic plan
+      if (!user.subscription_end_date || user.tier === 'basic' || !user.tier) {
+        continue;
+      }
+      
+      // Parse the subscription end date
+      const endDate = new Date(user.subscription_end_date);
+      endDate.setHours(0, 0, 0, 0); // Normalize to midnight
+      
+      // Check if subscription has expired
+      if (endDate <= currentDate) {
+        console.log(`User ${user.user_id} subscription expired on ${endDate.toLocaleDateString()}, downgrading to basic plan`);
+        
+        // Track the previous tier for the log
+        const previousTier = user.tier;
+        
+        // Downgrade user to basic plan
+        user.tier = 'basic';
+        user.subscription_end_date = null;
+        user.subscription_cancelled = false;
+        user.subscription_cancelled_at = null;
+        
+        // Log this downgrade
+        if (!data.subscription_downgrades) {
+          data.subscription_downgrades = [];
+        }
+        
+        data.subscription_downgrades.push({
+          user_id: user.user_id,
+          previous_tier: previousTier,
+          downgrade_date: new Date().toISOString(),
+          reason: "Subscription period ended"
+        });
+        
+        // Increment counter
+        downgradeCount++;
+      }
+    }
+    
+    // If any users were downgraded, save the updated data
+    if (downgradeCount > 0) {
+      saveData(data);
+      console.log(`✅ Downgraded ${downgradeCount} users to basic plan due to expired subscriptions`);
+    } else {
+      console.log("✅ No expired subscriptions found");
+    }
+    
+    return {
+      success: true,
+      downgradeCount
+    };
+  } catch (error) {
+    console.error("❌ Error checking expired subscriptions:", error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// You might also want an endpoint to manually trigger this check for testing/admin purposes
+app.post("/api/admin/check-expired-subscriptions", async (req, res) => {
+  try {
+    // Check if request is from an admin (implement your auth check here)
+    // if (!isAdmin(req.user)) {
+    //   return res.status(403).json({ 
+    //     success: false, 
+    //     message: "Unauthorized" 
+    //   });
+    // }
+    
+    const result = await checkExpiredSubscriptions();
+    res.json(result);
+  } catch (error) {
+    console.error("Error running subscription check:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check expired subscriptions",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/subscriptions/:userId/cancel", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { reason, cancelled_at } = req.body;
+    
+    console.log(`Processing subscription cancellation for user ${userId} with reason: ${reason}`);
+    
+    // Load the current data
+    const data = loadData();
+    
+    // Find the user
+    const userIndex = data.users.findIndex(u => u.user_id === userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+    
+    const user = data.users[userIndex];
+    
+    // Check if user has an active subscription
+    if (!user.tier || user.tier === "basic") {
+      return res.status(400).json({
+        success: false,
+        message: "No active subscription to cancel"
+      });
+    }
+    
+    // Record cancellation data but don't change the tier immediately
+    // This allows users to continue using premium features until their subscription period ends
+    
+    // Create a cancellation record
+    if (!data.subscription_cancellations) {
+      data.subscription_cancellations = [];
+    }
+    
+    const cancellationRecord = {
+      user_id: userId,
+      previous_tier: user.tier,
+      reason: reason || 'User requested cancellation',
+      cancelled_at: cancelled_at || new Date().toISOString(),
+      subscription_end_date: user.subscription_end_date || null,
+      auto_downgrade: true
+    };
+    
+    data.subscription_cancellations.push(cancellationRecord);
+    
+    // Mark the subscription as cancelled in the user object
+    // but preserve the tier and subscription_end_date
+    user.subscription_cancelled = true;
+    user.subscription_cancelled_at = cancelled_at || new Date().toISOString();
+    
+    // Save the updated data
+    saveData(data);
+    
+    // If we have a scheduler or cron job, we would set up an automatic downgrade
+    // when the subscription_end_date is reached
+    
+    // For demo purposes, let's log when this subscription should be downgraded
+    if (user.subscription_end_date) {
+      const endDate = new Date(user.subscription_end_date);
+      console.log(`User ${userId} subscription will be downgraded to basic on ${endDate.toLocaleDateString()}`);
+      
+      // Here you might set up a scheduled job to downgrade the user automatically
+      // when their subscription period ends
+    }
+    
+    // Return success response
+    res.json({
+      success: true,
+      message: "Subscription cancellation recorded successfully",
+      keep_access_until: user.subscription_end_date || null
+    });
+  } catch (error) {
+    console.error("Error cancelling subscription:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process subscription cancellation",
+      error: error.message
+    });
   }
 });
 
@@ -1022,8 +1320,30 @@ app.get("/api/products/:id", async (req, res) => {
   res.json(product);
 });
 
+// app.post("/api/products", (req, res) => {
+//   try {
+//     const data = loadData();
+//     const newProduct = {
+//       ...req.body,
+//       product_id: Date.now(), // Unique ID
+//     };
+
+//     data.products.push(newProduct);
+//     saveData(data);
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Product created successfully",
+//       product: newProduct,
+//     });
+//   } catch (err) {
+//     console.error("❌ Error creating product:", err);
+//     res.status(500).json({ error: "Server error creating product" });
+//   }
+// });
+
 // Create New Product
-app.post("/api/products", checkSubscriptionLimits, async (req, res) => {
+app.post("/api/products", subscriptionMiddleware, async (req, res) => {
   try {
     const product = req.body;
     const sellerId = parseInt(product.user_seller);
@@ -1521,13 +1841,13 @@ app.get("/api/users/role/:role", async (req, res) => {
   }
 });
 
-// Update User Role
+// Update User Role with subscription end date handling
 app.put("/api/users/:id/role", async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, tier, force } = req.body;
+    const { role, tier, force, subscription_end_date } = req.body;
     
-    console.log(`Updating user ${userId} role to: ${role}, tier: ${tier || 'none'}, force: ${force}`);
+    console.log(`Updating user ${userId} role to: ${role}, tier: ${tier || 'none'}, force: ${force}, expiration: ${subscription_end_date || 'not set'}`);
     
     if (!role) {
       return res.status(400).json({ error: "Role is required" });
@@ -1552,6 +1872,9 @@ app.put("/api/users/:id/role", async (req, res) => {
           sub => sub.user_id !== userId
         );
       }
+      
+      // Clear any subscription end date
+      delete data.users[userIndex].subscription_end_date;
     }
     
     // Update both role and account_type for compatibility
@@ -1566,6 +1889,15 @@ app.put("/api/users/:id/role", async (req, res) => {
       if (role.toLowerCase() === 'influencer') {
         data.users[userIndex].influencer_tier = tier;
       }
+    }
+    
+    // Add subscription end date if provided
+    if (subscription_end_date) {
+      data.users[userIndex].subscription_end_date = subscription_end_date;
+      console.log(`Added subscription end date: ${subscription_end_date} for user ${userId}`);
+      
+      // If we're in a production environment, you would want to set up a scheduled job 
+      // to automatically downgrade the user when their subscription expires
     }
     
     // Save the updated data
@@ -1810,28 +2142,64 @@ app.get("/api/collaboration-requests/influencer/:influencerId", (req, res) => {
   }
 });
 
+app.post("/api/collaboration-requests", (req, res) => {
+  const data = loadData();
+  const request = { ...req.body, request_id: `req-${Date.now()}` };
+  data.collaboration_requests = data.collaboration_requests || [];
+  data.collaboration_requests.push(request);
+  saveData(data);
+  res.status(201).json(request);
+});
+
+// PUT /collaboration-requests/:id (update status)
+app.put("/api/collaboration-requests/:id", (req, res) => {
+  const data = loadData();
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const reqIndex = data.collaboration_requests.findIndex(
+    (r) => r.request_id === id
+  );
+
+  if (reqIndex === -1) {
+    return res.status(404).json({ error: "Request not found" });
+  }
+
+  data.collaboration_requests[reqIndex].status = status;
+  saveData(data);
+  res.json({ success: true });
+});
+
+app.get("/api/collaboration-requests", (req, res) => {
+  const data = loadData();
+  res.json(data.collaboration_requests || []);
+});
+
+app.put("/collaboration-requests/:requestId/status", (req, res) => {
+  const data = loadData();
+  const { requestId } = req.params;
+  const { status } = req.body;
+
+  const request = data.collaboration_requests.find(r => 
+    r.requestId === requestId || r.request_id === requestId
+  );
+
+  if (!request) {
+    return res.status(404).json({ error: "Request not found" });
+  }
+
+  request.status = status;
+  saveData(data);
+  res.json({ message: "Status updated", request });
+});
+
 // Create a new collaboration request
-app.post("/api/collaboration-requests", checkSubscriptionLimits, (req, res) => {
+app.post("/api/collaboration-requests", (req, res) => {
   try {
     const requestData = req.body;
-    const sellerId = parseInt(requestData.sellerId);
-    
-    // Check if seller has reached their collaboration limit
-    if (req.sellerStats && req.sellerLimits) {
-      if (req.sellerStats.collaborationCount >= req.sellerLimits.collaborationLimit) {
-        return res.status(403).json({ 
-          error: "Collaboration limit reached", 
-          message: `Your current plan (${req.sellerLimits.tier}) allows a maximum of ${req.sellerLimits.collaborationLimit} active collaborations. Please upgrade your subscription to add more collaborations.`,
-          upgrade_required: true,
-          current_tier: req.sellerLimits.tier,
-          current_count: req.sellerStats.collaborationCount,
-          max_allowed: req.sellerLimits.collaborationLimit
-        });
-      }
-    }
     
     // Validate required fields
-    if (!requestData.influencerId || !sellerId) {
+    if (!requestData.influencerId || !requestData.sellerId) {
       return res.status(400).json({ error: "Missing required fields: influencerId and sellerId are required" });
     }
     
@@ -1847,8 +2215,7 @@ app.post("/api/collaboration-requests", checkSubscriptionLimits, (req, res) => {
       ...requestData,
       requestId: requestData.requestId || Date.now().toString(),
       timestamp: requestData.timestamp || new Date().toISOString(),
-      status: requestData.status || "Pending",
-      fee_percentage: req.sellerLimits ? req.sellerLimits.feePercentage : 5
+      status: requestData.status || "Pending"
     };
     
     // Add the new request

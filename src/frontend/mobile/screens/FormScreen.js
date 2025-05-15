@@ -18,7 +18,7 @@ import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import DropDownPicker from "react-native-dropdown-picker";
 import { useAuth } from "../context/AuthContext";
 import { mockCities } from "../data/MockData";
-import { createProduct } from "../backend/db/API";
+import { createProduct, getSellerProducts } from "../backend/db/API";
 import PriceCalculator from "../components/PriceCalculator";
 
 /**
@@ -40,6 +40,11 @@ function WebForm() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const styles = getWebStyles(colors);
+
+  // Product limit states
+  const [sellerProducts, setSellerProducts] = useState([]);
+  const [productLimit, setProductLimit] = useState(3); // Default to Basic tier limit
+  const [isLoading, setIsLoading] = useState(true);
 
   // Form states for text fields
   const [title, setTitle] = useState("");
@@ -71,6 +76,42 @@ function WebForm() {
     mockCities.map((city) => ({ label: city, value: city }))
   );
 
+  // Get product limits based on user tier
+  useEffect(() => {
+    // Set product limit based on subscription tier
+    const tier = user?.tier?.toLowerCase() || "basic";
+
+    switch (tier) {
+      case "pro":
+        setProductLimit(25);
+        break;
+      case "enterprise":
+        setProductLimit(Infinity); // Unlimited
+        break;
+      case "basic":
+      default:
+        setProductLimit(3);
+        break;
+    }
+
+    // Fetch seller's existing products
+    const fetchSellerProducts = async () => {
+      try {
+        if (user && user.user_id) {
+          setIsLoading(true);
+          const products = await getSellerProducts(user.user_id);
+          setSellerProducts(products || []);
+        }
+      } catch (error) {
+        console.error("Error fetching seller products:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSellerProducts();
+  }, [user]);
+
   // Handlers
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -96,6 +137,26 @@ function WebForm() {
   const handleSubmit = async () => {
     if (!title || !price || !detailedDescription || !country) {
       Alert.alert("Required Fields", "Please fill in all required fields");
+      return;
+    }
+
+    // Check if user has reached product limit
+    if (sellerProducts.length >= productLimit) {
+      Alert.alert(
+        "Product Limit Reached",
+        `Your current plan (${user?.tier || "Basic"}) allows a maximum of ${productLimit} products. Please upgrade your subscription to add more products.`,
+        [
+          { text: "OK" },
+          {
+            text: "Upgrade Plan",
+            onPress: () => {
+              // Navigate to subscription screen
+              // This is just a placeholder - you'd need to set up the actual navigation
+              console.log("Navigate to subscription screen");
+            },
+          },
+        ]
+      );
       return;
     }
 
@@ -132,6 +193,34 @@ function WebForm() {
     }
   };
 
+  // Helper function to get fee percentage
+  const getFeePercentage = () => {
+    const tier = user?.tier?.toLowerCase() || "basic";
+
+    switch (tier) {
+      case "pro":
+        return 3;
+      case "enterprise":
+        return 2;
+      case "basic":
+      default:
+        return 5;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View
+        style={[
+          styles.scrollContainer,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
   if (submitted) {
     return (
       <View
@@ -165,6 +254,50 @@ function WebForm() {
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.formWrapper}>
         <Text style={styles.formHeading}>Tell us about your Product</Text>
+
+        {/* Subscription tier info */}
+        <View style={styles.subscriptionInfoContainer}>
+          <View style={styles.subscriptionInfoHeader}>
+            <MaterialIcons name="info" size={20} color={colors.primary} />
+            <Text style={styles.subscriptionInfoTitle}>
+              Your Subscription Plan: {user?.tier || "Basic"}
+            </Text>
+          </View>
+
+          <View style={styles.subscriptionInfoDetails}>
+            <View style={styles.subscriptionInfoRow}>
+              <Text style={styles.subscriptionInfoLabel}>Processing Fee:</Text>
+              <Text style={styles.subscriptionInfoValue}>
+                {getFeePercentage()}%
+              </Text>
+            </View>
+
+            <View style={styles.subscriptionInfoRow}>
+              <Text style={styles.subscriptionInfoLabel}>Product Limit:</Text>
+              <Text style={styles.subscriptionInfoValue}>
+                {productLimit === Infinity ? "Unlimited" : productLimit}
+              </Text>
+            </View>
+
+            <View style={styles.subscriptionInfoRow}>
+              <Text style={styles.subscriptionInfoLabel}>Products Used:</Text>
+              <Text style={styles.subscriptionInfoValue}>
+                {sellerProducts.length}/
+                {productLimit === Infinity ? "∞" : productLimit}
+              </Text>
+            </View>
+          </View>
+
+          {sellerProducts.length >= productLimit && (
+            <View style={styles.limitWarning}>
+              <MaterialIcons name="warning" size={18} color="#ff9800" />
+              <Text style={styles.limitWarningText}>
+                You've reached your product limit. Please upgrade your plan to
+                add more products.
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Title */}
         <FormField
@@ -266,9 +399,29 @@ function WebForm() {
         </View>
 
         {/* Submit Button */}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            sellerProducts.length >= productLimit &&
+              styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={sellerProducts.length >= productLimit}
+        >
           <Text style={styles.submitButtonText}>SUBMIT</Text>
         </TouchableOpacity>
+
+        {sellerProducts.length >= productLimit && (
+          <TouchableOpacity
+            style={styles.upgradePlanButton}
+            onPress={() => {
+              // Navigate to subscription screen
+              console.log("Navigate to subscription screen");
+            }}
+          >
+            <Text style={styles.upgradePlanButtonText}>UPGRADE PLAN</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
@@ -330,8 +483,58 @@ function getWebStyles(colors) {
       fontSize: 24,
       fontWeight: "bold",
       color: colors.text,
-      marginBottom: 30,
+      marginBottom: 20,
       textAlign: "left",
+    },
+    subscriptionInfoContainer: {
+      backgroundColor: "#f8f9fa",
+      borderRadius: 8,
+      padding: 15,
+      marginBottom: 30,
+      borderWidth: 1,
+      borderColor: "#e9ecef",
+    },
+    subscriptionInfoHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    subscriptionInfoTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.primary,
+      marginLeft: 8,
+    },
+    subscriptionInfoDetails: {
+      marginBottom: 10,
+    },
+    subscriptionInfoRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 5,
+    },
+    subscriptionInfoLabel: {
+      fontSize: 14,
+      color: "#555",
+    },
+    subscriptionInfoValue: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#333",
+    },
+    limitWarning: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#fff3e0",
+      padding: 10,
+      borderRadius: 6,
+      marginTop: 5,
+    },
+    limitWarningText: {
+      fontSize: 14,
+      color: "#e65100",
+      marginLeft: 8,
+      flex: 1,
     },
     fieldContainer: {
       marginBottom: 20,
@@ -396,6 +599,10 @@ function getWebStyles(colors) {
       borderRadius: 4,
       marginTop: 10,
     },
+    submitButtonDisabled: {
+      backgroundColor: "#cccccc",
+      opacity: 0.7,
+    },
     submitButtonText: {
       color: "#fff",
       fontSize: 16,
@@ -408,13 +615,25 @@ function getWebStyles(colors) {
       borderColor: colors.secondary,
       borderRadius: 0,
     },
+    upgradePlanButton: {
+      backgroundColor: "#ff9800",
+      paddingVertical: 12,
+      alignItems: "center",
+      borderRadius: 4,
+      marginTop: 15,
+    },
+    upgradePlanButtonText: {
+      color: "#fff",
+      fontSize: 16,
+      fontWeight: "600",
+      letterSpacing: 1,
+    },
   });
 }
 
-/* ------------------------------------------------------------------
-   2) MOBILE LAYOUT: ENHANCED ANIMATED WIZARD WITH SMOOTH TRANSITIONS
-   ------------------------------------------------------------------ */
-
+/* ------------------------------------------------------------------ */
+/* Mobile layout implementation would need similar changes, skipped for brevity */
+/* ------------------------------------------------------------------ */
 function AnimatedMobileWizard() {
   const { colors } = useTheme();
   const { user } = useAuth();
@@ -426,6 +645,11 @@ function AnimatedMobileWizard() {
   const opacityAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Product limit states
+  const [sellerProducts, setSellerProducts] = useState([]);
+  const [productLimit, setProductLimit] = useState(3); // Default to Basic tier limit
+  const [isLoading, setIsLoading] = useState(true);
 
   // States for wizard fields
   const [title, setTitle] = useState("");
@@ -458,6 +682,42 @@ function AnimatedMobileWizard() {
     mockCities.map((city) => ({ label: city, value: city }))
   );
 
+  // Get product limits based on user tier
+  useEffect(() => {
+    // Set product limit based on subscription tier
+    const tier = user?.tier?.toLowerCase() || "basic";
+
+    switch (tier) {
+      case "pro":
+        setProductLimit(25);
+        break;
+      case "enterprise":
+        setProductLimit(Infinity); // Unlimited
+        break;
+      case "basic":
+      default:
+        setProductLimit(3);
+        break;
+    }
+
+    // Fetch seller's existing products
+    const fetchSellerProducts = async () => {
+      try {
+        if (user && user.user_id) {
+          setIsLoading(true);
+          const products = await getSellerProducts(user.user_id);
+          setSellerProducts(products || []);
+        }
+      } catch (error) {
+        console.error("Error fetching seller products:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSellerProducts();
+  }, [user]);
+
   // For picking images
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -480,8 +740,31 @@ function AnimatedMobileWizard() {
     setImages(images.filter((_, i) => i !== index));
   };
 
+  // Helper function to get fee percentage based on user tier
+  const getFeePercentage = () => {
+    const tier = user?.tier?.toLowerCase() || "basic";
+
+    switch (tier) {
+      case "pro":
+        return 3;
+      case "enterprise":
+        return 2;
+      case "basic":
+      default:
+        return 5;
+    }
+  };
+
   // Define steps for the wizard
   const steps = [
+    // Add subscription info as a dedicated step at the beginning
+    {
+      key: "subscription",
+      label: "Plan Info",
+      question: "Your Subscription Plan",
+      icon: "card-membership",
+      isSubscriptionStep: true,
+    },
     {
       key: "title",
       label: "Title",
@@ -611,8 +894,32 @@ function AnimatedMobileWizard() {
   };
 
   const handleNext = () => {
+    // Check if user has reached product limit and this is the first step (subscription info)
+    if (currentStep === 0 && sellerProducts.length >= productLimit) {
+      Alert.alert(
+        "Product Limit Reached",
+        `Your current plan (${user?.tier || "Basic"}) allows a maximum of ${productLimit} products. Please upgrade your subscription to add more products.`,
+        [
+          { text: "OK" },
+          {
+            text: "Upgrade Plan",
+            onPress: () => {
+              // Navigate to subscription screen
+              console.log("Navigate to subscription screen");
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     const step = steps[currentStep];
-    if (!step.isImageStep && step.required && !step.value) {
+    if (
+      !step.isSubscriptionStep &&
+      !step.isImageStep &&
+      step.required &&
+      !step.value
+    ) {
       Alert.alert(
         "Required Field",
         "Please fill in this field before continuing."
@@ -640,12 +947,31 @@ function AnimatedMobileWizard() {
       Alert.alert("Required Fields", "Please fill in all required fields");
       return;
     }
-
+  
+    // Check if user has reached product limit
+    if (sellerProducts.length >= productLimit) {
+      Alert.alert(
+        "Product Limit Reached",
+        `Your current plan (${user?.tier || "Basic"}) allows a maximum of ${productLimit} products. Please upgrade your subscription to add more products.`,
+        [
+          { text: "OK" },
+          {
+            text: "Upgrade Plan",
+            onPress: () => {
+              // Navigate to subscription screen
+              console.log("Navigate to subscription screen");
+            },
+          },
+        ]
+      );
+      return;
+    }
+  
     console.log("📤 Submitting product with values:", {
       title,
       category,
       price,
-      sellingPrice, // Log the selling price
+      sellingPrice,
       detailedDescription,
       country,
       images,
@@ -656,7 +982,7 @@ function AnimatedMobileWizard() {
         product_name: title,
         category,
         cost: parseFloat(price),
-        selling_price: sellingPrice, // Include in payload
+        selling_price: sellingPrice,
         description: detailedDescription,
         country,
         user_seller: user?.user_id,
@@ -665,11 +991,16 @@ function AnimatedMobileWizard() {
         created_at: new Date().toISOString(),
       };
       console.log("🧾 Final product payload:", productPayload);
-
+  
+      // Add explicit logging before and after API call
+      console.log("🔄 Calling createProduct API...");
       const res = await createProduct(productPayload);
-      console.log("✅ Product created:", res);
-
-      // Trigger success animation
+      console.log("✅ Product created response:", res);
+  
+      // Add a direct state change here to ensure the submitted state is updated
+      setSubmitted(true);
+      
+      // Then trigger the animation
       Animated.sequence([
         Animated.timing(scaleAnim, {
           toValue: 0.95,
@@ -687,14 +1018,27 @@ function AnimatedMobileWizard() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        console.log(
-          "🎉 Success animation completed. Form marked as submitted."
-        );
+        console.log("🎉 Success animation completed");
+        // Double-check that submitted state is true
         setSubmitted(true);
       });
+  
+      // Also update the sellerProducts list with the new product
+      setSellerProducts([...sellerProducts, res]);
+      
+      // Show a success alert to provide feedback even if the animation fails
+      Alert.alert(
+        "Success",
+        "Your product has been submitted successfully!",
+        [{ text: "OK" }]
+      );
     } catch (err) {
       console.error("❌ Product submission failed:", err);
-      Alert.alert("Submission Failed", "Could not create product.");
+      // Log more detailed error information
+      if (err.response) {
+        console.error("❌ Server response:", err.response);
+      }
+      Alert.alert("Submission Failed", "Could not create product. " + (err.message || ""));
     }
   };
 
@@ -713,6 +1057,16 @@ function AnimatedMobileWizard() {
       ]).start();
     }
   }, [submitted]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (submitted) {
     return (
@@ -780,7 +1134,64 @@ function AnimatedMobileWizard() {
       >
         <Text style={styles.questionText}>{current.question}</Text>
 
-        {current.isPriceCalculator ? (
+        {current.isSubscriptionStep ? (
+          <View style={styles.subscriptionInfoContainer}>
+            <View style={styles.subscriptionPlanCard}>
+              <Text style={styles.subscriptionPlanTitle}>
+                {user?.tier || "Basic"} Plan
+              </Text>
+
+              <View style={styles.subscriptionDetailRow}>
+                <Text style={styles.subscriptionDetailLabel}>
+                  Processing Fee:
+                </Text>
+                <Text style={styles.subscriptionDetailValue}>
+                  {getFeePercentage()}%
+                </Text>
+              </View>
+
+              <View style={styles.subscriptionDetailRow}>
+                <Text style={styles.subscriptionDetailLabel}>
+                  Product Limit:
+                </Text>
+                <Text style={styles.subscriptionDetailValue}>
+                  {productLimit === Infinity ? "Unlimited" : productLimit}
+                </Text>
+              </View>
+
+              <View style={styles.subscriptionDetailRow}>
+                <Text style={styles.subscriptionDetailLabel}>
+                  Products Used:
+                </Text>
+                <Text
+                  style={[
+                    styles.subscriptionDetailValue,
+                    sellerProducts.length >= productLimit &&
+                      styles.subscriptionLimitReached,
+                  ]}
+                >
+                  {sellerProducts.length}/
+                  {productLimit === Infinity ? "∞" : productLimit}
+                </Text>
+              </View>
+
+              {sellerProducts.length >= productLimit && (
+                <View style={styles.limitWarningMobile}>
+                  <MaterialIcons name="warning" size={18} color="#fff" />
+                  <Text style={styles.limitWarningText}>
+                    You've reached your product limit
+                  </Text>
+                </View>
+              )}
+
+              {sellerProducts.length >= productLimit && (
+                <TouchableOpacity style={styles.upgradePlanButton}>
+                  <Text style={styles.upgradePlanButtonText}>UPGRADE PLAN</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        ) : current.isPriceCalculator ? (
           <PriceCalculator
             initialPrice={current.value}
             onPriceChange={current.setValue}
@@ -916,14 +1327,22 @@ function AnimatedMobileWizard() {
           style={[
             styles.nextButton,
             currentStep > 0 ? { flex: 1, marginLeft: 10 } : { width: "100%" },
-            // Subtle disabled state
-            !current.isImageStep &&
+            // Disable button if at first step with product limit reached
+            currentStep === 0 &&
+              sellerProducts.length >= productLimit &&
+              styles.nextButtonDisabled,
+            // Subtle disabled state for required fields
+            !current.isSubscriptionStep &&
+              !current.isImageStep &&
               current.required &&
               !current.value &&
               styles.buttonDisabled,
           ]}
           onPress={handleNext}
-          disabled={animating}
+          disabled={
+            animating ||
+            (currentStep === 0 && sellerProducts.length >= productLimit)
+          }
           activeOpacity={0.7}
         >
           {currentStep < steps.length - 1 ? (
@@ -960,12 +1379,21 @@ function getEnhancedMobileStyles(colors) {
     placeholderText: colors.placeholderText || "#aaaaaa",
     buttonDisabled: colors.buttonDisabled || "rgba(0,0,0,0.2)",
     successBackground: colors.successBackground || colors.primary || "#3498db",
+    warningBackground: "#ff9800",
+    warningText: "#fff",
+    dangerBackground: "#f44336",
+    dangerText: "#fff",
   };
 
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: enhancedColors.background || "#f9f9f9",
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
     },
     progressContainer: {
       height: 4,
@@ -1019,6 +1447,74 @@ function getEnhancedMobileStyles(colors) {
       color: enhancedColors.text || "#333",
       marginBottom: 30,
       maxWidth: width - 40,
+    },
+    subscriptionInfoContainer: {
+      marginBottom: 20,
+    },
+    subscriptionPlanCard: {
+      backgroundColor: enhancedColors.cardBackground,
+      borderRadius: 12,
+      padding: 16,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      marginBottom: 10,
+    },
+    subscriptionPlanTitle: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: enhancedColors.primary,
+      textAlign: "center",
+      marginBottom: 16,
+    },
+    subscriptionDetailRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: enhancedColors.inputBorder,
+    },
+    subscriptionDetailLabel: {
+      fontSize: 16,
+      color: enhancedColors.text,
+    },
+    subscriptionDetailValue: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: enhancedColors.primary,
+    },
+    subscriptionLimitReached: {
+      color: enhancedColors.dangerBackground,
+    },
+    limitWarningMobile: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: enhancedColors.warningBackground,
+      borderRadius: 6,
+      padding: 10,
+      marginTop: 12,
+    },
+    limitWarningText: {
+      color: enhancedColors.warningText,
+      marginLeft: 8,
+      fontSize: 14,
+      fontWeight: "500",
+      flex: 1,
+    },
+    upgradePlanButton: {
+      backgroundColor: enhancedColors.primary,
+      borderRadius: 8,
+      paddingVertical: 12,
+      alignItems: "center",
+      marginTop: 16,
+    },
+    upgradePlanButtonText: {
+      color: "#fff",
+      fontSize: 15,
+      fontWeight: "600",
     },
     inputContainer: {
       marginBottom: 20,
@@ -1092,6 +1588,10 @@ function getEnhancedMobileStyles(colors) {
       shadowOpacity: 0.2,
       shadowRadius: 3,
       elevation: 3,
+    },
+    nextButtonDisabled: {
+      backgroundColor: "#cccccc",
+      opacity: 0.7,
     },
     nextButtonText: {
       color: "#fff",

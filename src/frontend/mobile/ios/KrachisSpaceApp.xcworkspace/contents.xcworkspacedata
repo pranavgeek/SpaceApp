@@ -5,6 +5,9 @@
       location = "group:subscription.storekit">
    </FileRef>
    <FileRef
+      location = "group:subscription.storekit">
+   </FileRef>
+   <FileRef
       location = "group:KrachisSpaceApp.xcodeproj">
    </FileRef>
    <FileRef

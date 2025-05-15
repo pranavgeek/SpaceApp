@@ -1,28 +1,84 @@
+
 import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 
-const Message = ({ chatName, chatCategory, onPress, shortMessage, time }) => {
+const Message = ({ 
+  chatName, 
+  chatCategory, 
+  onPress, 
+  shortMessage, 
+  time, 
+  hasCollabRequest,
+  collabStatus,
+  profileImage
+}) => {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
+  
+  // Format the message preview
+  const messagePreview = shortMessage && typeof shortMessage === 'string' 
+    ? shortMessage.length > 30 
+      ? shortMessage.substring(0, 27) + '...' 
+      : shortMessage
+    : '';
+    
+  // Get correct collaboration badge
+  const renderCollabBadge = () => {
+    if (!hasCollabRequest) return null;
+    
+    switch (collabStatus) {
+      case 'Pending':
+        return (
+          <View style={[styles.badge, styles.pendingBadge]}>
+            <Text style={styles.badgeText}>Pending</Text>
+          </View>
+        );
+      case 'Accepted':
+        return (
+          <View style={[styles.badge, styles.acceptedBadge]}>
+            <Text style={styles.badgeText}>Accepted</Text>
+          </View>
+        );
+      case 'Declined':
+        return (
+          <View style={[styles.badge, styles.declinedBadge]}>
+            <Text style={styles.badgeText}>Declined</Text>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+    
   return (
     <TouchableOpacity style={styles.button} onPress={onPress}>
       <View style={styles.buttonContent}>
         <Image
           source={{
-            uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+            uri: profileImage || "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
           }}
           style={styles.profilePicture}
         />
 
         <View style={styles.container}>
-          <Text style={styles.buttonText}>
-            {chatName}
-            {chatCategory && <Text style={styles.subtitle}>{chatCategory}</Text>}
-          </Text>
-          {shortMessage && (
+          <View style={styles.nameContainer}>
+            <Text style={styles.buttonText}>
+              {chatName}
+            </Text>
+            {renderCollabBadge()}
+          </View>
+          
+          {chatCategory && (
+            <Text style={styles.categoryText} numberOfLines={1}>
+              {chatCategory}
+            </Text>
+          )}
+          
+          {messagePreview && (
             <Text style={styles.subtitle} numberOfLines={1}>
-              {shortMessage}
+              {messagePreview}
             </Text>
           )}
         </View>
@@ -60,6 +116,11 @@ const getDynamicStyles = (colors) =>
       flex: 1,
       paddingLeft: 5,
     },
+    nameContainer: {
+      flexDirection: "row", 
+      alignItems: "center",
+      justifyContent: "flex-start",
+    },
     buttonContent: {
       flexDirection: "row",
       alignItems: "center",
@@ -77,8 +138,15 @@ const getDynamicStyles = (colors) =>
     },
     buttonText: {
       fontSize: 16,
+      fontWeight: "500",
       color: colors.text,
       paddingVertical: 2,
+      marginRight: 8,
+    },
+    categoryText: {
+      fontSize: 14,
+      color: colors.subtitle,
+      marginVertical: 2,
     },
     subtitle: {
       fontSize: 13,
@@ -88,6 +156,26 @@ const getDynamicStyles = (colors) =>
       fontSize: 13,
       color: colors.subtitle,
     },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 10,
+      marginLeft: 2,
+    },
+    pendingBadge: {
+      backgroundColor: "#FFA500",
+    },
+    acceptedBadge: {
+      backgroundColor: "#4CAF50",
+    },
+    declinedBadge: {
+      backgroundColor: "#FF6B6B",
+    },
+    badgeText: {
+      color: "white",
+      fontSize: 10,
+      fontWeight: "bold",
+    }
   });
 
 export default Message;

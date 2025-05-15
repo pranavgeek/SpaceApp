@@ -8,6 +8,7 @@ import {
   Animated,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useAuth } from "../context/AuthContext"; // Import Auth context to access user tier
 
 const PriceCalculator = ({
   initialPrice = "",
@@ -16,17 +17,35 @@ const PriceCalculator = ({
   colors,
   isMobile = true, // Default to mobile since we're in React Native
 }) => {
+  const { user } = useAuth(); // Get user from Auth context to determine the tier
   const [basePrice, setBasePrice] = useState(initialPrice);
   const [processingFee, setProcessingFee] = useState(0);
   const [sellingPrice, setSellingPrice] = useState(0);
   const [showProcessingFeeInfo, setShowProcessingFeeInfo] = useState(false);
   const infoHeight = useState(new Animated.Value(0))[0];
   
+  // Determine fee percentage based on the user's subscription tier
+  const getFeePercentage = () => {
+    const tier = user?.tier?.toLowerCase() || "basic";
+    
+    switch (tier) {
+      case "pro":
+        return 3; // 3% for Pro
+      case "enterprise":
+        return 2; // 2% for Enterprise
+      case "basic":
+      default:
+        return 5; // 5% for Basic (default)
+    }
+  };
+  
+  const feePercentage = getFeePercentage();
+  
   // Calculate fees whenever base price changes
   useEffect(() => {
     if (basePrice && !isNaN(basePrice)) {
       const numericPrice = parseFloat(basePrice);
-      const fee = numericPrice * 0.05;
+      const fee = numericPrice * (feePercentage / 100); // Use dynamic fee percentage
       setProcessingFee(fee);
       const calculatedSellingPrice = numericPrice + fee;
       setSellingPrice(calculatedSellingPrice);
@@ -42,7 +61,7 @@ const PriceCalculator = ({
       setProcessingFee(0);
       setSellingPrice(0);
     }
-  }, [basePrice, onPriceChange, onSellingPriceChange]);
+  }, [basePrice, feePercentage, onPriceChange, onSellingPriceChange]);
 
   // Toggle processing fee info with animation
   useEffect(() => {
@@ -85,7 +104,7 @@ const PriceCalculator = ({
       {/* Processing Fees */}
       <View style={styles.row}>
         <Text style={[styles.label, { color: colors.text }]}>Processing Fees</Text>
-        <Text style={[styles.value, { color: colors.text }]}>5%</Text>
+        <Text style={[styles.value, { color: colors.text }]}>{feePercentage}%</Text>
       </View>
       
       {/* Selling Price */}
@@ -93,6 +112,13 @@ const PriceCalculator = ({
         <Text style={[styles.label, { color: colors.text }]}>Selling Price</Text>
         <Text style={[styles.value, { color: colors.primary }]}>
           {sellingPrice.toLocaleString()}
+        </Text>
+      </View>
+      
+      {/* Show subscription tier information */}
+      <View style={styles.tierInfoContainer}>
+        <Text style={[styles.tierInfo, { color: colors.secondary }]}>
+          {`Your current plan (${user?.tier || 'Basic'}) has a ${feePercentage}% processing fee`}
         </Text>
       </View>
       
@@ -143,9 +169,11 @@ const PriceCalculator = ({
               Processing Fee Information
             </Text>
             <Text style={[styles.infoText, { color: colors.text }]}>
-              A 5% processing fee is applied to all transactions to cover payment 
+              A {feePercentage}% processing fee is applied to all transactions to cover payment 
               processing costs. This fee is automatically calculated and added to 
               your base price to determine the final selling price.
+              {user?.tier !== 'enterprise' && 
+                "\n\nUpgrade your plan to reduce this fee."}
             </Text>
           </View>
         </View>
@@ -239,6 +267,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.8,
   },
+  tierInfoContainer: {
+    marginBottom: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4caf50',
+  },
+  tierInfo: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  }
 });
 
 export default PriceCalculator;

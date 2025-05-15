@@ -18,7 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import * as API from "../backend/db/API";
-import { useFocusEffect } from '@react-navigation/native'; // Add this import
+import { useFocusEffect } from "@react-navigation/native"; // Add this import
 
 import RNIap, {
   withIAPContext,
@@ -50,7 +50,8 @@ function SellerPlansScreen({ navigation }) {
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
-  const [isResetting, setIsResetting] = useState(false); // Add this state
+  const [isResetting, setIsResetting] = useState(false);
+  const [subscriptionExpireDate, setSubscriptionExpireDate] = useState(null);
 
   // Force refresh user data when screen comes into focus
   useFocusEffect(
@@ -63,9 +64,22 @@ function SellerPlansScreen({ navigation }) {
           .then((freshUserData) => {
             console.log("📱 Fresh user data fetched:", freshUserData);
             if (updateRole && freshUserData.tier) {
-              console.log(`Updating local context to tier: ${freshUserData.tier}`);
+              console.log(
+                `Updating local context to tier: ${freshUserData.tier}`
+              );
               updateRole(freshUserData.role || "seller", freshUserData.tier);
             }
+
+            // Fetch subscription expiration date if available
+            if (freshUserData.subscription_end_date) {
+              setSubscriptionExpireDate(
+                new Date(freshUserData.subscription_end_date)
+              );
+            } else {
+              // If we don't have it from the user data, try to get it from AsyncStorage
+              fetchSubscriptionEndDate();
+            }
+
             setLoading(false);
           })
           .catch((error) => {
@@ -78,6 +92,18 @@ function SellerPlansScreen({ navigation }) {
       };
     }, [user?.user_id])
   );
+
+  // Fetch subscription end date from AsyncStorage
+  const fetchSubscriptionEndDate = async () => {
+    try {
+      const storedDate = await AsyncStorage.getItem("subscriptionEndDate");
+      if (storedDate) {
+        setSubscriptionExpireDate(new Date(storedDate));
+      }
+    } catch (error) {
+      console.error("Error fetching subscription end date:", error);
+    }
+  };
 
   // Define your subscription SKUs (matching App Store Connect & Play Console)
   const SUBSCRIPTION_SKUS = {
@@ -113,13 +139,77 @@ function SellerPlansScreen({ navigation }) {
     },
   };
 
+  const checkStoreKitSetup = async () => {
+    try {
+      console.log("Checking StoreKit setup...");
+
+      // Check if we're on a simulator
+      const isSimulator =
+        Platform.OS === "ios" &&
+        !["iPhone", "iPad", "iPod"].includes(
+          Platform.constants?.utsname?.machine || ""
+        );
+
+      console.log(`Running on ${isSimulator ? "simulator" : "device"}`);
+
+      if (isSimulator) {
+        console.log("For simulator testing, ensure:");
+        console.log(
+          "1. StoreKit file has .storekit extension and is added to Xcode project"
+        );
+        console.log("2. 'StoreKit Configuration' is enabled in Scheme options");
+        console.log(
+          "3. The correct configuration file is selected in Scheme options"
+        );
+      }
+
+      // Try to fetch product details as a test
+      const testSKUs = Object.values(SUBSCRIPTION_SKUS).filter(Boolean);
+      console.log(`Testing with SKUs: ${testSKUs.join(", ")}`);
+
+      const testProducts = await getSubscriptions({ skus: testSKUs });
+
+      if (testProducts && testProducts.length > 0) {
+        console.log(
+          "✅ StoreKit is working! Found products:",
+          testProducts.length
+        );
+        return true;
+      } else {
+        console.warn("⚠️ No products returned from StoreKit");
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ StoreKit check failed:", error);
+      return false;
+    }
+  };
+
+  // Call this in your component initialization or add a button to trigger it
+  useEffect(() => {
+    if (__DEV__) {
+      checkStoreKitSetup().then((isWorking) =>
+        console.log(`StoreKit setup check: ${isWorking ? "PASSED" : "FAILED"}`)
+      );
+    }
+  }, []);
+
+
+
   useEffect(() => {
     // Debug log user state changes
-    console.log("👤 User changed:", JSON.stringify({
-      id: user?.user_id,
-      role: user?.role,
-      tier: user?.tier
-    }, null, 2));
+    console.log(
+      "👤 User changed:",
+      JSON.stringify(
+        {
+          id: user?.user_id,
+          role: user?.role,
+          tier: user?.tier,
+        },
+        null,
+        2
+      )
+    );
   }, [user]);
 
   useEffect(() => {
@@ -140,11 +230,40 @@ function SellerPlansScreen({ navigation }) {
 
     const initializeIAP = async () => {
       try {
-        console.log("🚀 Initializing IAP...");
-        // Initialize StoreKit 2 on iOS
+        const isSimulator =
+          Platform.OS === "ios" &&
+          !["iPhone", "iPad", "iPod"].includes(
+            Platform.constants?.utsname?.machine || ""
+          );
+
+        console.log(
+          `🚀 Initializing IAP on ${Platform.OS} ${isSimulator ? "simulator" : "device"}...`
+        );
+
+        // Get the actual SKUs we'll be using based on platform
+        const subscriptionSkus =
+          Object.values(SUBSCRIPTION_SKUS).filter(Boolean);
+        console.log("SKUs we'll be requesting:", subscriptionSkus);
+
+        // Initialize StoreKit
         if (Platform.OS === "ios") {
-          await setup({ storekitMode: "STOREKIT2_MODE" });
-          console.log("✅ iOS StoreKit2 initialized");
+          try {
+            if (isSimulator) {
+              // For simulator, explicitly use StoreKit 2 test mode
+              await setup({
+                storekitMode: "STOREKIT2_MODE",
+              });
+              console.log(
+                "✅ iOS StoreKit2 test mode initialized for simulator"
+              );
+            } else {
+              // For physical device, use regular setup
+              await setup();
+              console.log("✅ iOS StoreKit initialized for device");
+            }
+          } catch (setupError) {
+            console.error("❌ StoreKit setup failed:", setupError);
+          }
         }
 
         // Connect to the store
@@ -152,17 +271,71 @@ function SellerPlansScreen({ navigation }) {
         console.log("✅ Connected to store");
 
         // Fetch available subscriptions
-        const subscriptionSkus = Object.values(SUBSCRIPTION_SKUS);
-        console.log("🔍 Fetching subscriptions with SKUs:", subscriptionSkus);
-        const availableProducts = await getSubscriptions({
-          skus: subscriptionSkus,
-        });
-        console.log("✅ Available subscriptions:", availableProducts);
+        console.log(`🔍 Fetching subscriptions with SKUs:`, subscriptionSkus);
+        let availableProducts = [];
+
+        try {
+          availableProducts = await getSubscriptions({
+            skus: subscriptionSkus,
+          });
+
+          console.log(
+            `Got ${availableProducts.length} products:`,
+            availableProducts.map((p) => p.productId || "unknown")
+          );
+        } catch (fetchError) {
+          console.warn("❌ Error fetching products:", fetchError);
+        }
+
+        // If no products and in simulator, use hardcoded products for testing
+        if (availableProducts.length === 0 && (isSimulator || __DEV__)) {
+          console.log(
+            "🔧 Using hardcoded products for simulator/development testing"
+          );
+
+          // Use the same pricing from your StoreKit configuration
+          availableProducts = [
+            {
+              productId: "com.thespaceapp.sellerpro.monthly",
+              localizedPrice: "$22.99",
+              title: "Seller Pro Monthly",
+              description: "50 Collaboration — $29.99/mo. Cancel anytime.",
+              price: 22.99,
+              currency: "USD",
+            },
+            {
+              productId: "com.thespaceapp.sellerpro.yearly",
+              localizedPrice: "$249.99",
+              title: "Seller Pro Yearly",
+              description: "600 Collaboration — $9.99/mo. Cancel anytime.",
+              price: 249.99,
+              currency: "USD",
+            },
+            {
+              productId: "com.thespaceapp.sellerenterprise.monthly",
+              localizedPrice: "$69.99",
+              title: "Seller Enterprise Monthly",
+              description: "Advanced tools — $99.99/mo. Cancel anytime.",
+              price: 69.99,
+              currency: "USD",
+            },
+            {
+              productId: "com.thespaceapp.sellerenterprise.yearly",
+              localizedPrice: "$899.99",
+              title: "Seller Enterprise Yearly",
+              description: "Advanced tools — $1199.99/mo. Cancel anytime.",
+              price: 899.99,
+              currency: "USD",
+            },
+          ];
+        }
+
         setProducts(availableProducts);
         setLoading(false);
       } catch (err) {
-        console.warn("❌ IAP initialization error", err);
+        console.error("❌ IAP initialization error:", err);
         setLoading(false);
+
         Alert.alert(
           "Error",
           "Failed to connect to the store. Please try again later."
@@ -239,6 +412,25 @@ function SellerPlansScreen({ navigation }) {
             }
           }
 
+          // Calculate and save subscription end date based on plan type
+          let endDate = new Date();
+          if (planType === "monthly") {
+            endDate.setMonth(endDate.getMonth() + 1);
+          } else {
+            // yearly
+            endDate.setFullYear(endDate.getFullYear() + 1);
+          }
+
+          // Store the subscription end date
+          setSubscriptionExpireDate(endDate);
+          await AsyncStorage.setItem(
+            "subscriptionEndDate",
+            endDate.toISOString()
+          );
+          console.log(
+            `✅ Subscription will expire on: ${endDate.toLocaleDateString()}`
+          );
+
           // Update user role based on the purchased subscription
           if (planId) {
             const role = "seller";
@@ -255,7 +447,8 @@ function SellerPlansScreen({ navigation }) {
                 user.user_id,
                 role,
                 tier,
-                true
+                true,
+                endDate.toISOString() // Pass the subscription end date to the server
               );
               console.log("✅ Server update response:", serverResponse);
 
@@ -404,6 +597,9 @@ function SellerPlansScreen({ navigation }) {
         const storedTier = await AsyncStorage.getItem("userTier");
         console.log("Tier from AsyncStorage:", storedTier);
 
+        // Get stored subscription end date if any
+        await fetchSubscriptionEndDate();
+
         // If user object has a tier but doesn't match stored tier,
         // update the AsyncStorage to match the user object
         if (user.tier && user.tier !== storedTier) {
@@ -445,6 +641,15 @@ function SellerPlansScreen({ navigation }) {
     syncPlanData();
   }, [user]);
 
+  // Format the expiration date for display
+  const formatExpirationDate = (date) => {
+    if (!date) return "";
+
+    // Format: January 1, 2025
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    return date.toLocaleDateString(undefined, options);
+  };
+
   // Handle subscription cancellation
   const handleCancelSubscription = async (reason) => {
     if (!user || !user.tier || user.tier === "basic") {
@@ -454,18 +659,24 @@ function SellerPlansScreen({ navigation }) {
 
     try {
       setIsCancelling(true);
-      console.log(`Starting cancellation process for plan: ${user.tier} with reason: ${reason}`);
+      console.log(
+        `Starting cancellation process for plan: ${user.tier} with reason: ${reason}`
+      );
 
       // For iOS and Android, direct users to respective stores to cancel
       if (Platform.OS === "ios") {
-        console.log("iOS platform detected, redirecting to App Store subscriptions");
+        console.log(
+          "iOS platform detected, redirecting to App Store subscriptions"
+        );
         // iOS - Link to subscription settings
         Linking.openURL("https://apps.apple.com/account/subscriptions");
         setCancelModalVisible(false);
         setIsCancelling(false);
         return;
       } else if (Platform.OS === "android") {
-        console.log("Android platform detected, redirecting to Google Play subscriptions");
+        console.log(
+          "Android platform detected, redirecting to Google Play subscriptions"
+        );
         // Android - Link to Google Play subscription settings
         Linking.openURL("https://play.google.com/store/account/subscriptions");
         setCancelModalVisible(false);
@@ -488,6 +699,10 @@ function SellerPlansScreen({ navigation }) {
 
           // After successful cancellation API call, reset to basic plan locally
           await resetToBasicPlan();
+
+          // Clear the subscription end date
+          await AsyncStorage.removeItem("subscriptionEndDate");
+          setSubscriptionExpireDate(null);
 
           Alert.alert(
             "Subscription Cancelled",
@@ -547,31 +762,56 @@ function SellerPlansScreen({ navigation }) {
   const requestPurchase = async (sku) => {
     try {
       if (!user) {
-        Alert.alert(
-          "Sign In Required",
-          "Please sign in to purchase a subscription."
-        );
+        Alert.alert("Sign In Required", "Please sign in to purchase a subscription.");
         return;
       }
-
-      console.log("🛒 Initiating subscription purchase for SKU:", sku);
-      await requestSubscription({ sku });
+  
+      console.log(`🛒 Initiating subscription purchase for SKU: ${sku}`);
+      
+      try {
+        // Clear any pending transactions first
+        if (Platform.OS === 'ios') {
+          console.log("Clearing transaction queue before purchase...");
+          try {
+            await RNIap.clearTransactionIOS();
+          } catch (err) {
+            console.warn("Could not clear transactions:", err);
+          }
+        }
+        
+        // Use the standard approach for all subscriptions
+        console.log(`Requesting subscription for ${sku}...`);
+        await requestSubscription({ 
+          sku
+        });
+        console.log(`Subscription request sent`);
+      } catch (error) {
+        console.warn(`Subscription request failed:`, error);
+        throw error;
+      }
     } catch (err) {
-      console.warn("❌ Subscription request error", err);
-      Alert.alert(
-        "Error",
-        "Failed to initiate subscription. Please try again."
-      );
+      console.warn("❌ Subscription request error:", err);
+      
+      // More helpful error message
+      let errorMsg = "Failed to initiate subscription. Please try again.";
+      
+      if (err?.message?.includes("already owns")) {
+        errorMsg = "You already own this subscription.";
+      } else if (err?.message?.includes("Unable to Complete")) {
+        errorMsg = "The App Store was unable to complete your request. Please try again after signing out and back in to your App Store account.";
+      }
+      
+      Alert.alert("Subscription Error", errorMsg);
     }
   };
-  
+
   const resetToBasicPlan = async () => {
     // Prevent multiple calls - guard clause
     if (isResetting) {
       console.log("Already resetting to basic plan, ignoring duplicate call");
       return;
     }
-    
+
     console.log("Resetting to basic plan");
     setIsResetting(true);
 
@@ -633,6 +873,7 @@ function SellerPlansScreen({ navigation }) {
 
       // Find which plan this product corresponds to
       let foundPlanId = null;
+      let planType = null;
 
       for (const [key, value] of Object.entries(SUBSCRIPTION_SKUS)) {
         if (value === productId) {
@@ -641,13 +882,41 @@ function SellerPlansScreen({ navigation }) {
           } else if (key.includes("enterprise")) {
             foundPlanId = "enterprise";
           }
+
+          // Determine if monthly or yearly subscription
+          planType = key.includes("Monthly") ? "monthly" : "yearly";
           break;
         }
       }
 
       if (foundPlanId) {
         console.log(
-          `Found subscription: ${foundPlanId} from product: ${productId}`
+          `Found subscription: ${foundPlanId} (${planType}) from product: ${productId}`
+        );
+
+        // Calculate expiration date based on purchase date and plan type
+        // Since iOS/Android doesn't always provide exact expiration date
+        // We need to approximate it from the original purchase date or current date
+        const purchaseDate = purchase.transactionDate
+          ? new Date(purchase.transactionDate)
+          : new Date();
+
+        let expirationDate = new Date(purchaseDate);
+        if (planType === "monthly") {
+          expirationDate.setMonth(expirationDate.getMonth() + 1);
+        } else {
+          // yearly
+          expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+        }
+
+        // Store the expiration date
+        await AsyncStorage.setItem(
+          "subscriptionEndDate",
+          expirationDate.toISOString()
+        );
+        setSubscriptionExpireDate(expirationDate);
+        console.log(
+          `✅ Subscription expires on: ${expirationDate.toLocaleDateString()}`
         );
 
         // Update AsyncStorage
@@ -662,8 +931,14 @@ function SellerPlansScreen({ navigation }) {
         try {
           console.log(`Updating server with found plan: ${foundPlanId}`);
           // Add delay between API calls
-          await new Promise(resolve => setTimeout(resolve, 500));
-          await API.updateUserRole(user.user_id, "seller", foundPlanId, true);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await API.updateUserRole(
+            user.user_id,
+            "seller",
+            foundPlanId,
+            true,
+            expirationDate.toISOString() // Pass expiration date to server
+          );
           console.log("Updated server with role/tier");
         } catch (err) {
           console.warn("Failed to update server:", err);
@@ -671,6 +946,38 @@ function SellerPlansScreen({ navigation }) {
 
         break; // Stop after finding the first valid subscription
       }
+    }
+  };
+
+  const handleMonthlySubscription = async (planId) => {
+    try {
+      console.log(`Starting monthly subscription flow for ${planId}`);
+  
+      // Get the SKU for this plan
+      const skuKey = PLAN_ID_TO_SKU[planId]?.monthly;
+      if (!skuKey) {
+        console.error(`No monthly SKU found for plan ${planId}`);
+        Alert.alert("Error", "Monthly subscription not available for this plan.");
+        return;
+      }
+  
+      const productId = SUBSCRIPTION_SKUS[skuKey];
+      if (!productId) {
+        console.error(`No product ID found for SKU key ${skuKey}`);
+        Alert.alert("Error", "Product information not available.");
+        return;
+      }
+  
+      console.log(`Using product ID: ${productId} for monthly subscription`);
+      
+      // Use the unified requestPurchase approach for consistency
+      await requestPurchase(productId);
+    } catch (error) {
+      console.error("Monthly subscription handler error:", error);
+      Alert.alert(
+        "Error",
+        "Failed to set up subscription. Please try again later."
+      );
     }
   };
 
@@ -715,19 +1022,54 @@ function SellerPlansScreen({ navigation }) {
             console.log(`Found matching subscription key: ${key}`);
 
             let planId;
+            let planType;
+
             if (key.includes("pro")) {
               planId = "pro";
             } else if (key.includes("enterprise")) {
               planId = "enterprise";
             }
 
+            planType = key.includes("Monthly") ? "monthly" : "yearly";
+
             if (planId) {
               const role = "seller";
               const tier = planId;
-              console.log(`Restoring subscription: role=${role}, tier=${tier}`);
+              console.log(
+                `Restoring subscription: role=${role}, tier=${tier}, type=${planType}`
+              );
+
+              // Calculate expiration date
+              const purchaseDate = purchase.transactionDate
+                ? new Date(purchase.transactionDate)
+                : new Date();
+
+              let expirationDate = new Date(purchaseDate);
+              if (planType === "monthly") {
+                expirationDate.setMonth(expirationDate.getMonth() + 1);
+              } else {
+                // yearly
+                expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+              }
+
+              // Store the expiration date
+              await AsyncStorage.setItem(
+                "subscriptionEndDate",
+                expirationDate.toISOString()
+              );
+              setSubscriptionExpireDate(expirationDate);
+              console.log(
+                `✅ Subscription expires on: ${expirationDate.toLocaleDateString()}`
+              );
 
               // Update on the server with force flag
-              await API.updateUserRole(user.user_id, role, tier, true);
+              await API.updateUserRole(
+                user.user_id,
+                role,
+                tier,
+                true,
+                expirationDate.toISOString()
+              );
 
               // Store locally
               await AsyncStorage.setItem("userRole", role);
@@ -737,7 +1079,7 @@ function SellerPlansScreen({ navigation }) {
               if (updateRole) {
                 updateRole(role, tier);
               }
-              
+
               // Force refresh UI
               setLoading(true);
               setTimeout(() => setLoading(false), 300);
@@ -833,7 +1175,11 @@ function SellerPlansScreen({ navigation }) {
     const currentTier = user?.tier || "";
     console.log(`Checking isBasicPlan with user tier: "${currentTier}"`);
     // Only return true if user has no tier or specifically has 'basic' tier
-    return !currentTier || currentTier.toLowerCase() === "basic" || currentTier === "";
+    return (
+      !currentTier ||
+      currentTier.toLowerCase() === "basic" ||
+      currentTier === ""
+    );
   };
 
   // Improved hasPlan function - case insensitive and more robust
@@ -869,8 +1215,13 @@ function SellerPlansScreen({ navigation }) {
       return;
     }
 
-    // Always show the terms modal for both yearly and monthly plans
-    setTermsModalVisible(true);
+    if (period === "monthly") {
+      // First show terms modal
+      setTermsModalVisible(true);
+    } else {
+      // For yearly, just show terms modal (the normal flow works for yearly)
+      setTermsModalVisible(true);
+    }
   };
 
   // Handle basic (free) plan selection
@@ -895,6 +1246,10 @@ function SellerPlansScreen({ navigation }) {
           onPress: async () => {
             try {
               await resetToBasicPlan();
+
+              // Clear any subscription expiration date
+              setSubscriptionExpireDate(null);
+              await AsyncStorage.removeItem("subscriptionEndDate");
 
               // Show success message after plan change
               Alert.alert(
@@ -948,8 +1303,13 @@ function SellerPlansScreen({ navigation }) {
     );
     console.log(`Product ID: ${product.productId}`);
 
-    // Initiate the purchase
-    requestPurchase(product.productId);
+    // For monthly subscriptions, use the enhanced approach
+    if (selectedPeriod === "monthly") {
+      handleMonthlySubscription(selectedPlan.id);
+    } else {
+      // For yearly subscriptions, use the regular approach (which is working)
+      requestPurchase(product.productId);
+    }
   };
 
   if (loading) {
@@ -976,32 +1336,58 @@ function SellerPlansScreen({ navigation }) {
               resizeMode="contain"
             />
           </View>
-  
+
           <Text style={styles.title}>
             The Best Way to Sell and{"\n"}Manage Your Products
           </Text>
-  
+
           <Text style={styles.subtitle}>
             Subscribe to Seller Premium to unlock your{"\n"}
             advanced features, unlimited products, and{"\n"}
             dedicated support
           </Text>
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={() => {
+                Alert.alert(
+                  "Subscription Test",
+                  "Select a subscription to test",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Test Pro Monthly",
+                      onPress: () => handleMonthlySubscription("pro"),
+                    },
+                    {
+                      text: "Test Enterprise Monthly",
+                      onPress: () => handleMonthlySubscription("enterprise"),
+                    },
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.debugButtonText}>Test Monthly</Text>
+            </TouchableOpacity>
+          )}
         </View>
-  
+
         {/* Plans Content */}
         <View style={styles.plansContent}>
           {plans.map((plan, index) => {
             // Check if user already has this plan
             const isCurrentPlan =
               plan.id === "basic" ? isBasicPlan() : hasPlan(plan.id);
-  
+
             // Debug log for cancel button rendering
-            console.log(`DEBUG - Plan ${plan.id}: isCurrentPlan=${isCurrentPlan}, hasPlan=${hasPlan(plan.id)}, user.tier=${user?.tier}, condition=${isCurrentPlan && plan.id !== "basic"}`);
-            
+            console.log(
+              `DEBUG - Plan ${plan.id}: isCurrentPlan=${isCurrentPlan}, hasPlan=${hasPlan(plan.id)}, user.tier=${user?.tier}, condition=${isCurrentPlan && plan.id !== "basic"}`
+            );
+
             // Get product details from store for monthly and yearly
             const monthlyProduct = getProductDetails(plan.id, "monthly");
             const yearlyProduct = getProductDetails(plan.id, "yearly");
-  
+
             // Display prices from the app store products
             const monthlyPrice =
               plan.id === "basic"
@@ -1015,7 +1401,7 @@ function SellerPlansScreen({ navigation }) {
                 : yearlyProduct
                   ? yearlyProduct.localizedPrice
                   : "N/A";
-  
+
             return (
               <View
                 key={index}
@@ -1025,13 +1411,13 @@ function SellerPlansScreen({ navigation }) {
                 ]}
               >
                 <Text style={styles.planTitle}>{plan.title}</Text>
-  
+
                 {isCurrentPlan && (
                   <View style={styles.currentPlanBadge}>
                     <Text style={styles.currentPlanText}>Current Plan</Text>
                   </View>
                 )}
-  
+
                 {plan.bullets.map((bullet, i) => (
                   <View key={i} style={styles.bulletRow}>
                     <Text style={styles.bulletPoint}>•</Text>
@@ -1045,18 +1431,32 @@ function SellerPlansScreen({ navigation }) {
                     </Text>
                   </View>
                 ))}
-  
+
                 <View style={styles.planButtonsContainer}>
                   {/* Show Cancel Subscription button if this is the current plan and not basic */}
                   {isCurrentPlan && plan.id !== "basic" ? (
-                    <TouchableOpacity
-                      style={styles.cancelSubscriptionButton}
-                      onPress={() => setCancelModalVisible(true)}
-                    >
-                      <Text style={styles.cancelSubscriptionText}>
-                        Cancel Subscription
-                      </Text>
-                    </TouchableOpacity>
+                    <View style={styles.currentPlanActionsContainer}>
+                      <TouchableOpacity
+                        style={styles.cancelSubscriptionButton}
+                        onPress={() => setCancelModalVisible(true)}
+                      >
+                        <Text style={styles.cancelSubscriptionText}>
+                          Cancel Subscription
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Display subscription expiration date if available */}
+                      {subscriptionExpireDate && (
+                        <View style={styles.expirationContainer}>
+                          <Text style={styles.expirationLabel}>
+                            Your plan renews on:
+                          </Text>
+                          <Text style={styles.expirationDate}>
+                            {formatExpirationDate(subscriptionExpireDate)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   ) : (
                     /* Otherwise show the regular purchase buttons */
                     <>
@@ -1086,7 +1486,7 @@ function SellerPlansScreen({ navigation }) {
                           Yearly
                         </Text>
                       </TouchableOpacity>
-  
+
                       <TouchableOpacity
                         style={[
                           styles.planPriceButton,
@@ -1120,7 +1520,7 @@ function SellerPlansScreen({ navigation }) {
             );
           })}
         </View>
-  
+
         {/* Restore Purchases Button */}
         <TouchableOpacity
           style={styles.restoreButton}
@@ -1133,7 +1533,7 @@ function SellerPlansScreen({ navigation }) {
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           )}
         </TouchableOpacity>
-  
+
         {/* Terms and Privacy Text */}
         <View style={styles.termsContainer}>
           <Text style={styles.termsText}>
@@ -1157,7 +1557,7 @@ function SellerPlansScreen({ navigation }) {
           </Text>
         </View>
       </ScrollView>
-  
+
       {/* Manage Subscriptions Button */}
       {user && user.tier && user.tier !== "basic" && (
         <TouchableOpacity
@@ -1167,7 +1567,7 @@ function SellerPlansScreen({ navigation }) {
           <Text style={styles.manageButtonText}>Manage My Subscriptions</Text>
         </TouchableOpacity>
       )}
-  
+
       {/* Terms and Conditions Modal */}
       <Modal
         animationType="slide"
@@ -1178,7 +1578,7 @@ function SellerPlansScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Terms & Conditions</Text>
-  
+
             <ScrollView style={styles.modalScrollView}>
               <Text style={styles.modalText}>
                 <Text style={styles.modalSubtitle}>Subscription Agreement</Text>
@@ -1220,7 +1620,7 @@ function SellerPlansScreen({ navigation }) {
                 will be charged according to your platform's terms.
               </Text>
             </ScrollView>
-  
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalButton}
@@ -1228,7 +1628,7 @@ function SellerPlansScreen({ navigation }) {
               >
                 <Text style={styles.modalButtonText}>Decline</Text>
               </TouchableOpacity>
-  
+
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalAcceptButton]}
                 onPress={proceedToPurchase}
@@ -1241,7 +1641,7 @@ function SellerPlansScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-  
+
       {/* Cancel Subscription Modal */}
       <Modal
         animationType="slide"
@@ -1252,15 +1652,27 @@ function SellerPlansScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Cancel Subscription</Text>
-            
+
             <Text style={styles.cancelModalText}>
-              Are you sure you want to cancel your subscription? You will continue 
-              to have access until the end of your current billing period.
+              Are you sure you want to cancel your subscription? You will
+              continue to have access until the end of your current billing
+              period.
             </Text>
-            
-            <Text style={styles.modalSubtitle}>Tell us why you're cancelling (optional):</Text>
-            
-            <TouchableOpacity 
+
+            {subscriptionExpireDate && (
+              <View style={styles.expirationReminderContainer}>
+                <Text style={styles.expirationReminderText}>
+                  Your subscription is valid until{" "}
+                  {formatExpirationDate(subscriptionExpireDate)}
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.modalSubtitle}>
+              Tell us why you're cancelling (optional):
+            </Text>
+
+            <TouchableOpacity
               style={styles.reasonButton}
               onPress={() => setCancelReason("Too expensive")}
             >
@@ -1269,8 +1681,8 @@ function SellerPlansScreen({ navigation }) {
                 <Text style={styles.reasonCheckmark}>✓</Text>
               )}
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.reasonButton}
               onPress={() => setCancelReason("Not using enough")}
             >
@@ -1279,8 +1691,8 @@ function SellerPlansScreen({ navigation }) {
                 <Text style={styles.reasonCheckmark}>✓</Text>
               )}
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.reasonButton}
               onPress={() => setCancelReason("Found a better alternative")}
             >
@@ -1289,8 +1701,8 @@ function SellerPlansScreen({ navigation }) {
                 <Text style={styles.reasonCheckmark}>✓</Text>
               )}
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.reasonButton}
               onPress={() => setCancelReason("Missing features")}
             >
@@ -1299,7 +1711,7 @@ function SellerPlansScreen({ navigation }) {
                 <Text style={styles.reasonCheckmark}>✓</Text>
               )}
             </TouchableOpacity>
-  
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalButton}
@@ -1307,7 +1719,7 @@ function SellerPlansScreen({ navigation }) {
               >
                 <Text style={styles.modalButtonText}>Keep Subscription</Text>
               </TouchableOpacity>
-  
+
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalDangerButton]}
                 onPress={() => handleCancelSubscription(cancelReason)}
@@ -1330,308 +1742,344 @@ function SellerPlansScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-container: {
-  flex: 1,
-  backgroundColor: "#fff",
-},
-scrollView: {
-  flex: 1,
-},
-loadingContainer: {
-  flex: 1,
-  justifyContent: "center",
-  alignItems: "center",
-},
-loadingText: {
-  marginTop: 10,
-  color: "#555",
-  fontSize: 16,
-},
-blueHeader: {
-  backgroundColor: "#83b8d7",
-  padding: 20,
-  alignItems: "center",
-  position: "relative",
-},
-logoContainer: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginBottom: 20,
-},
-logoBox: {},
-logo: {
-  width: 150,
-  height: 150,
-},
-title: {
-  fontSize: 22,
-  fontWeight: "bold",
-  color: "#fff",
-  textAlign: "center",
-  marginBottom: 16,
-},
-subtitle: {
-  fontSize: 14,
-  color: "#fff",
-  textAlign: "center",
-  marginBottom: 12,
-},
-featuresLink: {
-  fontSize: 16,
-  color: "#fff",
-  fontWeight: "500",
-  marginBottom: 20,
-},
-plansContent: {
-  padding: 16,
-  backgroundColor: "#fff",
-},
-planCard: {
-  backgroundColor: "#fff",
-  borderRadius: 8,
-  padding: 16,
-  marginBottom: 20,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.1,
-  shadowRadius: 2,
-  elevation: 2,
-  position: "relative",
-},
-currentPlanCard: {
-  backgroundColor: "#f8f8f8",
-  borderWidth: 1,
-  borderColor: "#ddd",
-},
-planTitle: {
-  fontSize: 18,
-  fontWeight: "bold",
-  marginBottom: 12,
-  color: "#000",
-},
-currentPlanBadge: {
-  position: "absolute",
-  top: 16,
-  right: 16,
-  backgroundColor: "#4caf50",
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 50,
-},
-currentPlanText: {
-  color: "#fff",
-  fontSize: 12,
-  fontWeight: "bold",
-},
-bulletRow: {
-  flexDirection: "row",
-  marginBottom: 8,
-  alignItems: "flex-start",
-},
-bulletPoint: {
-  marginRight: 8,
-  color: "#666",
-  fontSize: 14,
-},
-bulletText: {
-  color: "#666",
-  fontSize: 14,
-  flex: 1,
-},
-fadedText: {
-  color: "#999",
-},
-planButtonsContainer: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  marginTop: 15,
-},
-planPriceButton: {
-  width: "48%",
-  borderRadius: 6,
-  paddingVertical: 10,
-  alignItems: "center",
-},
-yearlyPlanButton: {
-  backgroundColor: "#69b0e1",
-},
-monthlyPlanButton: {
-  backgroundColor: "#298fe3",
-},
-disabledButton: {
-  backgroundColor: "#ccc",
-},
-planButtonPrice: {
-  color: "#fff",
-  fontSize: 18,
-  fontWeight: "bold",
-},
-planButtonPeriod: {
-  color: "#fff",
-  fontSize: 14,
-},
-fadedButtonText: {
-  color: "#f0f0f0",
-},
-discountContainer: {
-  alignItems: "center",
-  marginBottom: 2,
-},
-originalPrice: {
-  color: "#fff",
-  fontSize: 14,
-  textDecorationLine: "line-through",
-  opacity: 0.8,
-},
-savingsLabel: {
-  color: "#fff",
-  fontSize: 12,
-  fontWeight: "bold",
-  backgroundColor: "#FF6347",
-  paddingHorizontal: 6,
-  paddingVertical: 2,
-  borderRadius: 10,
-  marginTop: 2,
-},
-manageButton: {
-  backgroundColor: "#263980",
-  padding: 16,
-  margin: 16,
-  borderRadius: 8,
-  alignItems: "center",
-},
-manageButtonText: {
-  color: "#fff",
-  fontSize: 16,
-  fontWeight: "bold",
-},
-restoreButton: {
-  backgroundColor: "#555",
-  padding: 12,
-  marginHorizontal: 16,
-  marginTop: 8,
-  borderRadius: 8,
-  alignItems: "center",
-},
-restoreButtonText: {
-  color: "#fff",
-  fontSize: 14,
-},
-termsContainer: {
-  padding: 16,
-  alignItems: "center",
-},
-termsText: {
-  color: "#777",
-  fontSize: 12,
-  textAlign: "center",
-  marginBottom: 8,
-},
-termsLink: {
-  color: "#298fe3",
-  textDecorationLine: "underline",
-},
-// Modal styles
-modalOverlay: {
-  flex: 1,
-  backgroundColor: "rgba(0,0,0,0.5)",
-  justifyContent: "center",
-  alignItems: "center",
-  padding: 20,
-},
-modalContent: {
-  backgroundColor: "#fff",
-  borderRadius: 10,
-  padding: 20,
-  width: "100%",
-  maxWidth: 500,
-  maxHeight: "80%",
-},
-modalTitle: {
-  fontSize: 20,
-  fontWeight: "bold",
-  marginBottom: 15,
-  textAlign: "center",
-},
-modalScrollView: {
-  maxHeight: 400,
-},
-modalText: {
-  fontSize: 14,
-  lineHeight: 20,
-  color: "#333",
-},
-cancelModalText: {
-  fontSize: 16,
-  lineHeight: 22,
-  color: "#333",
-  marginBottom: 20,
-  textAlign: "center",
-},
-modalSubtitle: {
-  fontWeight: "bold",
-  fontSize: 16,
-  marginBottom: 12,
-},
-modalButtons: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  marginTop: 20,
-},
-modalButton: {
-  padding: 12,
-  borderRadius: 6,
-  width: "48%",
-  alignItems: "center",
-  backgroundColor: "#f1f1f1",
-},
-modalButtonText: {
-  color: "#333",
-  fontWeight: "500",
-},
-modalAcceptButton: {
-  backgroundColor: "#298fe3",
-},
-modalDangerButton: {
-  backgroundColor: "#e74c3c",
-},
-modalAcceptButtonText: {
-  color: "#fff",
-  fontWeight: "bold",
-},
-// Cancel subscription modal styles
-reasonButton: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: 12,
-  borderWidth: 1,
-  borderColor: "#ddd",
-  borderRadius: 6,
-  marginBottom: 8,
-},
-reasonText: {
-  fontSize: 16,
-  color: "#333",
-},
-reasonCheckmark: {
-  fontSize: 18,
-  color: "#4caf50",
-  fontWeight: "bold",
-},
-cancelSubscriptionButton: {
-  width: "100%",
-  borderRadius: 6,
-  paddingVertical: 12,
-  alignItems: "center",
-  backgroundColor: "#e74c3c",
-  marginTop: 5,
-},
-cancelSubscriptionText: {
-  color: "#fff", 
-  fontSize: 16,
-  fontWeight: "bold",
-},
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#555",
+    fontSize: 16,
+  },
+  // Subscription expiration styles
+  currentPlanActionsContainer: {
+    width: "100%",
+  },
+  expirationContainer: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#4CAF50",
+  },
+  expirationLabel: {
+    fontSize: 12,
+    color: "#555",
+    marginBottom: 2,
+  },
+  expirationDate: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4CAF50",
+  },
+  expirationReminderContainer: {
+    backgroundColor: "#FFF8E1",
+    padding: 12,
+    borderRadius: 6,
+    marginVertical: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: "#FFA000",
+  },
+  expirationReminderText: {
+    fontSize: 14,
+    color: "#FF6F00",
+    textAlign: "center",
+  },
+  blueHeader: {
+    backgroundColor: "#83b8d7",
+    padding: 20,
+    alignItems: "center",
+    position: "relative",
+  },
+  logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  logoBox: {},
+  logo: {
+    width: 150,
+    height: 150,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  featuresLink: {
+    fontSize: 16,
+    color: "#fff",
+    fontWeight: "500",
+    marginBottom: 20,
+  },
+  plansContent: {
+    padding: 16,
+    backgroundColor: "#fff",
+  },
+  planCard: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    position: "relative",
+  },
+  currentPlanCard: {
+    backgroundColor: "#f8f8f8",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  planTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+    color: "#000",
+  },
+  currentPlanBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "#4caf50",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 50,
+  },
+  currentPlanText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  bulletRow: {
+    flexDirection: "row",
+    marginBottom: 8,
+    alignItems: "flex-start",
+  },
+  bulletPoint: {
+    marginRight: 8,
+    color: "#666",
+    fontSize: 14,
+  },
+  bulletText: {
+    color: "#666",
+    fontSize: 14,
+    flex: 1,
+  },
+  fadedText: {
+    color: "#999",
+  },
+  planButtonsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginTop: 15,
+  },
+  planPriceButton: {
+    width: "48%",
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  yearlyPlanButton: {
+    backgroundColor: "#69b0e1",
+  },
+  monthlyPlanButton: {
+    backgroundColor: "#298fe3",
+  },
+  disabledButton: {
+    backgroundColor: "#ccc",
+  },
+  planButtonPrice: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  planButtonPeriod: {
+    color: "#fff",
+    fontSize: 14,
+  },
+  fadedButtonText: {
+    color: "#f0f0f0",
+  },
+  discountContainer: {
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  originalPrice: {
+    color: "#fff",
+    fontSize: 14,
+    textDecorationLine: "line-through",
+    opacity: 0.8,
+  },
+  savingsLabel: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+    backgroundColor: "#FF6347",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 2,
+  },
+  manageButton: {
+    backgroundColor: "#263980",
+    padding: 16,
+    margin: 16,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  manageButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  restoreButton: {
+    backgroundColor: "#555",
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  restoreButtonText: {
+    color: "#fff",
+    fontSize: 14,
+  },
+  termsContainer: {
+    padding: 16,
+    alignItems: "center",
+  },
+  termsText: {
+    color: "#777",
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  termsLink: {
+    color: "#298fe3",
+    textDecorationLine: "underline",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+    width: "100%",
+    maxWidth: 500,
+    maxHeight: "80%",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  modalText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#333",
+  },
+  cancelModalText: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: "#333",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontWeight: "bold",
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  modalButton: {
+    padding: 12,
+    borderRadius: 6,
+    width: "48%",
+    alignItems: "center",
+    backgroundColor: "#f1f1f1",
+  },
+  modalButtonText: {
+    color: "#333",
+    fontWeight: "500",
+  },
+  modalAcceptButton: {
+    backgroundColor: "#298fe3",
+  },
+  modalDangerButton: {
+    backgroundColor: "#e74c3c",
+  },
+  modalAcceptButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  // Cancel subscription modal styles
+  reasonButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  reasonText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  reasonCheckmark: {
+    fontSize: 18,
+    color: "#4caf50",
+    fontWeight: "bold",
+  },
+  cancelSubscriptionButton: {
+    width: "100%",
+    borderRadius: 6,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#e74c3c",
+    marginTop: 5,
+  },
+  cancelSubscriptionText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
 });
 
 export default withIAPContext(SellerPlansScreen);
