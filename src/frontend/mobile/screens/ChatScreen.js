@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Animated,
   Platform,
+  Image,
   KeyboardAvoidingView,
   Alert,
   Pressable,
@@ -190,20 +191,51 @@ export default function ChatScreen({ navigation, route }) {
       "#e74c3c",
       "#f39c12",
     ];
-    const charSum = name
-      .split("")
-      .reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    return profileColors[charSum % profileColors.length];
-  };
-  const profileColor = getProfileColor(chatPartner);
 
-  const getInitials = (name) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+    // Thorough safety check
+    if (name === undefined || name === null || typeof name !== "string") {
+      console.log(`Warning: Invalid name in getProfileColor: ${typeof name}`);
+      return profileColors[0]; // Return the first color as default
+    }
+
+    try {
+      // Split and reduce safely with additional error handling
+      const charSum = name
+        .split("")
+        .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      return profileColors[charSum % profileColors.length];
+    } catch (error) {
+      console.log(`Error in getProfileColor: ${error.message}`);
+      return profileColors[0]; // Safe fallback on any error
+    }
   };
+
+  // Fixed getInitials function with robust error handling
+  const getInitials = (name) => {
+    // Thorough safety check
+    if (name === undefined || name === null || typeof name !== "string") {
+      console.log(`Warning: Invalid name in getInitials: ${typeof name}`);
+      return "?"; // Return a question mark for unknown names
+    }
+
+    try {
+      // Handle name safely with additional error handling
+      return (
+        name
+          .split(" ")
+          .map((n) => (n && n[0] ? n[0] : ""))
+          .join("")
+          .toUpperCase() || "?"
+      ); // Fallback to "?" if result is empty
+    } catch (error) {
+      console.log(`Error in getInitials: ${error.message}`);
+      return "?"; // Safe fallback on any error
+    }
+  };
+
+  // Add a safety check when using these functions
+  const safePartnerName = chatPartner || "Unknown";
+  const profileColor = getProfileColor(safePartnerName);
 
   useEffect(() => {
     Animated.timing(sendButtonPosition, {
@@ -562,7 +594,7 @@ export default function ChatScreen({ navigation, route }) {
         "and",
         chatPartner
       );
-  
+
       let allMessages = [];
       try {
         const backendMessages = await fetchMessages();
@@ -573,7 +605,7 @@ export default function ChatScreen({ navigation, route }) {
           `Backend API error: ${apiError.message}. Will try local storage only.`
         );
       }
-  
+
       try {
         const stored = await AsyncStorage.getItem("messages");
         const localMessages = stored ? JSON.parse(stored) : [];
@@ -592,12 +624,12 @@ export default function ChatScreen({ navigation, route }) {
           storageError
         );
       }
-  
+
       const currentUserId = String(currentUser.id || currentUser.user_id);
       const currentUserName = currentUser.name;
       let chatPartnerId = null;
       let chatPartnerName = chatPartner;
-  
+
       const storedUsers = await AsyncStorage.getItem("users");
       if (storedUsers) {
         const users = JSON.parse(storedUsers);
@@ -619,7 +651,7 @@ export default function ChatScreen({ navigation, route }) {
           }
         }
       }
-  
+
       console.log("Current user:", {
         id: currentUserId,
         name: currentUserName,
@@ -628,51 +660,51 @@ export default function ChatScreen({ navigation, route }) {
         id: chatPartnerId,
         name: chatPartnerName,
       });
-  
+
       // *CRITICAL*: Ensure chatPartnerId is always populated!
       chatPartnerId = chatPartnerId || chatPartner; // Fallback to name if ID is null
-  
+
       const relevantMessages = allMessages.filter((msg) => {
         const fromId = String(msg.user_from || msg.sender_id || "");
         const toId = String(msg.user_to || msg.receiver_id || "");
         const fromName = String(msg.from_name || "");
         const toName = String(msg.to_name || "");
-  
+
         const currentUserIsSender =
           (fromId === currentUserId || fromName === currentUserName) &&
           (toId === chatPartnerId || toName === chatPartnerName);
-  
+
         const currentUserIsRecipient =
           (toId === currentUserId || toName === currentUserName) &&
           (fromId === chatPartnerId || fromName === chatPartnerName);
-  
+
         const nameMatch =
           (fromName === currentUserName && toName === chatPartnerName) ||
           (toName === currentUserName && fromName === chatPartnerName);
-  
+
         return currentUserIsSender || currentUserIsRecipient || nameMatch;
       });
-  
+
       console.log(
         `Found ${relevantMessages.length} messages between these users`
       );
-  
+
       // STEP 1: Deduplicate messages by content and timestamp
       console.log("Starting message deduplication...");
       const messageMap = new Map();
-      
+
       // Group messages by content and sender/receiver to detect duplicates
-      relevantMessages.forEach(msg => {
+      relevantMessages.forEach((msg) => {
         if (!msg.message_content && !msg.content) return; // Skip messages without content
-        
+
         const content = msg.message_content || msg.content;
         const timestamp = msg.date_timestamp_sent || msg.timestamp;
         const fromId = String(msg.user_from || msg.sender_id || "");
         const toId = String(msg.user_to || msg.receiver_id || "");
-        
+
         // Create a key combining sender, receiver, and content
         const key = `${fromId}-${toId}-${content}`;
-        
+
         if (!messageMap.has(key)) {
           // First message with this key
           messageMap.set(key, [msg]);
@@ -681,11 +713,11 @@ export default function ChatScreen({ navigation, route }) {
           messageMap.get(key).push(msg);
         }
       });
-      
+
       // Process groups to eliminate duplicates
       const dedupedMessages = [];
       let duplicatesRemoved = 0;
-      
+
       messageMap.forEach((messageGroup, key) => {
         if (messageGroup.length === 1) {
           // No duplicates found, add the message
@@ -693,75 +725,97 @@ export default function ChatScreen({ navigation, route }) {
         } else {
           // Sort by timestamp
           messageGroup.sort((a, b) => {
-            const timeA = new Date(a.date_timestamp_sent || a.timestamp).getTime();
-            const timeB = new Date(b.date_timestamp_sent || b.timestamp).getTime();
+            const timeA = new Date(
+              a.date_timestamp_sent || a.timestamp
+            ).getTime();
+            const timeB = new Date(
+              b.date_timestamp_sent || b.timestamp
+            ).getTime();
             return timeA - timeB;
           });
-          
+
           // Always keep the first message
           const keptMessages = [messageGroup[0]];
-          
+
           // For each additional message, check if it's a true duplicate
           for (let i = 1; i < messageGroup.length; i++) {
             const currentMsg = messageGroup[i];
-            const prevMsg = messageGroup[i-1];
-            
-            const currentTime = new Date(currentMsg.date_timestamp_sent || currentMsg.timestamp).getTime();
-            const prevTime = new Date(prevMsg.date_timestamp_sent || prevMsg.timestamp).getTime();
-            
+            const prevMsg = messageGroup[i - 1];
+
+            const currentTime = new Date(
+              currentMsg.date_timestamp_sent || currentMsg.timestamp
+            ).getTime();
+            const prevTime = new Date(
+              prevMsg.date_timestamp_sent || prevMsg.timestamp
+            ).getTime();
+
             // If messages are more than 2 minutes apart, consider it a legitimate repeat
             // Otherwise, it's likely a duplicate that should be removed
-            if (Math.abs(currentTime - prevTime) > 120000) { // 2 minutes
+            if (Math.abs(currentTime - prevTime) > 120000) {
+              // 2 minutes
               keptMessages.push(currentMsg);
             } else {
               duplicatesRemoved++;
-              console.log(`Removing duplicate: "${currentMsg.message_content?.substring(0, 20) || 'unknown'}..."`);
+              console.log(
+                `Removing duplicate: "${currentMsg.message_content?.substring(0, 20) || "unknown"}..."`
+              );
             }
           }
-          
+
           // Add kept messages to our deduped list
           dedupedMessages.push(...keptMessages);
         }
       });
-      
+
       if (duplicatesRemoved > 0) {
         console.log(`Removed ${duplicatesRemoved} duplicate messages`);
-        
+
         // Also clean up local storage to prevent future duplicates
         try {
           const stored = await AsyncStorage.getItem("messages");
           if (stored) {
             const localMessages = JSON.parse(stored);
-            
+
             // Create a set of message IDs that we're keeping
-            const keepIds = new Set(dedupedMessages.map(msg => msg.message_id || msg.id));
-            
+            const keepIds = new Set(
+              dedupedMessages.map((msg) => msg.message_id || msg.id)
+            );
+
             // Filter local storage to keep only non-duplicates
-            const updatedLocalMessages = localMessages.filter(msg => {
+            const updatedLocalMessages = localMessages.filter((msg) => {
               // Keep messages not related to this conversation
-              const isRelevant = relevantMessages.some(rMsg => 
-                (rMsg.message_id && rMsg.message_id === msg.message_id) ||
-                (rMsg.id && rMsg.id === msg.id)
+              const isRelevant = relevantMessages.some(
+                (rMsg) =>
+                  (rMsg.message_id && rMsg.message_id === msg.message_id) ||
+                  (rMsg.id && rMsg.id === msg.id)
               );
-              
+
               if (!isRelevant) return true;
-              
+
               // For relevant messages, only keep those in our deduplicated set
               return keepIds.has(msg.message_id || msg.id);
             });
-            
+
             if (updatedLocalMessages.length < localMessages.length) {
-              await AsyncStorage.setItem("messages", JSON.stringify(updatedLocalMessages));
-              console.log(`Updated local storage: removed ${localMessages.length - updatedLocalMessages.length} messages`);
+              await AsyncStorage.setItem(
+                "messages",
+                JSON.stringify(updatedLocalMessages)
+              );
+              console.log(
+                `Updated local storage: removed ${localMessages.length - updatedLocalMessages.length} messages`
+              );
             }
           }
         } catch (storageError) {
-          console.error("Failed to update local storage during deduplication:", storageError);
+          console.error(
+            "Failed to update local storage during deduplication:",
+            storageError
+          );
         }
       } else {
         console.log("No duplicate messages found");
       }
-  
+
       // STEP 2: Format messages for display
       const formattedMessages = dedupedMessages
         .map((msg) => {
@@ -783,10 +837,10 @@ export default function ChatScreen({ navigation, route }) {
           };
         })
         .sort((a, b) => a.fullDate - b.fullDate);
-  
+
       // STEP 3: Set the messages state
       setMessages(formattedMessages);
-      
+
       // Return number of messages for logging
       return formattedMessages.length;
     } catch (error) {
@@ -1146,7 +1200,7 @@ export default function ChatScreen({ navigation, route }) {
   const handleDeleteSelected = async () => {
     const selectedIds = Object.keys(selectedMessages);
     if (!selectedIds.length) return;
-  
+
     Alert.alert(
       "Delete Messages",
       `Delete ${selectedIds.length} message${selectedIds.length > 1 ? "s" : ""}?`,
@@ -1158,60 +1212,86 @@ export default function ChatScreen({ navigation, route }) {
           onPress: async () => {
             try {
               // Get selected messages with their backend IDs
-              const messagesToDelete = messages.filter(msg => selectedIds.includes(msg.id));
-              
+              const messagesToDelete = messages.filter((msg) =>
+                selectedIds.includes(msg.id)
+              );
+
               // Remove from UI immediately
-              setMessages(messages.filter(msg => !selectedIds.includes(msg.id)));
-              
+              setMessages(
+                messages.filter((msg) => !selectedIds.includes(msg.id))
+              );
+
               // Process each message for deletion
               for (const message of messagesToDelete) {
                 // Check if message_id exists and is a valid backend ID
                 if (message.message_id) {
                   // Log the type and value for debugging
-                  console.log(`Message ID type: ${typeof message.message_id}, value: ${message.message_id}`);
-                  
+                  console.log(
+                    `Message ID type: ${typeof message.message_id}, value: ${message.message_id}`
+                  );
+
                   // Check if it's a local ID (string that starts with 'msg-')
-                  const isLocalId = typeof message.message_id === 'string' && 
-                                   message.message_id.startsWith('msg-');
-                  
+                  const isLocalId =
+                    typeof message.message_id === "string" &&
+                    message.message_id.startsWith("msg-");
+
                   if (!isLocalId) {
                     // This looks like a backend ID - try to delete from backend
                     try {
                       await deleteMessageById(message.message_id);
-                      console.log(`Deleted message ${message.message_id} from backend`);
+                      console.log(
+                        `Deleted message ${message.message_id} from backend`
+                      );
                     } catch (deleteError) {
-                      console.error(`Failed to delete message from backend:`, deleteError);
+                      console.error(
+                        `Failed to delete message from backend:`,
+                        deleteError
+                      );
                     }
                   } else {
-                    console.log(`Skipping backend deletion for local ID: ${message.message_id}`);
+                    console.log(
+                      `Skipping backend deletion for local ID: ${message.message_id}`
+                    );
                   }
                 } else {
-                  console.log(`No message_id found for message with UI id: ${message.id}`);
+                  console.log(
+                    `No message_id found for message with UI id: ${message.id}`
+                  );
                 }
               }
-              
+
               // Update local storage
               const stored = await AsyncStorage.getItem("messages");
               const storageMessages = stored ? JSON.parse(stored) : [];
-              
+
               // Filter out deleted messages
-              const updatedStorage = storageMessages.filter(storageMsg => {
-                return !messagesToDelete.some(uiMsg => {
+              const updatedStorage = storageMessages.filter((storageMsg) => {
+                return !messagesToDelete.some((uiMsg) => {
                   // Match by ID if possible
                   if (uiMsg.message_id && storageMsg.message_id) {
-                    return String(uiMsg.message_id) === String(storageMsg.message_id);
+                    return (
+                      String(uiMsg.message_id) === String(storageMsg.message_id)
+                    );
                   }
-                  
+
                   // Fallback to content matching
-                  return (storageMsg.message_content === uiMsg.text || 
-                          storageMsg.content === uiMsg.text) &&
-                         storageMsg.date_timestamp_sent === uiMsg.fullDate?.toISOString();
+                  return (
+                    (storageMsg.message_content === uiMsg.text ||
+                      storageMsg.content === uiMsg.text) &&
+                    storageMsg.date_timestamp_sent ===
+                      uiMsg.fullDate?.toISOString()
+                  );
                 });
               });
-              
-              await AsyncStorage.setItem("messages", JSON.stringify(updatedStorage));
-              console.log(`Updated local storage: ${storageMessages.length} -> ${updatedStorage.length} messages`);
-              
+
+              await AsyncStorage.setItem(
+                "messages",
+                JSON.stringify(updatedStorage)
+              );
+              console.log(
+                `Updated local storage: ${storageMessages.length} -> ${updatedStorage.length} messages`
+              );
+
               // Reset selection
               setIsSelecting(false);
               setSelectedMessages({});
@@ -1338,16 +1418,22 @@ export default function ChatScreen({ navigation, route }) {
                     <Ionicons name="chevron-back" size={24} color="#fff" />
                   </TouchableOpacity>
                   <View style={styles.profilePreview}>
-                    <View
-                      style={[
-                        styles.profileImage,
-                        { backgroundColor: profileColor },
-                      ]}
-                    >
-                      <Text style={styles.profileInitials}>
-                        {getInitials(chatPartner)}
-                      </Text>
-                    </View>
+                    <Image
+                      source={{
+                        uri:
+                          currentUser?.profile_image || // Use profile_image instead of avatar
+                          "https://ui-avatars.com/api/?name=" +
+                            currentUser?.name?.replace(/\s+/g, "+") +
+                            "&background=random",
+                      }}
+                      style={styles.profileImage}
+                      onError={(e) => {
+                        console.error(
+                          "Profile image load error in settings:",
+                          e.nativeEvent.error
+                        );
+                      }}
+                    />
                     <View style={styles.nameContainer}>
                       <Text style={styles.profileName} numberOfLines={1}>
                         {chatPartner}

@@ -28,11 +28,42 @@ import { fetchNotifications, fetchUsers } from "../backend/db/API";
 export default function BuyerProfileScreen({ navigation, route }) {
   const { colors, isDarkMode } = useTheme();
   const styles = getDynamicStyles(colors, isDarkMode);
-  const { user } = useAuth();
+  const { user, toggleSellerMode } = useAuth();
 
   const [location, setLocation] = useState("");
   const [languages, setLanguages] = useState([]);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
+
+  const handleToggleSellerMode = () => {
+    Alert.alert(
+      "Switch to Seller Mode",
+      "Do you want to switch to seller mode using your current account?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Switch",
+          onPress: async () => {
+            try {
+              await toggleSellerMode(true);
+              // Navigate to seller dashboard or home screen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "TabProfile" }], // Adjust the route name as needed
+              });
+            } catch (error) {
+              Alert.alert(
+                "Error",
+                error.message || "Failed to switch to seller mode"
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const refreshUserData = async () => {
     try {
@@ -40,19 +71,50 @@ export default function BuyerProfileScreen({ navigation, route }) {
 
       console.log("Refreshing buyer profile data for user:", user.user_id);
 
-      // Fetch fresh user data
+      // First try to get fresh user data from AsyncStorage
+      const storedUserData = await AsyncStorage.getItem("user");
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
+        console.log("User profile image from storage:", userData.profile_image);
+
+        // Update profile with AsyncStorage data
+        setProfile((prev) => ({
+          ...prev,
+          name: userData.name || prev.name,
+          city: userData.city || prev.city,
+          country: userData.country || prev.country,
+          accountType: userData.account_type || prev.accountType,
+          profilePhoto: userData.profile_image || prev.profilePhoto,
+          productPurchased: Array.isArray(userData.products_purchased)
+            ? userData.products_purchased
+            : prev.productPurchased,
+          followingCount:
+            userData.following_count ||
+            (Array.isArray(userData.following)
+              ? userData.following.length
+              : prev.followingCount),
+        }));
+      }
+
+      // Fetch fresh user data from API
       const users = await fetchUsers();
       const refreshedUser = users.find(
         (u) => String(u.user_id) === String(user.user_id)
       );
 
       if (refreshedUser) {
+        console.log(
+          "User profile image from API:",
+          refreshedUser.profile_image
+        );
+
         // Update the profile object with fresh data
         setProfile({
           name: refreshedUser.name || "User",
           city: refreshedUser.city || "N/A",
           country: refreshedUser.country || "N/A",
           accountType: refreshedUser.account_type || "N/A",
+          profilePhoto: refreshedUser.profile_image || null,
           productPurchased: Array.isArray(refreshedUser.products_purchased)
             ? refreshedUser.products_purchased
             : [],
@@ -61,20 +123,7 @@ export default function BuyerProfileScreen({ navigation, route }) {
             (Array.isArray(refreshedUser.following)
               ? refreshedUser.following.length
               : 0),
-          campaigns: Array.isArray(refreshedUser.campaigns)
-            ? refreshedUser.campaigns
-            : [],
-          followers: refreshedUser.followers_count || 0,
-          earnings: refreshedUser.earnings || 0,
         });
-
-        console.log(
-          "Updated buyer profile. Following count:",
-          refreshedUser.following_count ||
-            (Array.isArray(refreshedUser.following)
-              ? refreshedUser.following.length
-              : 0)
-        );
       }
     } catch (error) {
       console.error("Error refreshing user data:", error);
@@ -138,13 +187,12 @@ export default function BuyerProfileScreen({ navigation, route }) {
     city: user?.city || "N/A",
     country: user?.country || "N/A",
     accountType: user?.account_type || "N/A",
+    profilePhoto: user?.profile_image || null,
     productPurchased: Array.isArray(user?.products_purchased)
       ? user.products_purchased
       : [],
     followingCount: user?.following_count || 0,
-    campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
     followers: user?.followers_count || 0,
-    earnings: user?.earnings || 0,
   });
 
   // Render the stats section based on the account type
@@ -214,19 +262,9 @@ export default function BuyerProfileScreen({ navigation, route }) {
     );
   };
 
-  // Helper functions for influencer account
-  const handleCampaigns = () => {
-    // Implement campaign navigation logic
-    Alert.alert("Campaigns", "Navigate to campaigns");
-  };
-
-  const handlePendingCampaigns = () => {
-    // Implement pending campaigns navigation logic
-    Alert.alert("Pending Campaigns", "Navigate to pending campaigns");
-  };
-
   return (
     <SafeAreaView style={styles.container}>
+      {/* Rest of your existing JSX */}
       <StatusBar
         translucent={true}
         backgroundColor="transparent"
@@ -254,9 +292,18 @@ export default function BuyerProfileScreen({ navigation, route }) {
               <View style={styles.profileImageContainer}>
                 <Image
                   source={{
-                    uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+                    uri: profile.profilePhoto
+                      ? `${profile.profilePhoto}?t=${Date.now()}` // Add cache-busting
+                      : "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
                   }}
                   style={styles.profileImage}
+                  onError={(e) => {
+                    console.error(
+                      "Profile image load error:",
+                      e.nativeEvent.error,
+                      profile.profilePhoto
+                    );
+                  }}
                 />
               </View>
             </View>
@@ -328,6 +375,33 @@ export default function BuyerProfileScreen({ navigation, route }) {
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>Account</Text>
             {renderButtons()}
+          </View>
+
+          {/* Add new Seller Plans Section */}
+          <View style={styles.menuSection}>
+            <Text style={styles.sectionTitle}>Seller Options</Text>
+
+            <TouchableOpacity
+              style={styles.sellerPlanButton}
+              onPress={handleToggleSellerMode}
+            >
+              <View style={styles.sellerPlanContent}>
+                <View style={styles.sellerPlanIconContainer}>
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={24}
+                    color={colors.white}
+                  />
+                </View>
+                <View style={styles.sellerPlanTextContainer}>
+                  <Text style={styles.sellerPlanTitle}>Become a Seller</Text>
+                  <Text style={styles.sellerPlanDescription}>
+                    Use your current account to sell products
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.text} />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -559,6 +633,43 @@ function getDynamicStyles(colors, isDarkMode) {
       borderRadius: 4,
       backgroundColor: colors.error,
       marginRight: 8,
+    },
+    sellerPlanButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.08)"
+        : colors.cardBackground || "#f8fafc",
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 16,
+    },
+    sellerPlanContent: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    sellerPlanIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 16,
+    },
+    sellerPlanTextContainer: {
+      flex: 1,
+    },
+    sellerPlanTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 4,
+    },
+    sellerPlanDescription: {
+      fontSize: 14,
+      color: colors.subtitle,
     },
   });
 }

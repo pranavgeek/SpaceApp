@@ -3,7 +3,7 @@ import userData from "./data.json";
 import { Platform } from "react-native";
 
 // Dynamically choose the BASE_URL based on platform
-const BASE_URL =
+export const BASE_URL =
   Platform.OS === "web"
     ? "http://localhost:5001/api"
     : "http://10.0.0.25:5001/api";
@@ -64,6 +64,108 @@ export const resetPassword = async (email, new_password) => {
   if (!res.ok) throw new Error("Failed to reset password");
   return res.json();
 };
+
+// ========================================================================
+
+// Buyer to seller switch
+/**
+ * Switch between roles (sub-login functionality)
+ * @param {number|string} userId - The user ID
+ * @param {string} role - The role to switch to (e.g., "seller")
+ * @param {boolean} activate - Whether to activate or deactivate the role switch
+ * @returns {Promise<Object>} - The updated user object
+ */
+export const switchUserRole = async (userId, role, activate = true) => {
+  try {
+    console.log(`Switching user ${userId} to role ${role} (activate: ${activate})`);
+    
+    const response = await fetch(`${BASE_URL}/users/${userId}/switch-role`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ 
+        role,
+        activate
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`Server returned error: ${response.status} ${errorData}`);
+      throw new Error(`Failed to switch role: ${errorData}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.success && result.user) {
+      // Update local storage with the new user data
+      await AsyncStorage.setItem("user", JSON.stringify(result.user));
+      
+      // Update role in AsyncStorage
+      if (activate) {
+        // Store original role before updating
+        await AsyncStorage.setItem("originalUserRole", role === "seller" ? "buyer" : "seller");
+        await AsyncStorage.setItem("userRole", role);
+        
+        // Set flag to indicate this is a sub-login
+        await AsyncStorage.setItem("isOriginallyBuyer", "true");
+      } else {
+        // Restore original role
+        await AsyncStorage.setItem("userRole", result.user.role);
+        
+        // Clean up temporary storage
+        await AsyncStorage.removeItem("originalUserRole");
+        await AsyncStorage.removeItem("isOriginallyBuyer");
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error switching user role:", error);
+    throw error;
+  }
+};
+
+/**
+ * Check if a user can switch back to their original role
+ * @param {number|string} userId - The user ID
+ * @returns {Promise<Object>} - Object with canSwitchBack and originalRole properties
+ */
+export const canSwitchBackToOriginalRole = async (userId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/users/${userId}/can-switch-back`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to check switch back capability: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error checking if user can switch back:", error);
+    
+    // Fallback to checking AsyncStorage if the API fails
+    try {
+      const isOriginallyBuyer = await AsyncStorage.getItem("isOriginallyBuyer");
+      const originalRole = await AsyncStorage.getItem("originalUserRole");
+      
+      return {
+        success: true,
+        canSwitchBack: isOriginallyBuyer === "true",
+        originalRole: originalRole || "buyer"
+      };
+    } catch (storageError) {
+      console.error("Error checking AsyncStorage:", storageError);
+      return {
+        success: false,
+        canSwitchBack: false,
+        originalRole: null
+      };
+    }
+  }
+};
+
+//============================================================================
 
 // Add these functions to your API.js file
 
@@ -1947,45 +2049,68 @@ export const deleteCampaignRequest = async (requestId) => {
 // };
 
 // Update collaboration request status
-export const updateCollaborationRequestStatus = async (requestId, status) => {
+export const updateCollaborationRequestStatus = async (requestId, status, sellerId) => {
   try {
-    console.log(
-      `Updating collaboration request ${requestId} to status: ${status}`
-    );
-
-    // First try to update on the backend
-    try {
-      const response = await fetch(
-        `${BASE_URL}/collaboration-requests/${requestId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status }),
+    // IMPORTANT: Make sure we're sending a string value for status, not an object
+    const statusValue = typeof status === 'object' ? status.status : status;
+    
+    console.log(`Updating request ${requestId} to status: ${statusValue}`);
+    
+    // Make sure we have a valid sellerId
+    if (!sellerId) {
+      // Try to get the current user from AsyncStorage as fallback
+      try {
+        const userData = await AsyncStorage.getItem("userData");
+        const parsedUserData = userData ? JSON.parse(userData) : null;
+        if (parsedUserData) {
+          sellerId = parsedUserData.id || parsedUserData.user_id;
         }
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log(
-          `Collaboration request status updated on backend: ${requestId} -> ${status}`
-        );
-
-        // Also update in local storage
-        await updateLocalCollaborationRequest(requestId, status);
-
-        return result;
-      } else {
-        throw new Error(`Failed to update request status: ${response.status}`);
+      } catch (err) {
+        console.warn("Could not retrieve user data from storage:", err);
       }
-    } catch (apiError) {
-      console.warn(
-        `Backend API error: ${apiError.message}. Falling back to local storage.`
-      );
+    }
+    
+    const updatedRequest = { 
+      status: statusValue, // Send just the status string, not an object
+      sellerId: sellerId
+    };
+    
+    // Call the API with the proper format
+    try {
+      const response = await fetch(`${BASE_URL}/collaboration-requests/${requestId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedRequest),
+      });
 
-      // Fallback to local storage
-      return await updateLocalCollaborationRequest(requestId, status);
+      // We need to check if the response is ok first before parsing JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        
+        // Try to parse the error as JSON, but handle non-JSON errors too
+        try {
+          errorData = JSON.parse(errorText);
+          
+          // Check for specific error cases
+          if (errorData.error === "Collaboration limit reached") {
+            return errorData; // Return the error response to be handled by the caller
+          }
+        } catch (e) {
+          // If it's not JSON, just use the raw text
+          errorData = { error: errorText };
+        }
+        
+        throw new Error(`API error: ${response.status} - ${errorData.error || errorText}`);
+      }
+      
+      const responseData = await response.json();
+      return responseData;
+    } catch (error) {
+      console.error("API error:", error);
+      throw error;
     }
   } catch (error) {
     console.error("Error updating collaboration request status:", error);
@@ -1993,39 +2118,84 @@ export const updateCollaborationRequestStatus = async (requestId, status) => {
   }
 };
 
-async function updateLocalCollaborationRequest(requestId, status) {
+async function updateLocalCollaborationRequest(requestId, status, influencerId, influencerName, sellerId) {
   try {
+    console.log(`Updating request in local storage: ${requestId} -> ${status}`);
+    
     const stored = await AsyncStorage.getItem("collaborationRequests");
     const requests = stored ? JSON.parse(stored) : [];
-
-    // Find the request
+    
+    // First update the main collaborationRequests store
     const requestIndex = requests.findIndex(
       (req) => String(req.requestId) === String(requestId)
     );
 
     if (requestIndex === -1) {
-      throw new Error(`Collaboration request not found: ${requestId}`);
+      // Get user info for the new request if not provided
+      if (!sellerId) {
+        const userData = await AsyncStorage.getItem("userData");
+        const user = userData ? JSON.parse(userData) : null;
+        
+        if (user) {
+          sellerId = user.id || user.user_id;
+        }
+      }
+      
+      // Create a new request
+      const newRequest = {
+        requestId,
+        status,
+        sellerId: sellerId || "unknown",
+        influencerId: influencerId || "unknown",
+        influencerName: influencerName || "Influencer",
+        timestamp: new Date().toISOString(),
+        statusUpdatedAt: new Date().toISOString(),
+      };
+      
+      requests.push(newRequest);
+    } else {
+      // Update existing request
+      requests[requestIndex] = {
+        ...requests[requestIndex],
+        status,
+        statusUpdatedAt: new Date().toISOString(),
+      };
+      
+      // Extract user IDs from the request
+      sellerId = sellerId || requests[requestIndex].sellerId;
+      influencerId = influencerId || requests[requestIndex].influencerId;
+      influencerName = influencerName || requests[requestIndex].influencerName;
     }
-
-    // Update the request
-    const updatedRequest = {
-      ...requests[requestIndex],
-      status,
-      statusUpdatedAt: new Date().toISOString(),
-    };
-
-    requests[requestIndex] = updatedRequest;
-
-    // Save back to storage
-    await AsyncStorage.setItem(
-      "collaborationRequests",
-      JSON.stringify(requests)
-    );
-
+    
+    // Save the updated requests array
+    await AsyncStorage.setItem("collaborationRequests", JSON.stringify(requests));
+    
+    // Also update all compatible key formats if we have seller and influencer info
+    if (sellerId && (influencerId || influencerName)) {
+      // Standard key format
+      if (influencerId) {
+        const standardKey = `collab_status_${sellerId}_${influencerId}`;
+        await AsyncStorage.setItem(standardKey, status);
+      }
+      
+      // Permanent key format used in ChatScreen
+      if (influencerId) {
+        const permanentKey = `collab_permanent_${sellerId}_${influencerId}`;
+        await AsyncStorage.setItem(permanentKey, status);
+      }
+      
+      // Name-based key format
+      if (influencerName) {
+        const nameKey = `collab_name_${sellerId}_${influencerName}`;
+        await AsyncStorage.setItem(nameKey, status);
+      }
+    }
+    
     console.log(
-      `Collaboration request updated in local storage: ${requestId} -> ${status}`
+      `Collaboration request updated in all storage locations: ${requestId} -> ${status}`
     );
-    return updatedRequest;
+    
+    return { success: true };
   } catch (error) {
     console.error(
       "Error updating collaboration request in local storage:",

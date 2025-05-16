@@ -188,47 +188,47 @@ const ProjectScreen = ({ route, navigation }) => {
       try {
         // Don't fetch while initial product loading
         if (loading) return;
-  
+
         setReviewsLoading(true);
         console.log("Project data:", project);
         console.log("Product detail:", productDetail);
-  
+
         // Get product ID using our enhanced async function
         const prodId = await getProductId();
-  
+
         if (prodId) {
           console.log(`Fetching reviews for product ID: ${prodId}`);
           const fetchedReviews = await fetchReviews(prodId);
           console.log("Fetched reviews by ID:", fetchedReviews);
-  
+
           if (Array.isArray(fetchedReviews)) {
             // Filter reviews to make sure they belong to this specific product
             const filteredReviews = fetchedReviews.filter((review) => {
               // Convert both IDs to numbers to ensure reliable comparison
               return Number(review.product_id) === Number(prodId);
             });
-  
+
             console.log(
               `After filtering: ${filteredReviews.length} reviews match product ${prodId}`
             );
-  
+
             // Create a local map of user IDs to names
             // This is hardcoded for now as a fallback since the API call is failing
             const userMap = {
               1: "John Doe",
               2: "Sarah Smith",
-              3: "Mike Influencer"
+              3: "Mike Influencer",
             };
-  
+
             // Map reviews to the format used in the UI with actual reviewer names
             const mappedReviews = filteredReviews.map((r) => {
               // Use the local map to get the name, or fall back to the user_name from the review
               // If neither is available, use generic "User X" format
-              const reviewerName = 
+              const reviewerName =
                 r.user_name || // Use user_name from review if it exists
                 userMap[r.user_id] || // Otherwise use our local map
                 `User ${r.user_id}`; // Last resort fallback
-              
+
               return {
                 id: r.review_id,
                 name: reviewerName,
@@ -239,7 +239,7 @@ const ProjectScreen = ({ route, navigation }) => {
                 text: r.review,
               };
             });
-  
+
             setReviews(mappedReviews);
           } else {
             console.log("No reviews found for this product");
@@ -256,7 +256,7 @@ const ProjectScreen = ({ route, navigation }) => {
         setReviewsLoading(false);
       }
     };
-  
+
     // Only fetch reviews if we have a project and loading is complete
     if (project && !loading) {
       fetchProductReviews();
@@ -270,17 +270,23 @@ const ProjectScreen = ({ route, navigation }) => {
         direction === "left"
           ? Math.max(prevIndex - 1, 0)
           : Math.min(prevIndex + 1, imageCount - 1);
-
+      
+      // Calculate exact scroll position based on card width
+      const scrollWidth = isMobile 
+        ? width - 32 
+        : isDesktop 
+          ? 500 
+          : 350;
+          
       scrollViewRef.current?.scrollTo({
-        x: newIndex * (isDesktop ? styles.galleryImage.width : width - 32),
+        x: newIndex * scrollWidth,
         y: 0,
         animated: true,
       });
-
+  
       return newIndex;
     });
   };
-
   // Handle adding to cart
   const handleAddToCart = () => {
     const cartItem = { ...displayProduct, cartItemId: projectId };
@@ -318,18 +324,18 @@ const ProjectScreen = ({ route, navigation }) => {
       Alert.alert("Missing Information", "Please enter your review text.");
       return;
     }
-  
+
     if (reviewRating === 0) {
       Alert.alert("Missing Rating", "Please select a rating (1-5 stars).");
       return;
     }
-  
+
     try {
       setReviewsLoading(true);
-  
+
       // Get product ID using our enhanced function
       const prodId = await getProductId();
-  
+
       if (!prodId) {
         Alert.alert(
           "Error",
@@ -337,16 +343,16 @@ const ProjectScreen = ({ route, navigation }) => {
         );
         return;
       }
-  
+
       console.log(`Adding review for product ID: ${prodId}`);
-  
+
       // Use the actual logged-in user information from the AuthContext
       // This avoids needing any API calls to get user info
       const currentUserInfo = user || {
         user_id: 3, // Default to Mike the Influencer if no user context
-        name: "Mike Influencer"
+        name: "Mike Influencer",
       };
-  
+
       // Prepare review data with user name
       const reviewData = {
         product_id: prodId,
@@ -356,13 +362,13 @@ const ProjectScreen = ({ route, navigation }) => {
         review: reviewText.trim(),
         date_timestamp: new Date().toISOString(),
       };
-  
+
       console.log("Submitting review data:", reviewData);
-  
+
       // Send review to API
       const createdReview = await createReview(reviewData);
       console.log("Created review:", createdReview);
-  
+
       if (createdReview) {
         // Update local state with the new review
         const newReview = {
@@ -372,15 +378,15 @@ const ProjectScreen = ({ route, navigation }) => {
           rating: createdReview.number_stars,
           text: createdReview.review,
         };
-  
+
         // Add the new review to the top of the list
         setReviews([newReview, ...reviews]);
-  
+
         // Reset form
         setShowReviewForm(false);
         setReviewRating(0);
         setReviewText("");
-  
+
         // Show success message
         Alert.alert("Success", "Your review has been submitted successfully!");
       } else {
@@ -482,8 +488,9 @@ const ProjectScreen = ({ route, navigation }) => {
             scrollEnabled={true}
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(event) => {
-              const newIndex = Math.round(
-                event.nativeEvent.contentOffset.x / (width - 32)
+              const newIndex = Math.floor(
+                (event.nativeEvent.contentOffset.x + (width - 32) / 2) /
+                  (width - 32)
               );
               setCurrentImageIndex(newIndex);
             }}
@@ -495,18 +502,21 @@ const ProjectScreen = ({ route, navigation }) => {
             ].map((img, index) => (
               <View
                 key={index}
-                style={[styles.imageCard, { width: width - 32, height: 350 }]}
+                style={[
+                  styles.imageCard,
+                  { width: width - 32 }, // Ensure width matches the calculation in onMomentumScrollEnd
+                ]}
               >
                 <Image
                   source={{ uri: img }}
                   style={styles.galleryImage}
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
               </View>
             ))}
           </ScrollView>
 
-          {/* Left Arrow - only show if not at first image */}
+          {/* Navigation arrows */}
           {currentImageIndex > 0 && (
             <TouchableOpacity
               style={[styles.galleryArrow, styles.galleryArrowLeft]}
@@ -516,7 +526,6 @@ const ProjectScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           )}
 
-          {/* Right Arrow - only show if not at last image */}
           {currentImageIndex < imageCount - 1 && (
             <TouchableOpacity
               style={[styles.galleryArrow, styles.galleryArrowRight]}
@@ -545,7 +554,7 @@ const ProjectScreen = ({ route, navigation }) => {
             ))}
           </View>
 
-          {/* Creator badge - floating over the image */}
+          {/* Creator badge remains the same */}
           <View style={styles.creatorBadge}>
             <Image
               source={{ uri: creator.image }}
@@ -891,6 +900,7 @@ const ProjectScreen = ({ route, navigation }) => {
                 );
                 setCurrentImageIndex(newIndex);
               }}
+              contentContainerStyle={{ alignItems: "center" }}
             >
               {[
                 displayProduct.image,
@@ -901,7 +911,7 @@ const ProjectScreen = ({ route, navigation }) => {
                   <Image
                     source={{ uri: img }}
                     style={styles.galleryImage}
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                 </View>
               ))}
@@ -1369,19 +1379,27 @@ const getDynamicStyles = (colors, { isWeb, isDesktop, isTablet, isMobile }) =>
     galleryContainer: {
       position: "relative",
       marginBottom: isMobile ? 20 : 0,
-      backgroundColor: "#f0f0f0", // Light gray background
+      backgroundColor: "#ffffff",
       borderRadius: isDesktop || isTablet ? 12 : 0,
       overflow: "hidden",
+      height: isMobile ? 280 : isTablet ? 320 : 450,
     },
     imageCard: {
       overflow: "hidden",
-      backgroundColor: "#f8f8f8", // Slightly lighter background for each image card
-      width: isDesktop ? 500 : isTablet ? 350 : "100%",
-      height: isDesktop ? 500 : isTablet ? 350 : 350,
+      backgroundColor: "#ffffff",
+      width: isMobile
+        ? Dimensions.get("window").width - 32
+        : isTablet
+          ? 350
+          : 500,
+      height: isMobile ? 280 : isTablet ? 320 : 450,
+      justifyContent: "center",
+      alignItems: "center",
     },
     galleryImage: {
-      width: isDesktop ? 500 : isTablet ? 350 : "100%",
-      height: isDesktop ? 500 : isTablet ? 350 : "100%",
+      width: "85%", // Slightly reduced from 100% to ensure image is centered properly
+      height: "85%", // Slightly reduced from 100% to ensure image is centered properly
+      resizeMode: "contain",
     },
     // Gallery Navigation Arrows
     galleryArrow: {

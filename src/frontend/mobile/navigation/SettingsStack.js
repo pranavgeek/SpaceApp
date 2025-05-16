@@ -11,10 +11,10 @@ import AppearanceScreen from "../screens/AppearanceScreen";
 import SecurityPrivacyScreen from "../screens/SecurityPrivacyScreen";
 import InfluencerProgramScreen from "../screens/InfluencerProgramScreen";
 import SellerPlansScreen from "../screens/SellerPlansScreen";
-import CollaborationScreen from "../screens/CollaborationScreen"
+import CollaborationScreen from "../screens/CollaborationScreen";
 import InfluencerApplicationScreen from "../screens/InfluencerApplicationScreen.js";
+import FormScreen from "../screens/FormScreen";
 import { useTheme } from "../theme/ThemeContext.js";
-
 
 const SettingsStack = createNativeStackNavigator();
 
@@ -76,11 +76,15 @@ const SettingsStackNavigator = () => {
         component={SellerPlansScreen}
         //   options={{headerShown: false}}
       />
-      {/* <SettingsStack.Screen
-        name="SubscriptionPayment"
-        component={SubscriptionPaymentScreen}
-        //   options={{headerShown: false}}
-      /> */}
+      <SettingsStack.Screen
+        name="Form"
+        component={FormScreen}
+        options={{
+          headerStyle: { backgroundColor: "#141414" },
+          headerTintColor: "#fff",
+          headerTitleStyle: { fontWeight: "bold" },
+        }}
+      />
     </SettingsStack.Navigator>
   );
 };

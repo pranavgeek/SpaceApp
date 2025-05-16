@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef, Platform } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiLogin, updateUser } from "../backend/db/API";
+import { apiLogin, updateUser, switchUserRole } from "../backend/db/API";
 
 const AuthContext = createContext(null);
 
@@ -88,6 +88,15 @@ export const AuthProvider = ({ children }) => {
         account_type: userRole.charAt(0).toUpperCase() + userRole.slice(1), // Ensure account_type is set and capitalized
         id: userData.user_id.toString(),
       };
+      
+      // For seller accounts, make sure we're tracking if they were originally a buyer or not
+      if (userRole === 'seller') {
+        // Check if this user was originally a buyer
+        const isOriginallyBuyer = await AsyncStorage.getItem("isOriginallyBuyer");
+        if (isOriginallyBuyer === "true") {
+          updatedUser.isOriginallyBuyer = true;
+        }
+      }
       
       // Update state and storage
       setUser(updatedUser);
@@ -214,6 +223,44 @@ export const AuthProvider = ({ children }) => {
       throw new Error("No user logged in");
     }
   };
+
+  // Function to toggle seller mode
+  const toggleSellerMode = async (activate = true) => {
+    if (!user) {
+      console.error("Cannot toggle seller mode: No user is logged in");
+      throw new Error("No user logged in");
+    }
+  
+    setLoading(true);
+    try {
+      // Only buyers can activate seller mode
+      if (activate && user.role !== "buyer") {
+        throw new Error("Only buyers can activate seller mode");
+      }
+  
+      // Call the backend API to switch roles
+      const response = await switchUserRole(user.user_id, "seller", activate);
+      
+      if (!response.success) {
+        throw new Error(response.message || "Failed to toggle seller mode");
+      }
+      
+      // Update the user state with the new data
+      setUser(response.user);
+      
+      console.log(activate ? 
+        "✅ User switched to seller mode" : 
+        "✅ User returned to buyer mode"
+      );
+      
+      return response.user;
+    } catch (error) {
+      console.error("Failed to toggle seller mode:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
   
   
   return (
@@ -222,7 +269,8 @@ export const AuthProvider = ({ children }) => {
         user, 
         login, 
         logout, 
-        updateRole, 
+        updateRole,
+        toggleSellerMode, 
         loading, 
         isFirstLogin, 
         setIsFirstLogin, 

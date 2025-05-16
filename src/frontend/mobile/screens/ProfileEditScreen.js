@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import InputMain from "../components/InputMain";
@@ -16,6 +17,8 @@ import InputSetting from "../components/InputSetting.js";
 import { useAuth } from "../context/AuthContext.js";
 import { updateUser } from "../backend/db/API.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import FileService from "../backend/FileService.js";
+import * as ImagePicker from "expo-image-picker";
 
 export default function ProfileEditScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -25,19 +28,25 @@ export default function ProfileEditScreen({ navigation }) {
   const [twitter, setTwitter] = useState("");
   const [linkedIn, setLinkedIn] = useState("");
   const [website, setWebsite] = useState("");
-  // New state variables for gender and age
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
 
+  // Store both local and server URLs
+  const [imageUris, setImageUris] = useState({
+    localUri: null, // For display in the app
+    serverUri: null, // For saving to the backend
+  });
+
+  const [uploading, setUploading] = useState(false);
+
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
-  const { user, setUser } = useAuth();
+  const { user, updateUserSilently } = useAuth();
 
   useEffect(() => {
     console.log("Current user data:", JSON.stringify(user, null, 2));
-    
+
     if (user) {
-      // Set the form values from user data
       setName(user.name || "");
       setDescription(user.about_us || "");
       setCity(user.city || "");
@@ -45,15 +54,177 @@ export default function ProfileEditScreen({ navigation }) {
       setTwitter(user.social_media_x || "");
       setLinkedIn(user.social_media_linkedin || "");
       setWebsite(user.social_media_website || "");
-      
-      // Check if gender and age exist and log their values
-      console.log("Gender property exists:", user.hasOwnProperty('gender'));
-      console.log("Age property exists:", user.hasOwnProperty('age'));
-      
       setGender(user.gender || "");
       setAge(user.age !== undefined ? String(user.age) : "");
+
+      // Set the profile image from user data
+      if (user.profile_image) {
+        // Just save it as the server URI, we'll display it locally
+        setImageUris({
+          localUri: null,
+          serverUri: user.profile_image,
+        });
+      }
     }
   }, [user]);
+
+  const handleImageUpload = async () => {
+    Alert.alert("Update Profile Picture", "Choose your image source", [
+      {
+        text: "Take Photo",
+        onPress: handleTakePhoto,
+      },
+      {
+        text: "Choose from Gallery",
+        onPress: handlePickImage,
+      },
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+    ]);
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      setUploading(true);
+
+      // Request permission
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Camera permission is required to take a photo"
+        );
+        setUploading(false);
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) {
+        setUploading(false);
+        return;
+      }
+
+      // Get the local URI
+      const localUri = result.assets[0].uri;
+
+      try {
+        // Upload to server
+        const uploadResult = await FileService.uploadImage(localUri, "profile");
+
+        if (uploadResult.success) {
+          console.log(
+            "Profile image uploaded successfully:",
+            uploadResult.fullUrl
+          );
+
+          // Save both URIs
+          setImageUris({
+            localUri: localUri, // For display in the app
+            serverUri: uploadResult.fullUrl, // For saving to backend
+          });
+        } else {
+          // Just use local URI if upload fails
+          setImageUris({
+            localUri: localUri,
+            serverUri: null,
+          });
+        }
+      } catch (uploadError) {
+        console.error("Error uploading photo:", uploadError);
+        // Just use local URI if upload fails
+        setImageUris({
+          localUri: localUri,
+          serverUri: null,
+        });
+      }
+
+      setUploading(false);
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      Alert.alert("Error", "Failed to take photo");
+      setUploading(false);
+    }
+  };
+
+  const handlePickImage = async () => {
+    try {
+      setUploading(true);
+
+      // Request permission
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Gallery permission is required to pick an image"
+        );
+        setUploading(false);
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) {
+        setUploading(false);
+        return;
+      }
+
+      // Get the local URI
+      const localUri = result.assets[0].uri;
+      console.log("Selected image URI:", localUri);
+
+      try {
+        // Upload to server
+        const uploadResult = await FileService.uploadImage(localUri, "profile");
+
+        if (uploadResult.success) {
+          console.log(
+            "Profile image uploaded successfully:",
+            uploadResult.fullUrl
+          );
+
+          // Save both URIs
+          setImageUris({
+            localUri: localUri, // For display in the app
+            serverUri: uploadResult.fullUrl, // For saving to backend
+          });
+          console.log("Updated imageUris:", { localUri, serverUri: uploadResult.fullUrl });
+        } else {
+          // Just use local URI if upload fails
+          setImageUris({
+            localUri: localUri,
+            serverUri: null,
+          });
+        }
+      } catch (uploadError) {
+        console.error("Error uploading image:", uploadError);
+        // Just use local URI if upload fails
+        setImageUris({
+          localUri: localUri,
+          serverUri: null,
+        });
+      }
+
+      setUploading(false);
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick image");
+      setUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -68,30 +239,65 @@ export default function ProfileEditScreen({ navigation }) {
         social_media_website: website,
         gender,
         age: parseInt(age, 10),
+        profile_image: imageUris.serverUri || imageUris.localUri || user.profile_image,
       };
-
+  
+      console.log("Saving profile image URL:", updatedUser.profile_image);
+  
+      // Update the user in the backend
       const response = await updateUser(user.user_id, updatedUser);
-      setUser(response); // Update the user context
-      await AsyncStorage.setItem("user", JSON.stringify(response));
+      
+      // Update the user in AsyncStorage silently
+      await updateUserSilently(response);
+      
+      // Alert success
       alert("✅ Profile updated successfully!");
-      // navigation.navigate("Profile");
     } catch (error) {
       console.error("Error saving profile:", error);
+      Alert.alert("Error", "Failed to update profile");
     }
+  };
+
+  // Get the image source for display
+  const getImageSource = () => {
+    let source;
+    if (uploading) {
+      source = require("../assets/Animation - 1747363939710.gif");
+      console.log("Using loading animation");
+    } else if (imageUris.localUri) {
+      source = { uri: imageUris.localUri };
+      console.log("Using local URI:", imageUris.localUri);
+    } else if (imageUris.serverUri) {
+      source = { uri: imageUris.serverUri };
+      console.log("Using server URI:", imageUris.serverUri);
+    } else if (user?.profile_image) {
+      source = { uri: user.profile_image };
+      console.log("Using existing profile image:", user.profile_image);
+    } else {
+      source = {
+        uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+      };
+      console.log("Using default image");
+    }
+    return source;
   };
 
   return (
     <ScrollView style={styles.container}>
       {/* Profile Picture Section */}
       <View style={styles.profilePictureContainer}>
-        <Image
-          source={{
-            uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
-          }}
-          style={styles.profilePicture}
-        />
-        <TouchableOpacity style={styles.cameraButton}>
-          <Ionicons name="camera" size={20} color={colors.text} />
+        <TouchableOpacity onPress={handleImageUpload} disabled={uploading}>
+          <Image
+            source={getImageSource()}
+            style={styles.profilePicture}
+            resizeMode="cover"
+            onError={(e) =>
+              console.error("Error loading image:", e.nativeEvent.error)
+            }
+          />
+          <View style={styles.cameraButton}>
+            <Ionicons name="camera" size={20} color={colors.text} />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -138,28 +344,6 @@ export default function ProfileEditScreen({ navigation }) {
         />
       </BaseContainer>
 
-      {/* Social Media Section */}
-      {/* <BaseContainer title={"Social Media"}>
-        <InputSetting
-          placeholder="account@"
-          label="X"
-          value={twitter}
-          onChangeText={setTwitter}
-        />
-        <InputSetting
-          placeholder="www.LinkedIn.com/In/name"
-          label="LinkedIn"
-          value={linkedIn}
-          onChangeText={setLinkedIn}
-        />
-        <InputSetting
-          placeholder="www.website.com"
-          label="Website"
-          value={website}
-          onChangeText={setWebsite}
-        />
-      </BaseContainer> */}
-
       {/* Save Button */}
       <View style={styles.inputContainer}>
         <ButtonMain onPress={handleSave}>
@@ -192,7 +376,7 @@ const getDynamicStyles = (colors) =>
     cameraButton: {
       position: "absolute",
       bottom: 0,
-      right: 110,
+      right: 0,
       width: 36,
       height: 36,
       borderRadius: 18,

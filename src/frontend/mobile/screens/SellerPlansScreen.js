@@ -656,66 +656,115 @@ function SellerPlansScreen({ navigation }) {
       Alert.alert("Error", "You don't have an active subscription to cancel.");
       return;
     }
-
+  
     try {
       setIsCancelling(true);
       console.log(
         `Starting cancellation process for plan: ${user.tier} with reason: ${reason}`
       );
-
-      // For iOS and Android, direct users to respective stores to cancel
-      if (Platform.OS === "ios") {
-        console.log(
-          "iOS platform detected, redirecting to App Store subscriptions"
-        );
-        // iOS - Link to subscription settings
-        Linking.openURL("https://apps.apple.com/account/subscriptions");
-        setCancelModalVisible(false);
-        setIsCancelling(false);
-        return;
-      } else if (Platform.OS === "android") {
-        console.log(
-          "Android platform detected, redirecting to Google Play subscriptions"
-        );
-        // Android - Link to Google Play subscription settings
-        Linking.openURL("https://play.google.com/store/account/subscriptions");
-        setCancelModalVisible(false);
-        setIsCancelling(false);
-        return;
-      } else {
-        // For web or other platforms - handle through your backend
-        console.log("Web/other platform detected, cancelling via backend API");
-
-        try {
-          // Check if the cancelSubscription function exists
-          if (!API.cancelSubscription) {
-            console.error("API.cancelSubscription function not found!");
-            throw new Error("Cancel subscription function not available");
-          }
-
-          // Update the server to downgrade the account
-          const result = await API.cancelSubscription(user.user_id, reason);
-          console.log("Cancellation API result:", result);
-
-          // After successful cancellation API call, reset to basic plan locally
-          await resetToBasicPlan();
-
-          // Clear the subscription end date
-          await AsyncStorage.removeItem("subscriptionEndDate");
-          setSubscriptionExpireDate(null);
-
+  
+      // For iOS and Android, we'll still show the platform-specific subscription management
+      // but we'll also immediately downgrade them to basic plan in our system
+      
+      // First, call the API to record the cancellation
+      console.log("Web/other platform detected, cancelling via backend API");
+  
+      try {
+        // Check if the cancelSubscription function exists
+        if (!API.cancelSubscription) {
+          console.error("API.cancelSubscription function not found!");
+          throw new Error("Cancel subscription function not available");
+        }
+  
+        // Update the server to downgrade the account
+        const result = await API.cancelSubscription(user.user_id, reason);
+        console.log("Cancellation API result:", result);
+  
+        // After successful cancellation API call, reset to basic plan locally
+        await resetToBasicPlan();
+  
+        // Clear the subscription end date
+        await AsyncStorage.removeItem("subscriptionEndDate");
+        setSubscriptionExpireDate(null);
+        
+        // Now direct the user to app store to actually cancel their payment
+        if (Platform.OS === "ios") {
+          console.log("iOS platform detected, redirecting to App Store subscriptions");
+          
+          Alert.alert(
+            "Plan Downgraded",
+            "Your account has been downgraded to the basic plan. To stop future payments, please also cancel your subscription in the App Store.",
+            [
+              {
+                text: "Cancel in App Store",
+                onPress: () => {
+                  Linking.openURL("https://apps.apple.com/account/subscriptions");
+                }
+              },
+              {
+                text: "Done",
+                style: "cancel",
+                onPress: () => {
+                  // Navigate home after confirmation
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "TabSettings" }],
+                  });
+                }
+              }
+            ]
+          );
+        } else if (Platform.OS === "android") {
+          console.log("Android platform detected, redirecting to Google Play subscriptions");
+          
+          Alert.alert(
+            "Plan Downgraded",
+            "Your account has been downgraded to the basic plan. To stop future payments, please also cancel your subscription in Google Play.",
+            [
+              {
+                text: "Cancel in Google Play",
+                onPress: () => {
+                  Linking.openURL("https://play.google.com/store/account/subscriptions");
+                }
+              },
+              {
+                text: "Done",
+                style: "cancel",
+                onPress: () => {
+                  // Navigate home after confirmation
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Home" }],
+                  });
+                }
+              }
+            ]
+          );
+        } else {
+          // For web or other platforms, just show a confirmation
           Alert.alert(
             "Subscription Cancelled",
-            "Your subscription has been cancelled. You will continue to have access until the end of your current billing period.",
-            [{ text: "OK" }]
-          );
-        } catch (error) {
-          console.error("Error cancelling subscription:", error);
-          Alert.alert(
-            "Error",
-            "Failed to cancel your subscription. Please try again or contact support."
+            "Your subscription has been cancelled. Your account has been downgraded to the basic plan.",
+            [
+              { 
+                text: "OK",
+                onPress: () => {
+                  // Navigate home after confirmation
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "TabSettings" }],
+                  });
+                }
+              }
+            ]
           );
         }
+      } catch (error) {
+        console.error("Error cancelling subscription:", error);
+        Alert.alert(
+          "Error",
+          "Failed to cancel your subscription. Please try again or contact support."
+        );
       }
     } catch (error) {
       console.error("Error processing subscription cancellation:", error);
@@ -1204,16 +1253,16 @@ function SellerPlansScreen({ navigation }) {
     }
 
     // Check if user already has this plan
-    if (hasPlan(plan.id)) {
-      Alert.alert("Plan Active", `You already have the ${plan.title} plan.`, [
-        {
-          text: "Manage Subscriptions",
-          onPress: () => navigation.navigate("SubscriptionManagement"),
-        },
-        { text: "OK" },
-      ]);
-      return;
-    }
+    // if (hasPlan(plan.id)) {
+    //   Alert.alert("Plan Active", `You already have the ${plan.title} plan.`, [
+    //     {
+    //       text: "Manage Subscriptions",
+    //       onPress: () => navigation.navigate("SubscriptionManagement"),
+    //     },
+    //     { text: "OK" },
+    //   ]);
+    //   return;
+    // }
 
     if (period === "monthly") {
       // First show terms modal
@@ -1346,7 +1395,7 @@ function SellerPlansScreen({ navigation }) {
             advanced features, unlimited products, and{"\n"}
             dedicated support
           </Text>
-          {__DEV__ && (
+          {/* {__DEV__ && (
             <TouchableOpacity
               style={styles.debugButton}
               onPress={() => {
@@ -1369,7 +1418,7 @@ function SellerPlansScreen({ navigation }) {
             >
               <Text style={styles.debugButtonText}>Test Monthly</Text>
             </TouchableOpacity>
-          )}
+          )} */}
         </View>
 
         {/* Plans Content */}
@@ -1522,7 +1571,7 @@ function SellerPlansScreen({ navigation }) {
         </View>
 
         {/* Restore Purchases Button */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.restoreButton}
           onPress={restorePurchases}
           disabled={restoring}
@@ -1532,7 +1581,7 @@ function SellerPlansScreen({ navigation }) {
           ) : (
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           )}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Terms and Privacy Text */}
         <View style={styles.termsContainer}>
@@ -1559,14 +1608,14 @@ function SellerPlansScreen({ navigation }) {
       </ScrollView>
 
       {/* Manage Subscriptions Button */}
-      {user && user.tier && user.tier !== "basic" && (
+      {/* {user && user.tier && user.tier !== "basic" && (
         <TouchableOpacity
           style={styles.manageButton}
           onPress={() => navigation.navigate("SubscriptionManagement")}
         >
           <Text style={styles.manageButtonText}>Manage My Subscriptions</Text>
         </TouchableOpacity>
-      )}
+      )} */}
 
       {/* Terms and Conditions Modal */}
       <Modal

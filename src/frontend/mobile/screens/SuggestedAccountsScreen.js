@@ -232,7 +232,7 @@ export default function SuggestedAccountsScreen({ navigation }) {
       }
 
       // Navigate to the main app
-      navigation.navigate("TabHome");
+      navigation.navigate("MainApp");
     } catch (error) {
       console.error("Error saving seen status:", error);
     }

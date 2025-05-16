@@ -61,11 +61,6 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  const handleDowngrade = () => {
-    updateRole("buyer");
-    navigation.navigate("Home");
-  };
-
   // Custom setting item with modern design
   const SettingItem = ({
     icon,
@@ -130,11 +125,18 @@ export default function SettingsScreen({ navigation }) {
           <Image
             source={{
               uri:
-                user?.avatar ||
+                user?.profile_image || // Use profile_image instead of avatar
                 "https://ui-avatars.com/api/?name=" +
-                  user?.name?.replace(/\s+/g, "+"),
+                  user?.name?.replace(/\s+/g, "+") +
+                  "&background=random",
             }}
             style={styles.profileImage}
+            onError={(e) => {
+              console.error(
+                "Profile image load error in settings:",
+                e.nativeEvent.error
+              );
+            }}
           />
           <View style={styles.profileBadge}>
             <Ionicons
@@ -192,7 +194,7 @@ export default function SettingsScreen({ navigation }) {
             title="Sellers Plans"
             // subtitle={user.role !== "buyer" ? "You are already a seller" : "Upgrade your account"}
             onPress={() => navigation.navigate("Sellers Plans")}
-            // disabled={user.role !== "buyer"}
+            disabled={user.role === "buyer"}
             showDivider={false}
           />
         )}

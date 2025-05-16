@@ -2,12 +2,19 @@ const { checkSubscriptionLimits } = require("./db/subscription-middleware.js");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
 const path = require("path");
 const db = require("./db/database");
 const fs = require("fs");
+const multer = require("multer");
 const nodeMailer = require("nodemailer");
- 
+
+// const fileRoutes = require("./s3 local/fileRoutes.js");
+// const fileStorage = require("./s3 local/fileStorage");
+
+// fileStorage.initializeStorage();
+
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -16,8 +23,93 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// app.use("/api/files", fileRoutes);
 
 app.use(express.static(path.join(__dirname, "public")));
+
+const uploadsPath = path.join(__dirname, "s3Local", "public", "uploads");
+const productImagesPath = path.join(__dirname, 's3Local', 'public', 'uploads', 'products');
+console.log("Serving static files from:", uploadsPath);
+console.log('Serving product images from:', productImagesPath);
+
+// Setup storage for uploaded files
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Get folder from request query params or use 'images' as default
+    const folder = req.query.folder || "images";
+    const uploadPath = path.join(__dirname, "public", "uploads", folder);
+
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    // Generate a unique filename using uuid or timestamp
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniqueSuffix + ext);
+  },
+});
+
+// Configure multer
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      return cb(new Error("Only image files are allowed!"), false);
+    }
+    cb(null, true);
+  },
+});
+
+// Make sure uploads directory exists
+const uploadsDir = path.join(__dirname, "public", "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+if (!fs.existsSync(productImagesPath)) {
+  fs.mkdirSync(productImagesPath, { recursive: true });
+  console.log('Created products directory');
+}
+
+// Configure product image storage
+const productStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Use the products directory for product images
+    cb(null, productImagesPath);
+  },
+  filename: (req, file, cb) => {
+    // Generate a unique filename or use the product ID
+    const productId = req.query.productId || Date.now();
+    const ext = path.extname(file.originalname);
+    cb(null, `product-${productId}${ext}`);
+  }
+});
+
+const productUpload = multer({ 
+  storage: productStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
+
+app.use("/uploads", express.static(uploadsPath));
+app.use('/uploads/products', express.static(productImagesPath));
 
 app.use(cors());
 app.options("*", cors()); // Allow all CORS preflights
@@ -43,10 +135,10 @@ const saveData = (data) => {
 function readData() {
   try {
     const dataFilePath = path.join(__dirname, "db", "data.json");
-    const rawData = fs.readFileSync(dataFilePath, 'utf8');
+    const rawData = fs.readFileSync(dataFilePath, "utf8");
     return JSON.parse(rawData);
   } catch (error) {
-    console.error('Error reading data file:', error);
+    console.error("Error reading data file:", error);
     return { collaboration_requests: [] };
   }
 }
@@ -55,65 +147,327 @@ function readData() {
 function writeData(data) {
   try {
     const dataFilePath = path.join(__dirname, "db", "data.json");
-    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf8');
+    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), "utf8");
     return true;
   } catch (error) {
-    console.error('Error writing data file:', error);
+    console.error("Error writing data file:", error);
     return false;
   }
 }
 
-app.put('/api/collaboration-requests/update-status', (req, res) => {
+// Product image upload endpoint
+app.post('/api/products/upload-image', productUpload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+    
+    // Get the product ID from query params
+    const productId = req.query.productId || 'unknown';
+    
+    // Construct the file URL relative to your server
+    const fileUrl = `/products/${path.basename(req.file.path)}`;
+    
+    // Construct full URL including server address
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const fullUrl = `${protocol}://${host}${fileUrl}`;
+    
+    console.log(`Product image uploaded successfully to ${req.file.path}`);
+    console.log(`File accessible at ${fullUrl}`);
+    
+    // Return success response with file details
+    res.json({
+      success: true,
+      fileName: path.basename(req.file.path),
+      filePath: req.file.path,
+      url: fileUrl,
+      fullUrl: fullUrl,
+      productId: productId
+    });
+  } catch (error) {
+    console.error('Error uploading product image:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Add a test endpoint for debugging image access
+app.get('/debug/image-test', (req, res) => {
+  const imagePath = req.query.path || '/products/test.jpg';
+  let fullPath;
+  
+  if (imagePath.startsWith('/products/')) {
+    fullPath = path.join(__dirname, 's3Local', 'public', imagePath.replace(/^\/products\//, ''));
+  } else if (imagePath.startsWith('/uploads/')) {
+    fullPath = path.join(__dirname, 's3Local', 'public', imagePath.replace(/^\/uploads\//, ''));
+  } else {
+    fullPath = path.join(__dirname, 's3Local', 'public', imagePath);
+  }
+  
+  console.log('Checking image path:', fullPath);
+  const exists = fs.existsSync(fullPath);
+  
+  if (exists) {
+    const stats = fs.statSync(fullPath);
+    res.json({
+      exists: true,
+      path: fullPath,
+      url: imagePath,
+      fullUrl: `http://${req.get('host')}${imagePath}`,
+      isFile: stats.isFile(),
+      size: stats.size,
+      htmlTest: `<img src="http://${req.get('host')}${imagePath}" width="200" />`
+    });
+  } else {
+    res.json({
+      exists: false,
+      path: fullPath,
+      error: 'File not found'
+    });
+  }
+});
+
+// File upload endpoint
+app.post("/api/upload", upload.single("file"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: "No file uploaded",
+      });
+    }
+
+    // Get the folder from query params
+    const folder = req.query.folder || "images";
+
+    // Construct the file URL relative to your server
+    const fileUrl = `/uploads/${folder}/${path.basename(req.file.path)}`;
+
+    // Construct full URL including server address
+    const host = req.get("host");
+    const protocol = req.protocol;
+    const fullUrl = `${protocol}://${host}${fileUrl}`;
+
+    console.log(`File uploaded successfully to ${req.file.path}`);
+    console.log(`File accessible at ${fullUrl}`);
+
+    // Return success response with file details
+    res.json({
+      success: true,
+      fileName: path.basename(req.file.path),
+      filePath: req.file.path,
+      url: fileUrl,
+      fullUrl: fullUrl,
+    });
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// ================================================================
+
+// Handle sub-login (switch between roles while preserving original role)
+app.post("/api/users/:userId/switch-role", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { role, activate } = req.body;
+
+    console.log(
+      `Processing role switch for user ${userId} to ${role} (activate: ${activate})`
+    );
+
+    // Load the current data
+    const data = loadData();
+
+    // Find the user
+    const userIndex = data.users.findIndex((u) => u.user_id === userId);
+
+    if (userIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const user = data.users[userIndex];
+
+    // When activating a secondary role (e.g., buyer becoming a seller)
+    if (activate === true) {
+      // Only buyers can activate seller mode
+      if (user.role !== "buyer") {
+        return res.status(400).json({
+          success: false,
+          message: "Only buyers can activate seller mode",
+        });
+      }
+
+      // Store original role before switching
+      const originalRole = user.role;
+      const originalAccountType = user.account_type;
+
+      // Update user with the new role while preserving original role
+      const updatedUser = {
+        ...user,
+        original_role: originalRole,
+        original_account_type: originalAccountType,
+        role: role.toLowerCase(),
+        account_type: role.charAt(0).toUpperCase() + role.slice(1),
+        tier: role.toLowerCase() === "seller" ? "basic" : user.tier, // Default tier for sellers
+      };
+
+      // Update the user
+      data.users[userIndex] = updatedUser;
+    }
+    // When deactivating alternate role (returning to original role)
+    else {
+      // Check if user has an original role stored
+      if (!user.original_role) {
+        return res.status(400).json({
+          success: false,
+          message: "This account doesn't have an original role to revert to",
+        });
+      }
+
+      // Restore the original role
+      const updatedUser = {
+        ...user,
+        role: user.original_role,
+        account_type: user.original_account_type,
+      };
+
+      // Remove the original role fields
+      delete updatedUser.original_role;
+      delete updatedUser.original_account_type;
+
+      // Update the user
+      data.users[userIndex] = updatedUser;
+    }
+
+    // Save the data
+    saveData(data);
+
+    // Return the updated user
+    res.json({
+      success: true,
+      message: activate
+        ? "Successfully switched to alternate role"
+        : "Successfully reverted to original role",
+      user: data.users[userIndex],
+    });
+  } catch (error) {
+    console.error("Error in role switching:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process role switch",
+      error: error.message,
+    });
+  }
+});
+
+// Check if a user can switch back to their original role
+app.get("/api/users/:userId/can-switch-back", (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const data = loadData();
+    const user = data.users.find((u) => u.user_id === userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if the user has an original role
+    const canSwitchBack = !!user.original_role;
+    const originalRole = user.original_role || null;
+
+    res.json({
+      success: true,
+      canSwitchBack,
+      originalRole,
+      currentRole: user.role,
+    });
+  } catch (error) {
+    console.error("Error checking switch back capability:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check switch back capability",
+      error: error.message,
+    });
+  }
+});
+
+// ================================================================
+
+app.put("/api/collaboration-requests/update-status", (req, res) => {
   try {
     // Get the parameters from the request body
     const { sellerId, influencerId, status } = req.body;
-    
-    console.log(`Updating collaboration status: Seller=${sellerId}, Influencer=${influencerId}, Status=${status}`);
+
+    console.log(
+      `Updating collaboration status: Seller=${sellerId}, Influencer=${influencerId}, Status=${status}`
+    );
     console.log("Request body:", req.body);
-    
+
     // IMPORTANT: Make sure status is a string, not an object
-    const statusValue = typeof status === 'object' ? status.status : status;
-    
+    const statusValue = typeof status === "object" ? status.status : status;
+
     console.log(`Using status value: ${statusValue}`);
-    
+
     // Read the current data
-    const dataPath = path.join(__dirname, 'db', 'data.json');
-    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-    
+    const dataPath = path.join(__dirname, "db", "data.json");
+    const data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+
     // Initialize if needed
     if (!data.collaboration_requests) {
       data.collaboration_requests = [];
     }
-    
+
     // Find the matching request
-    let foundIndex = data.collaboration_requests.findIndex(req => 
-      String(req.sellerId) === String(sellerId) && 
-      String(req.influencerId) === String(influencerId)
+    let foundIndex = data.collaboration_requests.findIndex(
+      (req) =>
+        String(req.sellerId) === String(sellerId) &&
+        String(req.influencerId) === String(influencerId)
     );
-    
+
     // If not found, try by name or with flexible matching
     if (foundIndex === -1) {
       // Try other matching techniques
-      foundIndex = data.collaboration_requests.findIndex(req => 
-        (req.sellerName === sellerId || String(req.sellerId) === String(sellerId)) &&
-        (req.influencerName === influencerId || String(req.influencerId) === String(influencerId))
+      foundIndex = data.collaboration_requests.findIndex(
+        (req) =>
+          (req.sellerName === sellerId ||
+            String(req.sellerId) === String(sellerId)) &&
+          (req.influencerName === influencerId ||
+            String(req.influencerId) === String(influencerId))
       );
     }
-    
+
     // If found, update the request
     if (foundIndex !== -1) {
       // Update the status as a STRING, not an object
       data.collaboration_requests[foundIndex].status = statusValue;
-      data.collaboration_requests[foundIndex].statusUpdatedAt = new Date().toISOString();
-      
+      data.collaboration_requests[foundIndex].statusUpdatedAt =
+        new Date().toISOString();
+
       // Save the data
-      fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), 'utf8');
-      
+      fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), "utf8");
+
       // Return the updated request
       res.json({
         success: true,
         message: "Collaboration request status updated successfully",
-        request: data.collaboration_requests[foundIndex]
+        request: data.collaboration_requests[foundIndex],
       });
     } else {
       // Create a new request if not found
@@ -126,16 +480,16 @@ app.put('/api/collaboration-requests/update-status', (req, res) => {
         influencerName: req.body.influencerName || influencerId,
         product: "Collaboration Request",
         status: statusValue, // Use the STRING value
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-      
+
       data.collaboration_requests.push(newRequest);
-      fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), 'utf8');
-      
+      fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), "utf8");
+
       res.status(201).json({
         success: true,
         message: "Created new collaboration request",
-        request: newRequest
+        request: newRequest,
       });
     }
   } catch (error) {
@@ -143,7 +497,7 @@ app.put('/api/collaboration-requests/update-status', (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -155,49 +509,55 @@ const subscriptionMiddleware = checkSubscriptionLimits(loadData, saveData);
 function initializeFollowingData() {
   try {
     const data = loadData();
-    
+
     // Initialize following/followers arrays for all users
-    data.users.forEach(user => {
+    data.users.forEach((user) => {
       // For buyers, initialize following
-      if (user.account_type?.toLowerCase() === 'buyer') {
+      if (user.account_type?.toLowerCase() === "buyer") {
         if (!user.following) user.following = [];
       }
-      
+
       // For sellers and influencers, initialize followers
-      if (['seller', 'influencer'].includes(user.account_type?.toLowerCase())) {
+      if (["seller", "influencer"].includes(user.account_type?.toLowerCase())) {
         if (!user.followers) user.followers = [];
-        
+
         // If they have a followers_count but no followers array or empty followers array,
         // populate it with actual buyers
-        if (user.followers_count && (!user.followers || user.followers.length === 0)) {
+        if (
+          user.followers_count &&
+          (!user.followers || user.followers.length === 0)
+        ) {
           // Find all buyers to use as sample followers
-          const buyers = data.users.filter(u => 
-            u.account_type.toLowerCase() === 'buyer' &&
-            String(u.user_id) !== String(user.user_id)
+          const buyers = data.users.filter(
+            (u) =>
+              u.account_type.toLowerCase() === "buyer" &&
+              String(u.user_id) !== String(user.user_id)
           );
-          
+
           // Calculate how many followers to create (min of followers_count or available buyers)
           const followerCount = Math.min(user.followers_count, buyers.length);
-          
+
           // Assign random buyers as followers
           if (buyers.length > 0) {
             // Shuffle the buyers array to get random followers each time
             const shuffledBuyers = [...buyers].sort(() => 0.5 - Math.random());
-            
+
             // Take the first 'followerCount' buyers
             user.followers = shuffledBuyers
               .slice(0, followerCount)
-              .map(buyer => String(buyer.user_id));
-            
-            console.log(`✅ Initialized ${user.followers.length} followers for ${user.name} (${user.user_id})`);
+              .map((buyer) => String(buyer.user_id));
+
+            console.log(
+              `✅ Initialized ${user.followers.length} followers for ${user.name} (${user.user_id})`
+            );
           }
         }
-        
+
         // Set followers_count to match the actual followers array length
         user.followers_count = user.followers.length;
       }
     });
-    
+
     saveData(data);
     console.log("✅ Following data structure initialized");
   } catch (error) {
@@ -262,7 +622,10 @@ initializeFollowingData();
 app.patch(
   "/api/users/:userId/role",
   // allow bypassing subscription checks during the role switch…
-  (req, res, next) => { req.body.force = true; next(); },
+  (req, res, next) => {
+    req.body.force = true;
+    next();
+  },
   async (req, res) => {
     try {
       const { role, tier } = req.body;
@@ -303,9 +666,9 @@ app.post("/api/auth/request-reset", async (req, res) => {
   console.log("====================================\n");
 
   // Return success with OTP for development
-  res.json({ 
+  res.json({
     message: "OTP generated successfully. Check console for the code.",
-    dev_otp: otp // Include OTP in response for development
+    dev_otp: otp, // Include OTP in response for development
   });
 });
 
@@ -412,107 +775,127 @@ app.post("/api/users/:buyerId/orders/create", async (req, res) => {
   }
 });
 
-app.get("/api/sellers/:sellerId/subscription", subscriptionMiddleware, (req, res) => {
-  try {
-    // Return the limits and current usage from the middleware
-    res.json({
-      tier: req.sellerLimits.tier,
-      limits: {
-        products: req.sellerLimits.productLimit,
-        collaborations: req.sellerLimits.collaborationLimit,
-        fee_percentage: req.sellerLimits.feePercentage
-      },
-      usage: {
-        products: req.sellerStats.productCount,
-        collaborations: req.sellerStats.collaborationCount,
-        products_remaining: Math.max(0, req.sellerLimits.productLimit - req.sellerStats.productCount),
-        collaborations_remaining: Math.max(0, req.sellerLimits.collaborationLimit - req.sellerStats.collaborationCount)
-      },
-      is_at_limit: {
-        products: req.sellerStats.productCount >= req.sellerLimits.productLimit,
-        collaborations: req.sellerStats.collaborationCount >= req.sellerLimits.collaborationLimit
-      }
-    });
-  } catch (error) {
-    console.error("Error getting seller subscription details:", error);
-    res.status(500).json({ error: "Failed to get seller subscription details" });
+app.get(
+  "/api/sellers/:sellerId/subscription",
+  subscriptionMiddleware,
+  (req, res) => {
+    try {
+      // Return the limits and current usage from the middleware
+      res.json({
+        tier: req.sellerLimits.tier,
+        limits: {
+          products: req.sellerLimits.productLimit,
+          collaborations: req.sellerLimits.collaborationLimit,
+          fee_percentage: req.sellerLimits.feePercentage,
+        },
+        usage: {
+          products: req.sellerStats.productCount,
+          collaborations: req.sellerStats.collaborationCount,
+          products_remaining: Math.max(
+            0,
+            req.sellerLimits.productLimit - req.sellerStats.productCount
+          ),
+          collaborations_remaining: Math.max(
+            0,
+            req.sellerLimits.collaborationLimit -
+              req.sellerStats.collaborationCount
+          ),
+        },
+        is_at_limit: {
+          products:
+            req.sellerStats.productCount >= req.sellerLimits.productLimit,
+          collaborations:
+            req.sellerStats.collaborationCount >=
+            req.sellerLimits.collaborationLimit,
+        },
+      });
+    } catch (error) {
+      console.error("Error getting seller subscription details:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to get seller subscription details" });
+    }
   }
-});
+);
 
 async function checkExpiredSubscriptions() {
   try {
     console.log("🔄 Running scheduled check for expired subscriptions...");
-    
+
     // Load the current data
     const data = loadData();
-    
+
     // Get current date at midnight for comparison
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
-    
+
     // Count of downgrades performed
     let downgradeCount = 0;
-    
+
     // Check each user for expired subscriptions
     for (let i = 0; i < data.users.length; i++) {
       const user = data.users[i];
-      
+
       // Skip users without a subscription end date or who are already on basic plan
-      if (!user.subscription_end_date || user.tier === 'basic' || !user.tier) {
+      if (!user.subscription_end_date || user.tier === "basic" || !user.tier) {
         continue;
       }
-      
+
       // Parse the subscription end date
       const endDate = new Date(user.subscription_end_date);
       endDate.setHours(0, 0, 0, 0); // Normalize to midnight
-      
+
       // Check if subscription has expired
       if (endDate <= currentDate) {
-        console.log(`User ${user.user_id} subscription expired on ${endDate.toLocaleDateString()}, downgrading to basic plan`);
-        
+        console.log(
+          `User ${user.user_id} subscription expired on ${endDate.toLocaleDateString()}, downgrading to basic plan`
+        );
+
         // Track the previous tier for the log
         const previousTier = user.tier;
-        
+
         // Downgrade user to basic plan
-        user.tier = 'basic';
+        user.tier = "basic";
         user.subscription_end_date = null;
         user.subscription_cancelled = false;
         user.subscription_cancelled_at = null;
-        
+
         // Log this downgrade
         if (!data.subscription_downgrades) {
           data.subscription_downgrades = [];
         }
-        
+
         data.subscription_downgrades.push({
           user_id: user.user_id,
           previous_tier: previousTier,
           downgrade_date: new Date().toISOString(),
-          reason: "Subscription period ended"
+          reason: "Subscription period ended",
         });
-        
+
         // Increment counter
         downgradeCount++;
       }
     }
-    
+
     // If any users were downgraded, save the updated data
     if (downgradeCount > 0) {
       saveData(data);
-      console.log(`✅ Downgraded ${downgradeCount} users to basic plan due to expired subscriptions`);
+      console.log(
+        `✅ Downgraded ${downgradeCount} users to basic plan due to expired subscriptions`
+      );
     } else {
       console.log("✅ No expired subscriptions found");
     }
-    
+
     return {
       success: true,
-      downgradeCount
+      downgradeCount,
     };
   } catch (error) {
     console.error("❌ Error checking expired subscriptions:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -522,12 +905,12 @@ app.post("/api/admin/check-expired-subscriptions", async (req, res) => {
   try {
     // Check if request is from an admin (implement your auth check here)
     // if (!isAdmin(req.user)) {
-    //   return res.status(403).json({ 
-    //     success: false, 
-    //     message: "Unauthorized" 
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Unauthorized"
     //   });
     // }
-    
+
     const result = await checkExpiredSubscriptions();
     res.json(result);
   } catch (error) {
@@ -535,7 +918,7 @@ app.post("/api/admin/check-expired-subscriptions", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to check expired subscriptions",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -544,87 +927,90 @@ app.post("/api/subscriptions/:userId/cancel", async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { reason, cancelled_at } = req.body;
-    
-    console.log(`Processing subscription cancellation for user ${userId} with reason: ${reason}`);
-    
+
+    console.log(
+      `Processing subscription cancellation for user ${userId} with reason: ${reason}`
+    );
+
     // Load the current data
     const data = loadData();
-    
+
     // Find the user
-    const userIndex = data.users.findIndex(u => u.user_id === userId);
-    
+    const userIndex = data.users.findIndex((u) => u.user_id === userId);
+
     if (userIndex === -1) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "User not found" 
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
       });
     }
-    
+
     const user = data.users[userIndex];
-    
+
     // Check if user has an active subscription
     if (!user.tier || user.tier === "basic") {
       return res.status(400).json({
         success: false,
-        message: "No active subscription to cancel"
+        message: "No active subscription to cancel",
       });
     }
-    
+
     // Record cancellation data but don't change the tier immediately
     // This allows users to continue using premium features until their subscription period ends
-    
+
     // Create a cancellation record
     if (!data.subscription_cancellations) {
       data.subscription_cancellations = [];
     }
-    
+
     const cancellationRecord = {
       user_id: userId,
       previous_tier: user.tier,
-      reason: reason || 'User requested cancellation',
+      reason: reason || "User requested cancellation",
       cancelled_at: cancelled_at || new Date().toISOString(),
       subscription_end_date: user.subscription_end_date || null,
-      auto_downgrade: true
+      auto_downgrade: true,
     };
-    
+
     data.subscription_cancellations.push(cancellationRecord);
-    
+
     // Mark the subscription as cancelled in the user object
     // but preserve the tier and subscription_end_date
     user.subscription_cancelled = true;
     user.subscription_cancelled_at = cancelled_at || new Date().toISOString();
-    
+
     // Save the updated data
     saveData(data);
-    
+
     // If we have a scheduler or cron job, we would set up an automatic downgrade
     // when the subscription_end_date is reached
-    
+
     // For demo purposes, let's log when this subscription should be downgraded
     if (user.subscription_end_date) {
       const endDate = new Date(user.subscription_end_date);
-      console.log(`User ${userId} subscription will be downgraded to basic on ${endDate.toLocaleDateString()}`);
-      
+      console.log(
+        `User ${userId} subscription will be downgraded to basic on ${endDate.toLocaleDateString()}`
+      );
+
       // Here you might set up a scheduled job to downgrade the user automatically
       // when their subscription period ends
     }
-    
+
     // Return success response
     res.json({
       success: true,
       message: "Subscription cancellation recorded successfully",
-      keep_access_until: user.subscription_end_date || null
+      keep_access_until: user.subscription_end_date || null,
     });
   } catch (error) {
     console.error("Error cancelling subscription:", error);
     res.status(500).json({
       success: false,
       message: "Failed to process subscription cancellation",
-      error: error.message
+      error: error.message,
     });
   }
 });
-
 
 // Helper function to get base URL for loading data
 function getUtilsModule() {
@@ -637,16 +1023,15 @@ function getUtilsModule() {
       );
       return JSON.parse(rawData);
     },
-    
+
     saveData: (data) => {
       fs.writeFileSync(
         path.join(__dirname, "db", "data.json"),
         JSON.stringify(data, null, 2)
       );
-    }
+    },
   };
 }
-
 
 // GET: Get seller's received orders
 app.get("/api/users/:sellerId/received-orders", async (req, res) => {
@@ -698,26 +1083,26 @@ app.delete("/api/orders/:orderId/cancel", async (req, res) => {
   try {
     const { orderId } = req.params;
     console.log(`🧾 Cancelling order: ${orderId}`);
-    
+
     const success = await db.cancelOrder(orderId);
-    
+
     if (success) {
-      res.status(200).json({ 
-        success: true, 
-        message: "Order cancelled successfully" 
+      res.status(200).json({
+        success: true,
+        message: "Order cancelled successfully",
       });
     } else {
-      res.status(404).json({ 
-        success: false, 
-        message: "Order not found" 
+      res.status(404).json({
+        success: false,
+        message: "Order not found",
       });
     }
   } catch (error) {
     console.error(`❌ Error cancelling order: ${error.message}`);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to cancel order", 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel order",
+      error: error.message,
     });
   }
 });
@@ -776,12 +1161,12 @@ app.get("/api/users/:userId/security-settings", (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const data = loadData();
-    const user = data.users.find(u => u.user_id === userId);
-    
+    const user = data.users.find((u) => u.user_id === userId);
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Return security settings
     res.json({
       twoFactorEnabled: user.is_two_factor_enabled || false,
@@ -791,8 +1176,8 @@ app.get("/api/users/:userId/security-settings", (req, res) => {
         hideActivity: false,
         hideContacts: false,
         hideProducts: false,
-        allowMessagesFrom: "everyone"
-      }
+        allowMessagesFrom: "everyone",
+      },
     });
   } catch (error) {
     console.error("Error getting security settings:", error);
@@ -805,23 +1190,25 @@ app.put("/api/users/:userId/password", (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { currentPassword, newPassword } = req.body;
-    
+
     const data = loadData();
-    const user = data.users.find(u => u.user_id === userId);
-    
+    const user = data.users.find((u) => u.user_id === userId);
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Verify current password
     if (user.password !== currentPassword) {
-      return res.status(401).json({ success: false, message: "Current password is incorrect" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Current password is incorrect" });
     }
-    
+
     // Update password
     user.password = newPassword;
     saveData(data);
-    
+
     res.json({ success: true, message: "Password updated successfully" });
   } catch (error) {
     console.error("Error updating password:", error);
@@ -833,37 +1220,41 @@ app.put("/api/users/:userId/password", (req, res) => {
 app.post("/api/auth/2fa/request-code", (req, res) => {
   try {
     const { userId, phoneNumber } = req.body;
-    
+
     const data = loadData();
-    const user = data.users.find(u => u.user_id === parseInt(userId));
-    
+    const user = data.users.find((u) => u.user_id === parseInt(userId));
+
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
-    
+
     // Generate a verification code (6 digits)
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
     const verificationId = Date.now().toString();
-    
+
     // Store the verification info in the user object
     user.verification_code = verificationCode;
     user.verification_id = verificationId;
     user.verification_expiry = Date.now() + 5 * 60 * 1000; // 5 minutes validity
     user.temp_phone_number = phoneNumber;
-    
+
     saveData(data);
-    
+
     // For development - log the code to console
     console.log("\n===================================");
     console.log(`📱 2FA VERIFICATION CODE for user ${userId}:`);
     console.log(`📱 ${verificationCode}`);
     console.log("===================================\n");
-    
+
     res.json({
       success: true,
       verificationId,
       message: "Verification code sent successfully",
-      dev_code: verificationCode // Include code in response for development
+      dev_code: verificationCode, // Include code in response for development
     });
   } catch (error) {
     console.error("Error sending verification code:", error);
@@ -875,42 +1266,53 @@ app.post("/api/auth/2fa/request-code", (req, res) => {
 app.post("/api/auth/2fa/verify", (req, res) => {
   try {
     const { userId, verificationId, code, phoneNumber } = req.body;
-    
+
     const data = loadData();
-    const user = data.users.find(u => u.user_id === parseInt(userId));
-    
+    const user = data.users.find((u) => u.user_id === parseInt(userId));
+
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
-    
+
     // Check if verification ID matches
     if (user.verification_id !== verificationId) {
-      return res.status(400).json({ success: false, message: "Invalid verification session" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid verification session" });
     }
-    
+
     // Check if code is correct
     if (user.verification_code !== code) {
-      return res.status(400).json({ success: false, message: "Invalid verification code" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid verification code" });
     }
-    
+
     // Check if code is expired
     if (Date.now() > user.verification_expiry) {
-      return res.status(400).json({ success: false, message: "Verification code expired" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Verification code expired" });
     }
-    
+
     // Enable 2FA and save phone number
     user.is_two_factor_enabled = true;
     user.phone_number = phoneNumber || user.temp_phone_number;
-    
+
     // Clean up verification data
     delete user.verification_code;
     delete user.verification_id;
     delete user.verification_expiry;
     delete user.temp_phone_number;
-    
+
     saveData(data);
-    
-    res.json({ success: true, message: "Two-factor authentication enabled successfully" });
+
+    res.json({
+      success: true,
+      message: "Two-factor authentication enabled successfully",
+    });
   } catch (error) {
     console.error("Error verifying 2FA code:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -921,20 +1323,25 @@ app.post("/api/auth/2fa/verify", (req, res) => {
 app.post("/api/auth/2fa/disable", (req, res) => {
   try {
     const { userId } = req.body;
-    
+
     const data = loadData();
-    const user = data.users.find(u => u.user_id === parseInt(userId));
-    
+    const user = data.users.find((u) => u.user_id === parseInt(userId));
+
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
-    
+
     // Disable 2FA
     user.is_two_factor_enabled = false;
-    
+
     saveData(data);
-    
-    res.json({ success: true, message: "Two-factor authentication disabled successfully" });
+
+    res.json({
+      success: true,
+      message: "Two-factor authentication disabled successfully",
+    });
   } catch (error) {
     console.error("Error disabling 2FA:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -946,26 +1353,31 @@ app.put("/api/users/:userId/privacy-settings", (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const settings = req.body;
-    
+
     const data = loadData();
-    const user = data.users.find(u => u.user_id === userId);
-    
+    const user = data.users.find((u) => u.user_id === userId);
+
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
-    
+
     // Update privacy settings
     user.is_private_account = settings.isPrivate;
     user.privacy_settings = {
       hideActivity: settings.hideActivity || false,
       hideContacts: settings.hideContacts || false,
       hideProducts: settings.hideProducts || false,
-      allowMessagesFrom: settings.allowMessagesFrom || "everyone"
+      allowMessagesFrom: settings.allowMessagesFrom || "everyone",
     };
-    
+
     saveData(data);
-    
-    res.json({ success: true, message: "Privacy settings updated successfully" });
+
+    res.json({
+      success: true,
+      message: "Privacy settings updated successfully",
+    });
   } catch (error) {
     console.error("Error updating privacy settings:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -1020,9 +1432,11 @@ app.get("/api/payment", async (req, res) => {
 app.post("/api/tokenize-request", async (req, res) => {
   try {
     const { userId, requestType } = req.body;
-    
-    console.log(`💳 Tokenization request for user: ${userId}, type: ${requestType}`);
-    
+
+    console.log(
+      `💳 Tokenization request for user: ${userId}, type: ${requestType}`
+    );
+
     // Configure Moneris Checkout for tokenization using the Tokenize Card transaction type
     const preloadPayload = {
       store_id: "monca11434", // Your Moneris Store ID
@@ -1036,18 +1450,20 @@ app.post("/api/tokenize-request", async (req, res) => {
       contact_details: {
         first_name: "", // Optional
         last_name: "", // Optional
-        email: "" // Optional
+        email: "", // Optional
       },
       cart: {
-        items: [{
-          name: "Card Registration",
-          quantity: "1",
-          unit_cost: "1.00"
-        }]
+        items: [
+          {
+            name: "Card Registration",
+            quantity: "1",
+            unit_cost: "1.00",
+          },
+        ],
       },
-      payment_methods: ["credit_card"] // Only allow credit card
+      payment_methods: ["credit_card"], // Only allow credit card
     };
-    
+
     try {
       // Make the request to Moneris Checkout API
       const response = await fetch(
@@ -1058,16 +1474,16 @@ app.post("/api/tokenize-request", async (req, res) => {
           headers: { "Content-Type": "application/json" },
         }
       );
-      
+
       const data = await response.json();
       console.log("📦 Moneris Tokenization Preload Response:", data);
-      
+
       if (data?.response?.ticket) {
         res.json({ ticket: data.response.ticket });
       } else {
         console.error("❌ Invalid preload response", data);
-        res.status(400).json({ 
-          error: "Invalid Moneris credentials or configuration." 
+        res.status(400).json({
+          error: "Invalid Moneris credentials or configuration.",
         });
       }
     } catch (err) {
@@ -1083,17 +1499,20 @@ app.post("/api/tokenize-request", async (req, res) => {
 // Process payment using a stored token/data key
 app.post("/api/token-payment", async (req, res) => {
   try {
-    const { dataKey, amount, orderId, productId, productName, quantity } = req.body;
-    
+    const { dataKey, amount, orderId, productId, productName, quantity } =
+      req.body;
+
     if (!dataKey) {
-      return res.status(400).json({ success: false, error: "Missing payment token" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing payment token" });
     }
-    
+
     console.log(`💰 Processing token payment: ${dataKey} for $${amount}`);
-    
+
     // Format amount to ensure it's a valid decimal
     const formattedAmount = parseFloat(amount).toFixed(2);
-    
+
     // Moneris token purchase configuration
     const purchasePayload = {
       store_id: "monca11434", // Your Moneris Store ID
@@ -1106,10 +1525,10 @@ app.post("/api/token-payment", async (req, res) => {
       cust_id: "customer", // Optional - could use buyer_id here
       data_key: dataKey, // Use the stored token
       payment: {
-        use_data_key: true // Use token for payment
-      }
+        use_data_key: true, // Use token for payment
+      },
     };
-    
+
     // Make the request to Moneris Purchase API
     const response = await fetch(
       "https://gatewayt.moneris.com/chktv2/request/request.php",
@@ -1119,11 +1538,14 @@ app.post("/api/token-payment", async (req, res) => {
         headers: { "Content-Type": "application/json" },
       }
     );
-    
+
     const data = await response.json();
     console.log("📦 Moneris Token Purchase Response:", data);
-    
-    if (data?.response?.success === 'true' || data?.response?.success === true) {
+
+    if (
+      data?.response?.success === "true" ||
+      data?.response?.success === true
+    ) {
       // Payment was successful
       res.json({
         success: true,
@@ -1133,17 +1555,17 @@ app.post("/api/token-payment", async (req, res) => {
         receipt_id: data.response.receipt_id,
         card_type: data.response.card,
         reference_num: data.response.reference_num,
-        iso_code: data.response.iso_code
+        iso_code: data.response.iso_code,
       });
     } else {
       // Payment failed
       const errorMessage = data?.response?.error || "Payment processing failed";
       console.error("❌ Token payment failed:", errorMessage);
-      
+
       res.status(400).json({
         success: false,
         error: errorMessage,
-        code: data?.response?.iso_code || "unknown"
+        code: data?.response?.iso_code || "unknown",
       });
     }
   } catch (err) {
@@ -1156,13 +1578,13 @@ app.post("/api/token-payment", async (req, res) => {
 app.post("/api/retrieve-token", async (req, res) => {
   try {
     const { ticket, responseCode, userId } = req.body;
-    
+
     if (!ticket) {
       return res.status(400).json({ success: false, error: "Missing ticket" });
     }
-    
+
     console.log(`🔑 Retrieving token for ticket: ${ticket}`);
-    
+
     // Configuration for the token retrieval
     const retrievePayload = {
       store_id: "monca11434", // Your Moneris Store ID
@@ -1170,9 +1592,9 @@ app.post("/api/retrieve-token", async (req, res) => {
       checkout_id: "chktDAL6N11434", // Your Moneris Checkout ID
       environment: "qa", // 'qa' for testing, 'prod' for production
       action: "receipt",
-      ticket: ticket
+      ticket: ticket,
     };
-    
+
     // Make the request to Moneris API to retrieve the token
     const response = await fetch(
       "https://gatewayt.moneris.com/chktv2/request/request.php",
@@ -1182,47 +1604,48 @@ app.post("/api/retrieve-token", async (req, res) => {
         headers: { "Content-Type": "application/json" },
       }
     );
-    
+
     const data = await response.json();
     console.log("📦 Moneris Token Retrieval Response:", data);
-    
+
     // Check if the response contains the token data
-    if (data?.response?.success === 'true' && data?.response?.receipt) {
+    if (data?.response?.success === "true" && data?.response?.receipt) {
       const receipt = data.response.receipt;
-      
+
       // Check if there's a data_key in the receipt
       if (receipt.data_key) {
         res.json({
           success: true,
           data_key: receipt.data_key,
           card_type: receipt.card || "Credit Card",
-          last_digits: receipt.last_digits || receipt.masked_pan?.substr(-4) || "****"
+          last_digits:
+            receipt.last_digits || receipt.masked_pan?.substr(-4) || "****",
         });
       } else {
         console.error("❌ No data_key in receipt:", receipt);
-        res.status(400).json({ 
+        res.status(400).json({
           success: false,
-          error: "No data key returned by Moneris"
+          error: "No data key returned by Moneris",
         });
       }
     } else if (data?.response?.error) {
       console.error("❌ Error from Moneris:", data.response.error);
-      res.status(400).json({ 
+      res.status(400).json({
         success: false,
-        error: data.response.error
+        error: data.response.error,
       });
     } else {
       console.error("❌ Invalid response format:", data);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: "Invalid response from Moneris"
+        error: "Invalid response from Moneris",
       });
     }
   } catch (err) {
     console.error("Token retrieval error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: "Failed to retrieve token: " + err.message
+      error: "Failed to retrieve token: " + err.message,
     });
   }
 });
@@ -1284,21 +1707,21 @@ app.put("/api/users/:id", async (req, res) => {
 app.delete("/api/users/:id", async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    
+
     // Get the current data
     const data = loadData();
-    const userIndex = data.users.findIndex(u => u.user_id === userId);
-    
+    const userIndex = data.users.findIndex((u) => u.user_id === userId);
+
     if (userIndex === -1) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Remove the user
     data.users.splice(userIndex, 1);
-    
+
     // Save the updated data
     saveData(data);
-    
+
     res.json({ message: "User deleted successfully", success: true });
   } catch (error) {
     console.error("Error deleting user:", error);
@@ -1347,26 +1770,26 @@ app.post("/api/products", subscriptionMiddleware, async (req, res) => {
   try {
     const product = req.body;
     const sellerId = parseInt(product.user_seller);
-    
+
     // Check if seller has reached their product limit
     if (req.sellerStats && req.sellerLimits) {
       if (req.sellerStats.productCount >= req.sellerLimits.productLimit) {
-        return res.status(403).json({ 
-          error: "Product limit reached", 
+        return res.status(403).json({
+          error: "Product limit reached",
           message: `Your current plan (${req.sellerLimits.tier}) allows a maximum of ${req.sellerLimits.productLimit} products. Please upgrade your subscription to add more products.`,
           upgrade_required: true,
           current_tier: req.sellerLimits.tier,
           current_count: req.sellerStats.productCount,
-          max_allowed: req.sellerLimits.productLimit
+          max_allowed: req.sellerLimits.productLimit,
         });
       }
     }
-    
+
     // Apply fee percentage based on the subscription tier
     if (req.sellerLimits) {
       product.fee_percentage = req.sellerLimits.feePercentage;
     }
-    
+
     // Continue with product creation
     const newProduct = await db.createProduct(product);
     res.status(201).json(newProduct);
@@ -1410,7 +1833,9 @@ app.get("/api/seller/:id/products", async (req, res) => {
 // Get verified products count by seller ID
 app.get("/api/seller/:id/verified-products-count", async (req, res) => {
   try {
-    const count = await db.getVerifiedProductsCountBySellerId(parseInt(req.params.id));
+    const count = await db.getVerifiedProductsCountBySellerId(
+      parseInt(req.params.id)
+    );
     res.json({ count });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch verified products count" });
@@ -1421,21 +1846,27 @@ app.put("/api/verify-product/:id", (req, res) => {
   try {
     const productId = parseInt(req.params.id, 10);
     const productName = req.body.productName; // Optional parameter to help with duplicates
-    
-    console.log(`🔍 Attempting to verify product: ID ${productId}, Name: ${productName || 'Not specified'}`);
-    
+
+    console.log(
+      `🔍 Attempting to verify product: ID ${productId}, Name: ${productName || "Not specified"}`
+    );
+
     const data = loadData();
     let productUpdated = false;
-    
+
     // If productName is provided, use it to find the exact product
     if (productName) {
       // Find the product by ID AND name
       for (let i = 0; i < data.products.length; i++) {
-        if (data.products[i].product_id === productId && 
-            data.products[i].product_name === productName) {
+        if (
+          data.products[i].product_id === productId &&
+          data.products[i].product_name === productName
+        ) {
           data.products[i].verified = true;
           productUpdated = true;
-          console.log(`✅ Product "${productName}" (ID: ${productId}) verified successfully`);
+          console.log(
+            `✅ Product "${productName}" (ID: ${productId}) verified successfully`
+          );
           break;
         }
       }
@@ -1450,28 +1881,30 @@ app.put("/api/verify-product/:id", (req, res) => {
         }
       }
     }
-    
+
     if (!productUpdated) {
-      console.log(`❌ Product not found for verification: ID ${productId}, Name: ${productName || 'Not specified'}`);
+      console.log(
+        `❌ Product not found for verification: ID ${productId}, Name: ${productName || "Not specified"}`
+      );
       return res.status(404).json({
         success: false,
-        message: "Product not found for verification"
+        message: "Product not found for verification",
       });
     }
-    
+
     // Save the updated data
     saveData(data);
-    
+
     res.json({
       success: true,
-      message: "Product verified successfully"
+      message: "Product verified successfully",
     });
   } catch (error) {
     console.error("❌ Error verifying product:", error);
     res.status(500).json({
       success: false,
       message: "Failed to verify product",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -1485,9 +1918,7 @@ app.get("/api/reviews", async (req, res) => {
       const reviews = await db.getReviewsByProductId(productId);
       return res.json(reviews);
     }
-    
-    // Otherwise, get all reviews
-    const reviews = await db.getReviews();
+
     return res.json(reviews);
   } catch (error) {
     console.error("Error fetching reviews:", error);
@@ -1500,11 +1931,11 @@ app.get("/api/reviews/:id", async (req, res) => {
   try {
     const reviewId = parseInt(req.params.id, 10);
     const review = await db.getReviewById(reviewId);
-    
+
     if (!review) {
       return res.status(404).json({ error: "Review not found" });
     }
-    
+
     res.json(review);
   } catch (error) {
     console.error("Error fetching review:", error);
@@ -1516,19 +1947,24 @@ app.get("/api/reviews/:id", async (req, res) => {
 app.post("/api/reviews", async (req, res) => {
   try {
     const reviewData = req.body;
-    
+
     // Validate required fields
-    if (!reviewData.product_id || !reviewData.user_id || reviewData.number_stars === undefined) {
-      return res.status(400).json({ 
-        error: "Missing required fields: product_id, user_id, and number_stars are required"
+    if (
+      !reviewData.product_id ||
+      !reviewData.user_id ||
+      reviewData.number_stars === undefined
+    ) {
+      return res.status(400).json({
+        error:
+          "Missing required fields: product_id, user_id, and number_stars are required",
       });
     }
-    
+
     // Add timestamp if not provided
     if (!reviewData.date_timestamp) {
       reviewData.date_timestamp = new Date().toISOString();
     }
-    
+
     const newReview = await db.createReview(reviewData);
     res.status(201).json(newReview);
   } catch (error) {
@@ -1542,11 +1978,11 @@ app.put("/api/reviews/:id", async (req, res) => {
   try {
     const reviewId = parseInt(req.params.id, 10);
     const updatedReview = await db.updateReview(reviewId, req.body);
-    
+
     if (!updatedReview) {
       return res.status(404).json({ error: "Review not found" });
     }
-    
+
     res.json(updatedReview);
   } catch (error) {
     console.error("Error updating review:", error);
@@ -1559,11 +1995,11 @@ app.delete("/api/reviews/:id", async (req, res) => {
   try {
     const reviewId = parseInt(req.params.id, 10);
     const deleted = await db.deleteReview(reviewId);
-    
+
     if (!deleted) {
       return res.status(404).json({ error: "Review not found" });
     }
-    
+
     res.json({ message: "Review deleted successfully" });
   } catch (error) {
     console.error("Error deleting review:", error);
@@ -1602,7 +2038,7 @@ app.get("/api/messages/between/:user1Id/:user2Id", async (req, res) => {
   try {
     const user1Id = req.params.user1Id;
     const user2Id = req.params.user2Id;
-    
+
     const messages = await db.getMessagesBetweenUsers(user1Id, user2Id);
     res.json(messages);
   } catch (error) {
@@ -1616,53 +2052,59 @@ app.get("/api/messages/conversations/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
     const data = loadData();
-    
+
     // Get the list of user IDs this user has conversations with
     const conversationUserIds = await db.getUserConversations(userId);
-    
+
     // For each conversation, get the most recent message and user info
     const conversations = [];
-    
+
     for (const otherUserId of conversationUserIds) {
       // Get user info
-      const otherUser = data.users.find(u => String(u.user_id) === String(otherUserId));
-      
+      const otherUser = data.users.find(
+        (u) => String(u.user_id) === String(otherUserId)
+      );
+
       if (otherUser) {
         // Get the most recent message between these users
         const messages = await db.getMessagesBetweenUsers(userId, otherUserId);
-        const lastMessage = messages.length > 0 
-          ? messages[messages.length - 1] 
-          : null;
-        
+        const lastMessage =
+          messages.length > 0 ? messages[messages.length - 1] : null;
+
         // Count unread messages from this user
         const unreadCount = messages.filter(
-          msg => String(msg.user_to) === String(userId) && msg.is_read === false
+          (msg) =>
+            String(msg.user_to) === String(userId) && msg.is_read === false
         ).length;
-        
+
         conversations.push({
           user: {
             user_id: otherUser.user_id,
             name: otherUser.name,
             profile_image: otherUser.profile_image,
-            account_type: otherUser.account_type
+            account_type: otherUser.account_type,
           },
-          last_message: lastMessage ? {
-            content: lastMessage.message_content,
-            timestamp: lastMessage.date_timestamp_sent,
-            is_from_me: String(lastMessage.user_from) === String(userId)
-          } : null,
-          unread_count: unreadCount
+          last_message: lastMessage
+            ? {
+                content: lastMessage.message_content,
+                timestamp: lastMessage.date_timestamp_sent,
+                is_from_me: String(lastMessage.user_from) === String(userId),
+              }
+            : null,
+          unread_count: unreadCount,
         });
       }
     }
-    
+
     // Sort by most recent message
     conversations.sort((a, b) => {
       if (!a.last_message) return 1;
       if (!b.last_message) return -1;
-      return new Date(b.last_message.timestamp) - new Date(a.last_message.timestamp);
+      return (
+        new Date(b.last_message.timestamp) - new Date(a.last_message.timestamp)
+      );
     });
-    
+
     res.json(conversations);
   } catch (error) {
     console.error("Error fetching user conversations:", error);
@@ -1675,11 +2117,11 @@ app.put("/api/messages/:messageId/read", async (req, res) => {
   try {
     const messageId = parseInt(req.params.messageId);
     const updatedMessage = await db.markMessageAsRead(messageId);
-    
+
     if (!updatedMessage) {
       return res.status(404).json({ error: "Message not found" });
     }
-    
+
     res.json(updatedMessage);
   } catch (error) {
     console.error("Error marking message as read:", error);
@@ -1688,39 +2130,42 @@ app.put("/api/messages/:messageId/read", async (req, res) => {
 });
 
 // Mark all messages from a specific user as read
-app.put("/api/messages/mark-all-read/:fromUserId/:toUserId", async (req, res) => {
-  try {
-    const { fromUserId, toUserId } = req.params;
-    const data = loadData();
-    let updatedCount = 0;
-    
-    // Find all unread messages from fromUserId to toUserId
-    for (let i = 0; i < data.messages.length; i++) {
-      const message = data.messages[i];
-      
-      if (
-        String(message.user_from) === String(fromUserId) && 
-        String(message.user_to) === String(toUserId) && 
-        message.is_read === false
-      ) {
-        data.messages[i].is_read = true;
-        updatedCount++;
+app.put(
+  "/api/messages/mark-all-read/:fromUserId/:toUserId",
+  async (req, res) => {
+    try {
+      const { fromUserId, toUserId } = req.params;
+      const data = loadData();
+      let updatedCount = 0;
+
+      // Find all unread messages from fromUserId to toUserId
+      for (let i = 0; i < data.messages.length; i++) {
+        const message = data.messages[i];
+
+        if (
+          String(message.user_from) === String(fromUserId) &&
+          String(message.user_to) === String(toUserId) &&
+          message.is_read === false
+        ) {
+          data.messages[i].is_read = true;
+          updatedCount++;
+        }
       }
+
+      if (updatedCount > 0) {
+        saveData(data);
+      }
+
+      res.json({
+        success: true,
+        message: `Marked ${updatedCount} messages as read`,
+      });
+    } catch (error) {
+      console.error("Error marking all messages as read:", error);
+      res.status(500).json({ error: "Failed to mark messages as read" });
     }
-    
-    if (updatedCount > 0) {
-      saveData(data);
-    }
-    
-    res.json({ 
-      success: true, 
-      message: `Marked ${updatedCount} messages as read`
-    });
-  } catch (error) {
-    console.error("Error marking all messages as read:", error);
-    res.status(500).json({ error: "Failed to mark messages as read" });
   }
-});
+);
 
 // Get unread messages count for a user
 app.get("/api/messages/unread-count/:userId", async (req, res) => {
@@ -1801,28 +2246,30 @@ app.put("/api/admin/:id", async (req, res) => {
   try {
     const adminId = parseInt(req.params.id);
     const { status } = req.body;
-    
-    console.log(`Received request to update admin action ${adminId} to status: ${status}`);
-    
+
+    console.log(
+      `Received request to update admin action ${adminId} to status: ${status}`
+    );
+
     if (!status) {
       return res.status(400).json({ error: "Status is required" });
     }
-    
+
     // Get the current admin data
     const data = loadData();
-    const adminIndex = data.admin_data.findIndex(a => a.admin_id === adminId);
-    
+    const adminIndex = data.admin_data.findIndex((a) => a.admin_id === adminId);
+
     if (adminIndex === -1) {
       return res.status(404).json({ error: "Admin action not found" });
     }
-    
+
     // Update the status
     data.admin_data[adminIndex].status = status;
     data.admin_data[adminIndex].updated_at = new Date().toISOString();
-    
+
     // Save the updated data
     saveData(data);
-    
+
     res.json(data.admin_data[adminIndex]);
   } catch (error) {
     console.error("Failed to update admin status:", error);
@@ -1846,67 +2293,76 @@ app.put("/api/users/:id/role", async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
     const { role, tier, force, subscription_end_date } = req.body;
-    
-    console.log(`Updating user ${userId} role to: ${role}, tier: ${tier || 'none'}, force: ${force}, expiration: ${subscription_end_date || 'not set'}`);
-    
+
+    console.log(
+      `Updating user ${userId} role to: ${role}, tier: ${tier || "none"}, force: ${force}, expiration: ${subscription_end_date || "not set"}`
+    );
+
     if (!role) {
       return res.status(400).json({ error: "Role is required" });
     }
-    
+
     // Get the current data
     const data = loadData();
-    
+
     // Find the user
-    const userIndex = data.users.findIndex(u => u.user_id === userId);
-    
+    const userIndex = data.users.findIndex((u) => u.user_id === userId);
+
     if (userIndex === -1) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // If force flag is set, clear any subscription data that might interfere
-    if (force === true && tier === 'basic') {
-      console.log(`Force flag set - resetting subscription data for user ${userId}`);
+    if (force === true && tier === "basic") {
+      console.log(
+        `Force flag set - resetting subscription data for user ${userId}`
+      );
       // Clear any active subscriptions
       if (data.subscriptions) {
         data.subscriptions = data.subscriptions.filter(
-          sub => sub.user_id !== userId
+          (sub) => sub.user_id !== userId
         );
       }
-      
+
       // Clear any subscription end date
       delete data.users[userIndex].subscription_end_date;
     }
-    
+
     // Update both role and account_type for compatibility
     data.users[userIndex].role = role.toLowerCase();
-    data.users[userIndex].account_type = role.charAt(0).toUpperCase() + role.slice(1);
-    
+    data.users[userIndex].account_type =
+      role.charAt(0).toUpperCase() + role.slice(1);
+
     // Add tier information if provided
     if (tier) {
       data.users[userIndex].tier = tier;
-      
+
       // For influencers, also update influencer_tier for compatibility
-      if (role.toLowerCase() === 'influencer') {
+      if (role.toLowerCase() === "influencer") {
         data.users[userIndex].influencer_tier = tier;
       }
     }
-    
+
     // Add subscription end date if provided
     if (subscription_end_date) {
       data.users[userIndex].subscription_end_date = subscription_end_date;
-      console.log(`Added subscription end date: ${subscription_end_date} for user ${userId}`);
-      
-      // If we're in a production environment, you would want to set up a scheduled job 
+      console.log(
+        `Added subscription end date: ${subscription_end_date} for user ${userId}`
+      );
+
+      // If we're in a production environment, you would want to set up a scheduled job
       // to automatically downgrade the user when their subscription expires
     }
-    
+
     // Save the updated data
     saveData(data);
-    
+
     // Return the updated user for confirmation
     const updatedUser = data.users[userIndex];
-    
-    console.log(`✅ Successfully updated user ${userId} to ${role} role with tier ${tier || 'none'}`);
+
+    console.log(
+      `✅ Successfully updated user ${userId} to ${role} role with tier ${tier || "none"}`
+    );
     res.json(updatedUser);
   } catch (error) {
     console.error("Failed to update user role:", error);
@@ -1947,11 +2403,14 @@ app.get("/api/campaign-requests", async (req, res) => {
 app.get("/api/campaign-requests/influencer/:influencerId", async (req, res) => {
   try {
     const { influencerId } = req.params;
-    const campaignRequests = await db.getInfluencerCampaignRequests(influencerId);
+    const campaignRequests =
+      await db.getInfluencerCampaignRequests(influencerId);
     res.json(campaignRequests);
   } catch (error) {
     console.error("Error getting influencer campaign requests:", error);
-    res.status(500).json({ error: "Failed to fetch influencer campaign requests" });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch influencer campaign requests" });
   }
 });
 
@@ -1972,11 +2431,11 @@ app.get("/api/campaign-requests/:requestId", async (req, res) => {
   try {
     const { requestId } = req.params;
     const campaignRequest = await db.getCampaignRequestById(requestId);
-    
+
     if (!campaignRequest) {
       return res.status(404).json({ error: "Campaign request not found" });
     }
-    
+
     res.json(campaignRequest);
   } catch (error) {
     console.error("Error getting campaign request:", error);
@@ -1988,12 +2447,15 @@ app.get("/api/campaign-requests/:requestId", async (req, res) => {
 app.post("/api/campaign-requests", async (req, res) => {
   try {
     const campaignRequest = req.body;
-    
+
     // Validate required fields
     if (!campaignRequest.influencerId || !campaignRequest.sellerId) {
-      return res.status(400).json({ error: "Missing required fields: influencerId and sellerId are required" });
+      return res.status(400).json({
+        error:
+          "Missing required fields: influencerId and sellerId are required",
+      });
     }
-    
+
     const newCampaignRequest = await db.createCampaignRequest(campaignRequest);
     res.status(201).json(newCampaignRequest);
   } catch (error) {
@@ -2007,16 +2469,19 @@ app.put("/api/campaign-requests/:requestId", async (req, res) => {
   try {
     const { requestId } = req.params;
     const updates = req.body;
-    
-    const updatedCampaignRequest = await db.updateCampaignRequest(requestId, updates);
+
+    const updatedCampaignRequest = await db.updateCampaignRequest(
+      requestId,
+      updates
+    );
     res.json(updatedCampaignRequest);
   } catch (error) {
     console.error("Error updating campaign request:", error);
-    
+
     if (error.message === "Campaign request not found") {
       return res.status(404).json({ error: "Campaign request not found" });
     }
-    
+
     res.status(500).json({ error: "Failed to update campaign request" });
   }
 });
@@ -2026,20 +2491,23 @@ app.put("/api/campaign-requests/:requestId/status", async (req, res) => {
   try {
     const { requestId } = req.params;
     const { status } = req.body;
-    
+
     if (!status) {
       return res.status(400).json({ error: "Status is required" });
     }
-    
-    const updatedCampaignRequest = await db.updateCampaignRequestStatus(requestId, status);
+
+    const updatedCampaignRequest = await db.updateCampaignRequestStatus(
+      requestId,
+      status
+    );
     res.json(updatedCampaignRequest);
   } catch (error) {
     console.error("Error updating campaign request status:", error);
-    
+
     if (error.message === "Campaign request not found") {
       return res.status(404).json({ error: "Campaign request not found" });
     }
-    
+
     res.status(500).json({ error: "Failed to update campaign request status" });
   }
 });
@@ -2049,11 +2517,11 @@ app.delete("/api/campaign-requests/:requestId", async (req, res) => {
   try {
     const { requestId } = req.params;
     const deleted = await db.deleteCampaignRequest(requestId);
-    
+
     if (!deleted) {
       return res.status(404).json({ error: "Campaign request not found" });
     }
-    
+
     res.json({ message: "Campaign request deleted successfully" });
   } catch (error) {
     console.error("Error deleting campaign request:", error);
@@ -2065,19 +2533,21 @@ app.delete("/api/campaign-requests/:requestId", async (req, res) => {
 app.get("/api/collaboration-requests", (req, res) => {
   try {
     const data = loadData();
-    
+
     // Make sure we return the existing data from the collaboration_requests array
     if (data.collaboration_requests) {
       // Sort by timestamp (newest first)
-      const sortedRequests = [...data.collaboration_requests].sort((a, b) => 
-        new Date(b.timestamp) - new Date(a.timestamp)
+      const sortedRequests = [...data.collaboration_requests].sort(
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
       );
-      
+
       // Remove duplicates (sometimes sample data has duplicates)
       const uniqueRequests = Array.from(
-        new Map(sortedRequests.map(request => [request.requestId, request])).values()
+        new Map(
+          sortedRequests.map((request) => [request.requestId, request])
+        ).values()
       );
-      
+
       res.json(uniqueRequests);
     } else {
       res.json([]);
@@ -2093,25 +2563,29 @@ app.get("/api/collaboration-requests/seller/:sellerId", (req, res) => {
   try {
     const { sellerId } = req.params;
     const data = loadData();
-    
+
     if (data.collaboration_requests) {
       // Filter by seller ID and sort by timestamp (newest first)
       const sellerRequests = data.collaboration_requests
-        .filter(req => String(req.sellerId) === String(sellerId))
+        .filter((req) => String(req.sellerId) === String(sellerId))
         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      
+
       // Remove duplicates
       const uniqueRequests = Array.from(
-        new Map(sellerRequests.map(request => [request.requestId, request])).values()
+        new Map(
+          sellerRequests.map((request) => [request.requestId, request])
+        ).values()
       );
-      
+
       res.json(uniqueRequests);
     } else {
       res.json([]);
     }
   } catch (error) {
     console.error("Error fetching seller collaboration requests:", error);
-    res.status(500).json({ error: "Failed to fetch seller collaboration requests" });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch seller collaboration requests" });
   }
 });
 
@@ -2120,25 +2594,29 @@ app.get("/api/collaboration-requests/influencer/:influencerId", (req, res) => {
   try {
     const { influencerId } = req.params;
     const data = loadData();
-    
+
     if (data.collaboration_requests) {
       // Filter by influencer ID and sort by timestamp (newest first)
       const influencerRequests = data.collaboration_requests
-        .filter(req => String(req.influencerId) === String(influencerId))
+        .filter((req) => String(req.influencerId) === String(influencerId))
         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      
+
       // Remove duplicates
       const uniqueRequests = Array.from(
-        new Map(influencerRequests.map(request => [request.requestId, request])).values()
+        new Map(
+          influencerRequests.map((request) => [request.requestId, request])
+        ).values()
       );
-      
+
       res.json(uniqueRequests);
     } else {
       res.json([]);
     }
   } catch (error) {
     console.error("Error fetching influencer collaboration requests:", error);
-    res.status(500).json({ error: "Failed to fetch influencer collaboration requests" });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch influencer collaboration requests" });
   }
 });
 
@@ -2180,8 +2658,8 @@ app.put("/collaboration-requests/:requestId/status", (req, res) => {
   const { requestId } = req.params;
   const { status } = req.body;
 
-  const request = data.collaboration_requests.find(r => 
-    r.requestId === requestId || r.request_id === requestId
+  const request = data.collaboration_requests.find(
+    (r) => r.requestId === requestId || r.request_id === requestId
   );
 
   if (!request) {
@@ -2197,31 +2675,34 @@ app.put("/collaboration-requests/:requestId/status", (req, res) => {
 app.post("/api/collaboration-requests", (req, res) => {
   try {
     const requestData = req.body;
-    
+
     // Validate required fields
     if (!requestData.influencerId || !requestData.sellerId) {
-      return res.status(400).json({ error: "Missing required fields: influencerId and sellerId are required" });
+      return res.status(400).json({
+        error:
+          "Missing required fields: influencerId and sellerId are required",
+      });
     }
-    
+
     const data = loadData();
-    
+
     // Ensure collaboration_requests exists in the data
     if (!data.collaboration_requests) {
       data.collaboration_requests = [];
     }
-    
+
     // Generate a unique request ID if not provided
     const newRequest = {
       ...requestData,
       requestId: requestData.requestId || Date.now().toString(),
       timestamp: requestData.timestamp || new Date().toISOString(),
-      status: requestData.status || "Pending"
+      status: requestData.status || "Pending",
     };
-    
+
     // Add the new request
     data.collaboration_requests.push(newRequest);
     saveData(data);
-    
+
     res.status(201).json(newRequest);
   } catch (error) {
     console.error("Error creating collaboration request:", error);
@@ -2230,74 +2711,105 @@ app.post("/api/collaboration-requests", (req, res) => {
 });
 
 // Update collaboration request status
-app.put("/api/collaboration-requests/:requestId/status", (req, res) => {
-  try {
-    const { requestId } = req.params;
-    const { status } = req.body;
-    
-    if (!status) {
-      return res.status(400).json({ error: "Status is required" });
-    }
-    
-    const data = loadData();
-    
-    // Ensure collaboration_requests exists in the data
-    if (!data.collaboration_requests) {
-      data.collaboration_requests = [];
-      saveData(data);
-      return res.status(404).json({ error: "Collaboration request not found" });
-    }
-    
-    // Find and update the request
-    const requestIndex = data.collaboration_requests.findIndex(
-      req => String(req.requestId) === String(requestId)
-    );
-    
-    if (requestIndex === -1) {
-      return res.status(404).json({ error: "Collaboration request not found" });
-    }
-    
-    // Update the request
-    data.collaboration_requests[requestIndex] = {
-      ...data.collaboration_requests[requestIndex],
-      status,
-      statusUpdatedAt: new Date().toISOString()
-    };
-    
-    saveData(data);
-    
-    res.json(data.collaboration_requests[requestIndex]);
-  } catch (error) {
-    console.error("Error updating collaboration request status:", error);
-    res.status(500).json({ error: "Failed to update collaboration request status" });
-  }
-});
+app.put(
+  "/api/collaboration-requests/:requestId/status",
+  subscriptionMiddleware,
+  (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const { status } = req.body;
+      const sellerId = req.body.sellerId;
 
+      if (!status) {
+        return res.status(400).json({ error: "Status is required" });
+      }
+
+      // If the status is being set to "Accepted", check subscription limits
+      if (status === "Accepted" && sellerId) {
+        // The subscriptionMiddleware already populated req.sellerLimits and req.sellerStats
+        if (req.sellerStats && req.sellerLimits) {
+          // Check if seller has reached their collaboration limit
+          if (
+            req.sellerStats.collaborationCount >=
+            req.sellerLimits.collaborationLimit
+          ) {
+            return res.status(403).json({
+              error: "Collaboration limit reached",
+              message: `Your current plan (${req.sellerLimits.tier}) allows a maximum of ${req.sellerLimits.collaborationLimit} collaborations. Please upgrade your subscription to continue.`,
+              upgrade_required: true,
+              current_tier: req.sellerLimits.tier,
+              current_count: req.sellerStats.collaborationCount,
+              max_allowed: req.sellerLimits.collaborationLimit,
+            });
+          }
+        }
+      }
+
+      const data = loadData();
+
+      // Ensure collaboration_requests exists in the data
+      if (!data.collaboration_requests) {
+        data.collaboration_requests = [];
+        saveData(data);
+        return res
+          .status(404)
+          .json({ error: "Collaboration request not found" });
+      }
+
+      // Find and update the request
+      const requestIndex = data.collaboration_requests.findIndex(
+        (req) => String(req.requestId) === String(requestId)
+      );
+
+      if (requestIndex === -1) {
+        return res
+          .status(404)
+          .json({ error: "Collaboration request not found" });
+      }
+
+      // Update the request
+      data.collaboration_requests[requestIndex] = {
+        ...data.collaboration_requests[requestIndex],
+        status,
+        statusUpdatedAt: new Date().toISOString(),
+      };
+
+      saveData(data);
+
+      res.json(data.collaboration_requests[requestIndex]);
+    } catch (error) {
+      console.error("Error updating collaboration request status:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to update collaboration request status" });
+    }
+  }
+);
 // Delete a collaboration request
 app.delete("/api/collaboration-requests/:requestId", (req, res) => {
   try {
     const { requestId } = req.params;
     const data = loadData();
-    
+
     // Ensure collaboration_requests exists in the data
     if (!data.collaboration_requests) {
       data.collaboration_requests = [];
       saveData(data);
       return res.status(404).json({ error: "Collaboration request not found" });
     }
-    
+
     // Find the request
     const initialLength = data.collaboration_requests.length;
     data.collaboration_requests = data.collaboration_requests.filter(
-      req => String(req.requestId) !== String(requestId)
+      (req) => String(req.requestId) !== String(requestId)
     );
-    
+
     if (data.collaboration_requests.length === initialLength) {
       return res.status(404).json({ error: "Collaboration request not found" });
     }
-    
+
     saveData(data);
-    
+
     res.json({ message: "Collaboration request deleted successfully" });
   } catch (error) {
     console.error("Error deleting collaboration request:", error);
@@ -2310,85 +2822,91 @@ app.post("/api/users/:followerId/follow", (req, res) => {
   try {
     const { followerId } = req.params;
     const { followee_id } = req.body;
-    
+
     if (!followerId || !followee_id) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Both follower and followee IDs are required" 
+      return res.status(400).json({
+        success: false,
+        message: "Both follower and followee IDs are required",
       });
     }
-    
+
     const data = loadData();
-    
+
     // Validate user IDs
-    const follower = data.users.find(u => String(u.user_id) === String(followerId));
-    const followee = data.users.find(u => String(u.user_id) === String(followee_id));
-    
+    const follower = data.users.find(
+      (u) => String(u.user_id) === String(followerId)
+    );
+    const followee = data.users.find(
+      (u) => String(u.user_id) === String(followee_id)
+    );
+
     if (!follower || !followee) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "One or both users not found" 
+      return res.status(404).json({
+        success: false,
+        message: "One or both users not found",
       });
     }
-    
+
     // Validate account types - only buyers can follow others
-    if (follower.account_type.toLowerCase() !== 'buyer') {
+    if (follower.account_type.toLowerCase() !== "buyer") {
       return res.status(403).json({
         success: false,
-        message: "Only buyers can follow other users"
+        message: "Only buyers can follow other users",
       });
     }
-    
+
     // Validate followee is seller or influencer
-    if (!['seller', 'influencer'].includes(followee.account_type.toLowerCase())) {
+    if (
+      !["seller", "influencer"].includes(followee.account_type.toLowerCase())
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Can only follow sellers or influencers"
+        message: "Can only follow sellers or influencers",
       });
     }
-    
+
     // Initialize following/followers arrays if they don't exist
     if (!follower.following) follower.following = [];
     if (!followee.followers) followee.followers = [];
-    
+
     // Check if already following
-    if (follower.following.some(id => String(id) === String(followee_id))) {
+    if (follower.following.some((id) => String(id) === String(followee_id))) {
       return res.status(200).json({
         success: true,
-        message: "Already following this user"
+        message: "Already following this user",
       });
     }
-    
+
     // Update following/followers
     follower.following.push(followee_id);
     followee.followers.push(followerId);
-    
+
     // Update follower count for display
     followee.followers_count = (followee.followers_count || 0) + 1;
-    
+
     saveData(data);
-    
+
     // Create notification for the followee
     const notification = {
       user_id: followee_id,
       message: `${follower.name} started following you`,
       date_timestamp: new Date().toISOString(),
-      notification_id: Date.now() // Simple way to generate unique ID
+      notification_id: Date.now(), // Simple way to generate unique ID
     };
-    
+
     if (!data.notifications) data.notifications = [];
     data.notifications.push(notification);
     saveData(data);
-    
+
     res.json({
       success: true,
-      message: "Successfully followed user"
+      message: "Successfully followed user",
     });
   } catch (error) {
     console.error("Error following user:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error following user" 
+    res.status(500).json({
+      success: false,
+      message: "Error following user",
     });
   }
 });
@@ -2398,69 +2916,77 @@ app.post("/api/users/:followerId/unfollow", (req, res) => {
   try {
     const { followerId } = req.params;
     const { followee_id } = req.body;
-    
+
     if (!followerId || !followee_id) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Both follower and followee IDs are required" 
+      return res.status(400).json({
+        success: false,
+        message: "Both follower and followee IDs are required",
       });
     }
-    
+
     const data = loadData();
-    
+
     // Validate user IDs
-    const follower = data.users.find(u => String(u.user_id) === String(followerId));
-    const followee = data.users.find(u => String(u.user_id) === String(followee_id));
-    
+    const follower = data.users.find(
+      (u) => String(u.user_id) === String(followerId)
+    );
+    const followee = data.users.find(
+      (u) => String(u.user_id) === String(followee_id)
+    );
+
     if (!follower || !followee) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "One or both users not found" 
+      return res.status(404).json({
+        success: false,
+        message: "One or both users not found",
       });
     }
-    
+
     // Check if follower has following list
     if (!follower.following || !follower.following.length) {
       return res.status(200).json({
         success: true,
-        message: "Not following this user"
+        message: "Not following this user",
       });
     }
-    
+
     // Check if followee has followers list
     if (!followee.followers || !followee.followers.length) {
       return res.status(200).json({
         success: true,
-        message: "Not following this user"
+        message: "Not following this user",
       });
     }
-    
+
     // Check if actually following
-    if (!follower.following.some(id => String(id) === String(followee_id))) {
+    if (!follower.following.some((id) => String(id) === String(followee_id))) {
       return res.status(200).json({
         success: true,
-        message: "Not following this user"
+        message: "Not following this user",
       });
     }
-    
+
     // Update following/followers
-    follower.following = follower.following.filter(id => String(id) !== String(followee_id));
-    followee.followers = followee.followers.filter(id => String(id) !== String(followerId));
-    
+    follower.following = follower.following.filter(
+      (id) => String(id) !== String(followee_id)
+    );
+    followee.followers = followee.followers.filter(
+      (id) => String(id) !== String(followerId)
+    );
+
     // Update follower count for display (ensure it doesn't go below 0)
     followee.followers_count = Math.max((followee.followers_count || 0) - 1, 0);
-    
+
     saveData(data);
-    
+
     res.json({
       success: true,
-      message: "Successfully unfollowed user"
+      message: "Successfully unfollowed user",
     });
   } catch (error) {
     console.error("Error unfollowing user:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error unfollowing user" 
+    res.status(500).json({
+      success: false,
+      message: "Error unfollowing user",
     });
   }
 });
@@ -2470,47 +2996,51 @@ app.get("/api/users/:userId/following", (req, res) => {
   try {
     const { userId } = req.params;
     const data = loadData();
-    
+
     // Find user
-    const user = data.users.find(u => String(u.user_id) === String(userId));
-    
+    const user = data.users.find((u) => String(u.user_id) === String(userId));
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Check if user has following list
     if (!user.following || !user.following.length) {
       return res.json([]);
     }
-    
+
     // Get user objects for all followed users
-    const followingUsers = user.following.map(followeeId => {
-      const followedUser = data.users.find(u => String(u.user_id) === String(followeeId));
-      
+    const followingUsers = user.following.map((followeeId) => {
+      const followedUser = data.users.find(
+        (u) => String(u.user_id) === String(followeeId)
+      );
+
       if (followedUser) {
         // Return a subset of user data for privacy
         return {
           user_id: followedUser.user_id,
           name: followedUser.name,
-          username: followedUser.username || followedUser.name.toLowerCase().replace(/\s+/g, '_'),
+          username:
+            followedUser.username ||
+            followedUser.name.toLowerCase().replace(/\s+/g, "_"),
           account_type: followedUser.account_type,
-          profile_image: followedUser.profile_image || 'default_profile.jpg',
+          profile_image: followedUser.profile_image || "default_profile.jpg",
           followers_count: followedUser.followers_count || 0,
           city: followedUser.city,
-          country: followedUser.country
+          country: followedUser.country,
         };
       }
-      
+
       // Return minimal data if user not found
       return {
         user_id: followeeId,
         name: `User ${followeeId}`,
-        account_type: 'Unknown',
-        profile_image: 'default_profile.jpg',
-        followers_count: 0
+        account_type: "Unknown",
+        profile_image: "default_profile.jpg",
+        followers_count: 0,
       };
     });
-    
+
     res.json(followingUsers);
   } catch (error) {
     console.error("Error getting following:", error);
@@ -2523,94 +3053,104 @@ app.get("/api/users/:userId/followers", (req, res) => {
   try {
     const { userId } = req.params;
     const data = loadData();
-    
+
     // Find user
-    const user = data.users.find(u => String(u.user_id) === String(userId));
-    
+    const user = data.users.find((u) => String(u.user_id) === String(userId));
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
-    // If the user has a followers_count but no followers array, or if 
+
+    // If the user has a followers_count but no followers array, or if
     // the followers array doesn't match the count, we need to generate placeholder followers
     let followerUsers = [];
-    
-    if ((!user.followers || user.followers.length === 0) && 
-        (user.followers_count && user.followers_count > 0)) {
-      
-      console.log(`User ${userId} has follower_count ${user.followers_count} but no followers array. Generating placeholder data.`);
-      
-      // Find all buyers to use as sample followers
-      const buyers = data.users.filter(u => 
-        u.account_type.toLowerCase() === 'buyer' && 
-        String(u.user_id) !== String(userId)
+
+    if (
+      (!user.followers || user.followers.length === 0) &&
+      user.followers_count &&
+      user.followers_count > 0
+    ) {
+      console.log(
+        `User ${userId} has follower_count ${user.followers_count} but no followers array. Generating placeholder data.`
       );
-      
+
+      // Find all buyers to use as sample followers
+      const buyers = data.users.filter(
+        (u) =>
+          u.account_type.toLowerCase() === "buyer" &&
+          String(u.user_id) !== String(userId)
+      );
+
       // Generate placeholder followers using real buyer accounts if possible
       const followerCount = Math.min(user.followers_count, buyers.length || 5);
-      
+
       // Create placeholder followers from real buyers or generate fake ones
       if (buyers.length > 0) {
         // Use real buyers as followers (up to the follower_count)
-        followerUsers = buyers.slice(0, followerCount).map(buyer => ({
+        followerUsers = buyers.slice(0, followerCount).map((buyer) => ({
           user_id: buyer.user_id,
           name: buyer.name,
-          username: buyer.username || buyer.name.toLowerCase().replace(/\s+/g, '_'),
+          username:
+            buyer.username || buyer.name.toLowerCase().replace(/\s+/g, "_"),
           account_type: buyer.account_type,
-          profile_image: buyer.profile_image || 'default_profile.jpg',
+          profile_image: buyer.profile_image || "default_profile.jpg",
           city: buyer.city,
-          country: buyer.country
+          country: buyer.country,
         }));
-        
+
         // Update the user's followers array
-        user.followers = followerUsers.map(f => f.user_id);
+        user.followers = followerUsers.map((f) => f.user_id);
         saveData(data);
       } else {
         // Generate placeholder follower data if no buyers are available
         for (let i = 0; i < followerCount; i++) {
           followerUsers.push({
             user_id: `placeholder_${i}`,
-            name: `Follower ${i+1}`,
-            username: `follower_${i+1}`,
-            account_type: 'Buyer',
-            profile_image: 'default_profile.jpg',
-            city: 'Sample City',
-            country: 'Sample Country'
+            name: `Follower ${i + 1}`,
+            username: `follower_${i + 1}`,
+            account_type: "Buyer",
+            profile_image: "default_profile.jpg",
+            city: "Sample City",
+            country: "Sample Country",
           });
         }
       }
     } else if (user.followers && user.followers.length > 0) {
       // Normal case: Get user objects for all followers
-      followerUsers = user.followers.map(followerId => {
-        const follower = data.users.find(u => String(u.user_id) === String(followerId));
-        
+      followerUsers = user.followers.map((followerId) => {
+        const follower = data.users.find(
+          (u) => String(u.user_id) === String(followerId)
+        );
+
         if (follower) {
           // Return a subset of user data for privacy
           return {
             user_id: follower.user_id,
             name: follower.name,
-            username: follower.username || follower.name.toLowerCase().replace(/\s+/g, '_'),
+            username:
+              follower.username ||
+              follower.name.toLowerCase().replace(/\s+/g, "_"),
             account_type: follower.account_type,
-            profile_image: follower.profile_image || 'default_profile.jpg',
+            profile_image: follower.profile_image || "default_profile.jpg",
             city: follower.city,
-            country: follower.country
+            country: follower.country,
           };
         }
-        
+
         // Return minimal data if user not found
         return {
           user_id: followerId,
           name: `User ${followerId}`,
-          account_type: 'Unknown',
-          profile_image: 'default_profile.jpg'
+          account_type: "Unknown",
+          profile_image: "default_profile.jpg",
         };
       });
     }
-    
+
     // Make sure followers_count matches the followers array length
     user.followers_count = followerUsers.length;
     saveData(data);
-    
+
     res.json(followerUsers);
   } catch (error) {
     console.error("Error getting followers:", error);
@@ -2623,23 +3163,23 @@ app.get("/api/users/:userId/followers/count", (req, res) => {
   try {
     const { userId } = req.params;
     const data = loadData();
-    
+
     // Find user
-    const user = data.users.find(u => String(u.user_id) === String(userId));
-    
+    const user = data.users.find((u) => String(u.user_id) === String(userId));
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Get follower count from array or stored count
     let count = 0;
-    
+
     if (user.followers && Array.isArray(user.followers)) {
       count = user.followers.length;
     } else if (user.followers_count !== undefined) {
       count = user.followers_count;
     }
-    
+
     res.json({ count });
   } catch (error) {
     console.error("Error getting follower count:", error);
@@ -2652,48 +3192,52 @@ app.get("/api/users/:userId/suggested-follows", (req, res) => {
   try {
     const { userId } = req.params;
     const data = loadData();
-    
+
     // Find user
-    const user = data.users.find(u => String(u.user_id) === String(userId));
-    
+    const user = data.users.find((u) => String(u.user_id) === String(userId));
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     // Validate user is a buyer
-    if (user.account_type.toLowerCase() !== 'buyer') {
-      return res.status(403).json({ error: "Only buyers can get suggested follows" });
+    if (user.account_type.toLowerCase() !== "buyer") {
+      return res
+        .status(403)
+        .json({ error: "Only buyers can get suggested follows" });
     }
-    
+
     // Get user's current following list
     const following = user.following || [];
-    
+
     // Find all sellers and influencers not already followed
-    let suggestions = data.users.filter(u => 
-      (u.account_type.toLowerCase() === 'seller' || u.account_type.toLowerCase() === 'influencer') &&
-      String(u.user_id) !== String(userId) &&
-      !following.some(id => String(id) === String(u.user_id))
+    let suggestions = data.users.filter(
+      (u) =>
+        (u.account_type.toLowerCase() === "seller" ||
+          u.account_type.toLowerCase() === "influencer") &&
+        String(u.user_id) !== String(userId) &&
+        !following.some((id) => String(id) === String(u.user_id))
     );
-    
+
     // Sort by follower count (most followers first)
     suggestions.sort((a, b) => {
       const followersA = a.followers_count || 0;
       const followersB = b.followers_count || 0;
       return followersB - followersA;
     });
-    
+
     // Limit to 10 suggestions and filter data for response
-    suggestions = suggestions.slice(0, 10).map(u => ({
+    suggestions = suggestions.slice(0, 10).map((u) => ({
       user_id: u.user_id,
       name: u.name,
-      username: u.username || u.name.toLowerCase().replace(/\s+/g, '_'),
+      username: u.username || u.name.toLowerCase().replace(/\s+/g, "_"),
       account_type: u.account_type,
-      profile_image: u.profile_image || 'default_profile.jpg',
+      profile_image: u.profile_image || "default_profile.jpg",
       followers_count: u.followers_count || 0,
       city: u.city,
-      country: u.country
+      country: u.country,
     }));
-    
+
     res.json(suggestions);
   } catch (error) {
     console.error("Error getting suggested follows:", error);
@@ -2704,74 +3248,80 @@ app.get("/api/users/:userId/suggested-follows", (req, res) => {
 app.post("/api/create-follow-relationship", (req, res) => {
   try {
     const { buyerId, followeeId } = req.body;
-    
+
     if (!buyerId || !followeeId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Both buyer ID and followee ID are required" 
+      return res.status(400).json({
+        success: false,
+        message: "Both buyer ID and followee ID are required",
       });
     }
-    
-    console.log(`Creating follow relationship: Buyer ${buyerId} -> User ${followeeId}`);
-    
+
+    console.log(
+      `Creating follow relationship: Buyer ${buyerId} -> User ${followeeId}`
+    );
+
     const data = loadData();
-    
+
     // Validate user IDs
-    const buyer = data.users.find(u => String(u.user_id) === String(buyerId));
-    const followee = data.users.find(u => String(u.user_id) === String(followeeId));
-    
+    const buyer = data.users.find((u) => String(u.user_id) === String(buyerId));
+    const followee = data.users.find(
+      (u) => String(u.user_id) === String(followeeId)
+    );
+
     if (!buyer || !followee) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "One or both users not found" 
+      return res.status(404).json({
+        success: false,
+        message: "One or both users not found",
       });
     }
-    
+
     // Validate account types
-    if (buyer.account_type.toLowerCase() !== 'buyer') {
+    if (buyer.account_type.toLowerCase() !== "buyer") {
       return res.status(403).json({
         success: false,
-        message: "The follower must be a buyer"
+        message: "The follower must be a buyer",
       });
     }
-    
-    if (!['seller', 'influencer'].includes(followee.account_type.toLowerCase())) {
+
+    if (
+      !["seller", "influencer"].includes(followee.account_type.toLowerCase())
+    ) {
       return res.status(403).json({
         success: false,
-        message: "The followee must be a seller or influencer"
+        message: "The followee must be a seller or influencer",
       });
     }
-    
+
     // Initialize arrays if needed
     if (!buyer.following) buyer.following = [];
     if (!followee.followers) followee.followers = [];
-    
+
     // Check if already following
-    if (buyer.following.some(id => String(id) === String(followeeId))) {
+    if (buyer.following.some((id) => String(id) === String(followeeId))) {
       return res.status(200).json({
         success: true,
-        message: "Already following this user"
+        message: "Already following this user",
       });
     }
-    
+
     // Create follow relationship
     buyer.following.push(followeeId);
     followee.followers.push(buyerId);
-    
+
     // Update follower count for display
     followee.followers_count = (followee.followers_count || 0) + 1;
-    
+
     saveData(data);
-    
+
     res.json({
       success: true,
-      message: "Follow relationship created successfully"
+      message: "Follow relationship created successfully",
     });
   } catch (error) {
     console.error("Error creating follow relationship:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error creating follow relationship" 
+    res.status(500).json({
+      success: false,
+      message: "Error creating follow relationship",
     });
   }
 });

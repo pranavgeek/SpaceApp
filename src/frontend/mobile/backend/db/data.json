@@ -25,12 +25,13 @@
       "social_media_x": "@johndoe",
       "social_media_linkedin": "linkedin.com/johndoe",
       "social_media_website": "johndoe.com",
-      "profile_image": "profile1.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/263c8ecb-efc6-4044-b9ea-5f29635300d1.jpg",
       "gender": "Male",
       "age": 30,
       "email": "john@example.com",
       "password": "123456789",
       "account_type": "Buyer",
+      "role": "buyer",
       "is_two_factor_enabled": false,
       "phone_number": "",
       "is_private_account": false,
@@ -54,7 +55,7 @@
           "price": 199.99
         }
       ],
-      "following_count": 0,
+      "following_count": 1,
       "orders": [
         {
           "order_id": "ORD-1744052528949-10",
@@ -124,8 +125,16 @@
       "reset_otp": "966954",
       "otp_expires_at": 1744921895595,
       "otp_verified": true,
-      "tier": "Starter Tier",
-      "following": [],
+      "tier": "basic",
+      "following": [
+        {
+          "user_id": 5,
+          "name": "Shubh Rai",
+          "profile_image": "default_profile.jpg",
+          "account_type": "Seller",
+          "follow_date": "2025-05-15T22:15:03.041Z"
+        }
+      ],
       "followers": [],
       "followers_count": 0,
       "_preventReload": true
@@ -281,7 +290,7 @@
       "social_media_x": "@mikeinfluencer",
       "social_media_linkedin": "linkedin.com/mikeinfluencer",
       "social_media_website": "mikeinfluencer.com",
-      "profile_image": "profile3.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/0a81c65b-ac99-4cd9-9f40-8a1e7c8b873e.jpg",
       "gender": "Male",
       "age": 28,
       "email": "mike@example.com",
@@ -309,14 +318,11 @@
       "earnings": 500,
       "orders": [],
       "followers": [
-        {
-          "user_id": 8,
-          "name": "Alex",
-          "profile_image": "default_profile.jpg",
-          "follow_date": "2025-05-03T00:35:55.000Z"
-        }
+        "1"
       ],
-      "_preventReload": true
+      "_preventReload": true,
+      "role": "influencer",
+      "id": "3"
     },
     {
       "name": "Shubh Rai",
@@ -331,7 +337,7 @@
       "social_media_x": "",
       "social_media_linkedin": "",
       "social_media_website": "",
-      "profile_image": "default_profile.jpg",
+      "profile_image": "file:///var/mobile/Containers/Data/Application/B9627EDE-6085-41FD-9C9B-7361F684055A/Library/Caches/ImagePicker/4C96D8D0-0D8A-4937-9ADE-F7A65DF7F8B1.jpg",
       "gender": "Male",
       "age": 25,
       "is_two_factor_enabled": false,
@@ -345,9 +351,18 @@
       },
       "user_id": 5,
       "id": "5",
-      "followers": [],
-      "followers_count": 0,
-      "tier": "basic"
+      "followers": [
+        {
+          "user_id": 1,
+          "name": "John Doe",
+          "profile_image": "profile1.jpg",
+          "follow_date": "2025-05-15T22:15:03.027Z"
+        }
+      ],
+      "followers_count": 1,
+      "tier": "basic",
+      "subscription_cancelled": true,
+      "subscription_cancelled_at": "2025-05-15T23:32:57.725Z"
     },
     {
       "name": "Taylor",
@@ -417,7 +432,7 @@
       "product_id": 101,
       "product_name": "Smartphone",
       "category": "Hardware",
-      "product_image": "phone.jpg",
+      "product_image": "/uploads/products/shopping.webp",
       "cost": 699,
       "currency": "USD",
       "summary": "High-end smartphone",
@@ -438,6 +453,15 @@
           "review": "Good product",
           "date_timestamp": "2025-04-12T00:13:22.430Z",
           "review_id": 4
+        },
+        {
+          "product_id": 101,
+          "user_id": 1,
+          "user_name": "John Doe",
+          "number_stars": 5,
+          "review": "Best product I ever saw.",
+          "date_timestamp": "2025-05-16T00:41:46.985Z",
+          "review_id": 5
         }
       ],
       "download_url": "kspace-technologies.com",
@@ -448,7 +472,7 @@
       "product_id": 102,
       "product_name": "Wireless Headphones",
       "category": "Hardware",
-      "product_image": "headphone.jpg",
+      "product_image": "/uploads/products/15732775.jpg",
       "cost": 120,
       "currency": "USD",
       "summary": "Noise-cancelling wireless headphones",
@@ -483,7 +507,7 @@
       "description": "13” inch",
       "country": "Delhi, India",
       "user_seller": 2,
-      "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/532A4BF5-D49E-49D0-B129-1281A4E9ED9F.jpg",
+      "product_image": "/uploads/products/mbp14-spaceblack-select-202410.jpeg",
       "verified": true,
       "created_at": "2025-04-15T02:22:56.818Z",
       "product_id": 4,
@@ -506,7 +530,7 @@
       "description": "Logitech",
       "country": "São Paulo, Brazil",
       "user_seller": 2,
-      "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/E6B0C803-2C68-4E38-A8A0-B2AFA47A72A3.jpg",
+      "product_image": "/uploads/products/mx-keys-s-top-view-black-us.webp",
       "verified": true,
       "created_at": "2025-04-15T02:45:37.090Z",
       "product_id": 5,
@@ -538,7 +562,7 @@
       "description": "2025 modal",
       "country": "São Paulo, Brazil",
       "user_seller": 5,
-      "product_image": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/31ADA506-A523-4A7C-9ECD-7B376D82A315/data/Containers/Data/Application/540E5A6A-1C31-4755-8400-67A0F3192930/Library/Caches/ImagePicker/C8C926D7-939D-4D80-B552-63E9ACE011F7.jpg",
+      "product_image": "/uploads/products/616z23YvqML._AC_UL640_FMwebp_QL65_.webp",
       "verified": true,
       "created_at": "2025-04-29T03:25:38.828Z",
       "product_id": 103
@@ -580,35 +604,44 @@
       "review": "nice product",
       "date_timestamp": "2025-04-22T00:30:35.291Z",
       "review_id": 4
+    },
+    {
+      "product_id": 101,
+      "user_id": 1,
+      "user_name": "John Doe",
+      "number_stars": 5,
+      "review": "Best product I ever saw.",
+      "date_timestamp": "2025-05-16T00:41:46.985Z",
+      "review_id": 5
     }
   ],
   "messages": [
     {
       "message_id": 1,
-      "user_from": "6",
+      "user_from": "3",
       "user_to": "5",
-      "sender_id": "6",
+      "sender_id": "3",
       "receiver_id": "5",
-      "from_name": "Taylor",
+      "from_name": "Mike Influencer",
       "to_name": "Shubh Rai",
       "type_message": "text",
       "message_content": "Hi, I'm interested in collaborating on your products!",
-      "date_timestamp_sent": "2025-05-15T00:17:00.036Z",
-      "timestamp": "2025-05-15T00:17:00.036Z",
+      "date_timestamp_sent": "2025-05-15T05:54:47.250Z",
+      "timestamp": "2025-05-15T05:54:47.250Z",
       "is_read": false
     },
     {
       "message_id": 2,
       "user_from": "5",
-      "user_to": "Taylor",
+      "user_to": "Mike Influencer",
       "sender_id": "5",
-      "receiver_id": "Taylor",
+      "receiver_id": "Mike Influencer",
       "from_name": "Shubh Rai",
-      "to_name": "Taylor",
+      "to_name": "Mike Influencer",
       "type_message": "text",
       "message_content": "I've accepted your collaboration request. Let's work together!",
-      "date_timestamp_sent": "2025-05-15T00:17:09.713Z",
-      "timestamp": "2025-05-15T00:17:09.713Z",
+      "date_timestamp_sent": "2025-05-15T23:34:20.192Z",
+      "timestamp": "2025-05-15T23:34:20.192Z",
       "is_read": false
     }
   ],
@@ -1170,16 +1203,38 @@
   "subscriptions": [],
   "collaboration_requests": [
     {
-      "requestId": "1747252021697",
+      "requestId": "1747285838847",
       "sellerId": "5",
       "sellerName": "Shubh Rai",
       "influencerId": "6",
       "influencerName": "Taylor",
       "product": "Collaboration Request",
       "status": "Accepted",
-      "timestamp": "2025-05-14T19:47:01.697Z",
-      "request_id": "req-1747252021705",
-      "statusUpdatedAt": "2025-05-15T00:20:42.389Z"
+      "timestamp": "2025-05-15T05:10:38.847Z",
+      "request_id": "req-1747285838867",
+      "statusUpdatedAt": "2025-05-15T05:13:59.658Z"
+    },
+    {
+      "requestId": "1747288487209",
+      "sellerId": "5",
+      "sellerName": "Shubh Rai",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Accepted",
+      "timestamp": "2025-05-15T05:54:47.209Z",
+      "request_id": "req-1747288487242",
+      "statusUpdatedAt": "2025-05-15T23:34:20.060Z"
+    }
+  ],
+  "subscription_cancellations": [
+    {
+      "user_id": 5,
+      "previous_tier": "pro",
+      "reason": "User requested cancellation",
+      "cancelled_at": "2025-05-15T23:32:57.725Z",
+      "subscription_end_date": "2025-06-15T23:32:08.196Z",
+      "auto_downgrade": true
     }
   ]
 }

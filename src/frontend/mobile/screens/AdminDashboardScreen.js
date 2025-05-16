@@ -29,6 +29,7 @@ import {
   updateCampaignRequestStatus,
 } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
+import SubscriptionManagementScreen from "../components/SubscriptionManagementScreen";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function AdminDashboardScreen() {
@@ -87,32 +88,37 @@ export default function AdminDashboardScreen() {
     try {
       setProcessingAction(true);
       console.log(`✅ Approving influencer application for user ${userId}`);
-  
+
       // Parse the application details
       let applicationDetails = {};
       try {
         applicationDetails = JSON.parse(details);
-        console.log("Successfully parsed application details:", applicationDetails);
+        console.log(
+          "Successfully parsed application details:",
+          applicationDetails
+        );
       } catch (error) {
         console.error("Error parsing application details:", error);
         throw new Error("Invalid application details format");
       }
-  
+
       // 1. Update the admin action status to approved
       console.log("Step 1: Updating admin action status");
       await updateAdminStatus(adminId, "approved");
       console.log("✓ Admin action status updated successfully");
-  
+
       // 2. Update the user role to influencer with the selected tier
       console.log("Step 2: Updating user role to influencer");
       const selectedTier = applicationDetails.selectedTier || "Starter Tier";
-  
+
       // THIS IS THE KEY FIX: Make sure you're calling updateUserRole with proper values
       // Role must be lowercase 'influencer' to match checks in your SettingsScreen
       const result = await updateUserRole(userId, "influencer", selectedTier);
-      console.log(`✓ User ${userId} role updated to influencer with tier: ${selectedTier}`);
+      console.log(
+        `✓ User ${userId} role updated to influencer with tier: ${selectedTier}`
+      );
       console.log("Update result:", result);
-  
+
       // 3. Create a notification for the user
       console.log("Step 3: Creating notification for user");
       const notificationData = {
@@ -120,25 +126,25 @@ export default function AdminDashboardScreen() {
         message: `Congratulations! Your application to become an influencer has been approved. Welcome to the ${selectedTier} program.`,
         date_timestamp: new Date().toISOString(),
       };
-  
+
       await createNotification(notificationData);
       console.log(`✓ Notification created for user ${userId}`);
-  
+
       // 4. Refresh admin data to update the UI
       console.log("Step 4: Refreshing admin dashboard data");
       await loadAdminDashboard();
       console.log("✓ Admin dashboard refreshed");
-  
+
       // Verify the user was updated correctly
       const updatedUsers = await fetchUsers();
       const updatedUser = updatedUsers.find((u) => u.user_id === userId);
-  
+
       console.log("User after approval:", updatedUser);
-  
+
       if (
         updatedUser &&
         (updatedUser.role === "influencer" ||
-         updatedUser.account_type === "Influencer")
+          updatedUser.account_type === "Influencer")
       ) {
         console.log(`✅ Confirmed: User ${userId} is now an influencer`);
       } else {
@@ -146,7 +152,7 @@ export default function AdminDashboardScreen() {
           `⚠️ Warning: User ${userId} role may not have updated properly. Current role: ${updatedUser?.role}, account type: ${updatedUser?.account_type}`
         );
       }
-  
+
       Alert.alert(
         "Success",
         `${updatedUser?.name || "User"}'s influencer application has been approved. They now have influencer access.`
@@ -231,17 +237,17 @@ export default function AdminDashboardScreen() {
     try {
       setProcessingAction(true);
       console.log(`✅ Approving campaign request ${requestId}`);
-      
+
       // 1. Update the admin action status
       if (adminId) {
         await updateAdminStatus(adminId, "approved");
       }
-      
+
       // 2. Update the campaign request status
       await updateCampaignRequestStatus(requestId, "Accepted");
-      
+
       // 3. Create notifications for both seller and influencer
-      const campaign = campaignRequests.find(c => c.requestId === requestId);
+      const campaign = campaignRequests.find((c) => c.requestId === requestId);
       if (campaign) {
         // Notify influencer
         await createNotification({
@@ -249,7 +255,7 @@ export default function AdminDashboardScreen() {
           message: `Your campaign for "${campaign.productName}" has been approved. Check your Active Campaigns tab.`,
           date_timestamp: new Date().toISOString(),
         });
-        
+
         // Notify seller
         await createNotification({
           user_id: campaign.sellerId,
@@ -257,29 +263,32 @@ export default function AdminDashboardScreen() {
           date_timestamp: new Date().toISOString(),
         });
       }
-      
+
       // 4. Refresh data
       await loadCampaignRequests();
-      
+
       Alert.alert("Success", "Campaign has been approved successfully.");
     } catch (error) {
       console.error("Error approving campaign:", error);
-      Alert.alert("Error", "Failed to approve campaign request. Please try again.");
+      Alert.alert(
+        "Error",
+        "Failed to approve campaign request. Please try again."
+      );
     } finally {
       setProcessingAction(false);
     }
   };
-  
+
   const handleCampaignRejection = async (requestId) => {
     try {
       setProcessingAction(true);
       console.log(`❌ Rejecting campaign request ${requestId}`);
-      
+
       // 1. Update the campaign request status
       await updateCampaignRequestStatus(requestId, "Declined");
-      
+
       // 2. Create notifications for both seller and influencer
-      const campaign = campaignRequests.find(c => c.requestId === requestId);
+      const campaign = campaignRequests.find((c) => c.requestId === requestId);
       if (campaign) {
         // Notify influencer
         await createNotification({
@@ -287,7 +296,7 @@ export default function AdminDashboardScreen() {
           message: `Campaign request for "${campaign.productName}" has been declined by admin.`,
           date_timestamp: new Date().toISOString(),
         });
-        
+
         // Notify seller
         await createNotification({
           user_id: campaign.sellerId,
@@ -295,19 +304,21 @@ export default function AdminDashboardScreen() {
           date_timestamp: new Date().toISOString(),
         });
       }
-      
+
       // 3. Refresh data
       await loadCampaignRequests();
-      
+
       Alert.alert("Success", "Campaign has been declined.");
     } catch (error) {
       console.error("Error rejecting campaign:", error);
-      Alert.alert("Error", "Failed to reject campaign request. Please try again.");
+      Alert.alert(
+        "Error",
+        "Failed to reject campaign request. Please try again."
+      );
     } finally {
       setProcessingAction(false);
     }
   };
-  
 
   const handleProductVerify = async (productId, productName) => {
     try {
@@ -509,7 +520,7 @@ export default function AdminDashboardScreen() {
           </View>
         )}
       </TouchableOpacity>
-  
+
       <TouchableOpacity
         style={[styles.tab, activeTab === "tracking" && styles.activeTab]}
         onPress={() => setActiveTab("tracking")}
@@ -525,7 +536,7 @@ export default function AdminDashboardScreen() {
           </View>
         )}
       </TouchableOpacity>
-  
+
       <TouchableOpacity
         style={[styles.tab, activeTab === "campaigns" && styles.activeTab]}
         onPress={() => setActiveTab("campaigns")}
@@ -535,15 +546,15 @@ export default function AdminDashboardScreen() {
           size={24}
           color={activeTab === "campaigns" ? colors.primary : colors.subtitle}
         />
-        {campaignRequests.filter(c => c.status === "Pending").length > 0 && (
+        {campaignRequests.filter((c) => c.status === "Pending").length > 0 && (
           <View style={styles.iconBadge}>
             <Text style={styles.iconBadgeText}>
-              {campaignRequests.filter(c => c.status === "Pending").length}
+              {campaignRequests.filter((c) => c.status === "Pending").length}
             </Text>
           </View>
         )}
       </TouchableOpacity>
-  
+
       <TouchableOpacity
         style={[styles.tab, activeTab === "accounts" && styles.activeTab]}
         onPress={() => setActiveTab("accounts")}
@@ -554,7 +565,7 @@ export default function AdminDashboardScreen() {
           color={activeTab === "accounts" ? colors.primary : colors.subtitle}
         />
       </TouchableOpacity>
-  
+
       <TouchableOpacity
         style={[styles.tab, activeTab === "products" && styles.activeTab]}
         onPress={() => setActiveTab("products")}
@@ -565,8 +576,44 @@ export default function AdminDashboardScreen() {
           color={activeTab === "products" ? colors.primary : colors.subtitle}
         />
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "subscriptions" && styles.activeTab]}
+        onPress={() => setActiveTab("subscriptions")}
+      >
+        <Ionicons
+          name="card-outline"
+          size={24}
+          color={
+            activeTab === "subscriptions" ? colors.primary : colors.subtitle
+          }
+        />
+        {users.filter(
+          (u) =>
+            u.tier &&
+            u.tier !== "basic" &&
+            u.subscription_end_date &&
+            new Date(u.subscription_end_date) <
+              new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        ).length > 0 && (
+          <View style={styles.iconBadge}>
+            <Text style={styles.iconBadgeText}>
+              {
+                users.filter(
+                  (u) =>
+                    u.tier &&
+                    u.tier !== "basic" &&
+                    u.subscription_end_date &&
+                    new Date(u.subscription_end_date) <
+                      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                ).length
+              }
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
-  );  
+  );
 
   const renderPendingApprovals = () => (
     <View style={styles.sectionContainer}>
@@ -1144,8 +1191,10 @@ export default function AdminDashboardScreen() {
 
   const renderCampaignRequests = () => {
     // Filter for pending campaign requests
-    const pendingCampaigns = campaignRequests.filter(req => req.status === "Pending");
-    
+    const pendingCampaigns = campaignRequests.filter(
+      (req) => req.status === "Pending"
+    );
+
     return (
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeader}>
@@ -1154,24 +1203,32 @@ export default function AdminDashboardScreen() {
             <Text style={styles.badgeText}>{pendingCampaigns.length}</Text>
           </View>
         </View>
-  
+
         {pendingCampaigns.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="megaphone" size={50} color="#8b5cf6" />
-            <Text style={styles.emptyStateText}>No pending campaign requests</Text>
+            <Text style={styles.emptyStateText}>
+              No pending campaign requests
+            </Text>
           </View>
         ) : (
           pendingCampaigns.map((request) => {
             // Find the admin data related to this campaign request
             const adminAction = adminData.find(
-              action => action.details && 
-              JSON.parse(action.details).campaignRequestId === request.requestId
+              (action) =>
+                action.details &&
+                JSON.parse(action.details).campaignRequestId ===
+                  request.requestId
             );
-            
+
             // Find the seller and influencer
-            const seller = users.find(u => u.user_id === parseInt(request.sellerId));
-            const influencer = users.find(u => u.user_id === parseInt(request.influencerId));
-            
+            const seller = users.find(
+              (u) => u.user_id === parseInt(request.sellerId)
+            );
+            const influencer = users.find(
+              (u) => u.user_id === parseInt(request.influencerId)
+            );
+
             return (
               <View key={request.requestId} style={styles.card}>
                 <View style={styles.cardHeader}>
@@ -1191,7 +1248,8 @@ export default function AdminDashboardScreen() {
                         {seller?.name || "Unknown Seller"}
                       </Text>
                       <Text style={styles.userAction}>
-                        Campaign Request for {influencer?.name || "Unknown Influencer"}
+                        Campaign Request for{" "}
+                        {influencer?.name || "Unknown Influencer"}
                       </Text>
                     </View>
                   </View>
@@ -1199,23 +1257,29 @@ export default function AdminDashboardScreen() {
                     <Text style={styles.statusText}>{request.status}</Text>
                   </View>
                 </View>
-  
+
                 <View style={styles.campaignDetails}>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Product:</Text>
-                    <Text style={styles.detailValue}>{request.productName}</Text>
+                    <Text style={styles.detailValue}>
+                      {request.productName}
+                    </Text>
                   </View>
-                  
+
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Duration:</Text>
-                    <Text style={styles.detailValue}>{request.campaignDuration} days</Text>
+                    <Text style={styles.detailValue}>
+                      {request.campaignDuration} days
+                    </Text>
                   </View>
-                  
+
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Commission:</Text>
-                    <Text style={styles.detailValue}>{request.commission}%</Text>
+                    <Text style={styles.detailValue}>
+                      {request.commission}%
+                    </Text>
                   </View>
-                  
+
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Submitted:</Text>
                     <Text style={styles.detailValue}>
@@ -1223,9 +1287,9 @@ export default function AdminDashboardScreen() {
                     </Text>
                   </View>
                 </View>
-  
+
                 <View style={styles.divider} />
-  
+
                 <View style={styles.cardFooter}>
                   <TouchableOpacity
                     style={styles.rejectButton}
@@ -1241,7 +1305,12 @@ export default function AdminDashboardScreen() {
                       styles.approveButton,
                       processingAction && styles.disabledButton,
                     ]}
-                    onPress={() => handleCampaignApproval(request.requestId, adminAction?.admin_id)}
+                    onPress={() =>
+                      handleCampaignApproval(
+                        request.requestId,
+                        adminAction?.admin_id
+                      )
+                    }
                     disabled={processingAction}
                   >
                     {processingAction ? (
@@ -1283,6 +1352,8 @@ export default function AdminDashboardScreen() {
         return renderProducts();
       case "campaigns":
         return renderCampaignRequests();
+      case "subscriptions":
+          return <SubscriptionManagementScreen />;
       default:
         return renderPendingApprovals();
     }
@@ -1448,12 +1519,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    backgroundColor: "#fff",
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2.22,
@@ -1461,31 +1532,31 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
-    position: 'relative',
+    position: "relative",
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#3b82f6',
+    borderBottomColor: "#3b82f6",
   },
   iconBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 5,
-    right: 'auto',
-    backgroundColor: '#ef4444',
+    right: "auto",
+    backgroundColor: "#ef4444",
     width: 18,
     height: 18,
     borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 16,
   },
   iconBadgeText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   sectionContainer: {
     padding: 16,

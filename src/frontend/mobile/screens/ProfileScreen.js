@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
-import { fetchUsers } from "../backend/db/API";
+import { fetchUsers, canSwitchBackToOriginalRole } from "../backend/db/API";
 import SubscriptionBadge from "../components/SubscriptionBadge";
 
 export default function ProfileScreen({ navigation }) {
@@ -28,7 +28,24 @@ export default function ProfileScreen({ navigation }) {
   const styles = getDynamicStyles(colors, isDarkMode);
   const [location, setLocation] = useState("");
   const [languages, setLanguages] = useState([]);
-  const { user } = useAuth();
+  const { user, toggleSellerMode } = useAuth();
+  const [canSwitchBack, setCanSwitchBack] = useState(false);
+
+  // Add this useEffect to check if the user can switch back
+  useEffect(() => {
+    const checkSwitchCapability = async () => {
+      try {
+        if (user && user.user_id) {
+          const result = await canSwitchBackToOriginalRole(user.user_id);
+          setCanSwitchBack(result.canSwitchBack);
+        }
+      } catch (error) {
+        console.error("Error checking switch capability:", error);
+      }
+    };
+
+    checkSwitchCapability();
+  }, [user]);
 
   const loadData = async () => {
     try {
@@ -41,29 +58,88 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const handleSwitchToBuyer = () => {
+    Alert.alert(
+      "Switch to Buyer Mode",
+      "Do you want to switch back to buyer mode?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Switch",
+          onPress: async () => {
+            try {
+              await toggleSellerMode(false); // false to deactivate seller mode
+              // Navigate back to buyer home screen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "TabProfile" }],
+              });
+            } catch (error) {
+              Alert.alert(
+                "Error",
+                error.message || "Failed to switch to buyer mode"
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const refreshUserData = async () => {
     try {
-      // Fetch the latest user data
-      const users = await fetchUsers(); // Import this from your API
+      // First try to get fresh user data from AsyncStorage
+      const storedUserData = await AsyncStorage.getItem("user");
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
 
-      // Find the current user
+        // Update the seller state with this data
+        setSeller({
+          name: userData.name || "User",
+          city: userData.city || "N/A",
+          country: userData.country || "N/A",
+          accountType: userData.account_type || "N/A",
+          profilePhoto: userData.profile_image || null,
+          campaigns: Array.isArray(userData.campaigns)
+            ? userData.campaigns
+            : [],
+          followers: userData.followers_count || 0,
+          earnings: userData.earnings || 0,
+        });
+
+        console.log(
+          "Refreshed user data from AsyncStorage:",
+          userData.profile_image
+        );
+      }
+
+      // Optionally, also try to fetch from API for even fresher data
+      const users = await fetchUsers();
       const refreshedUser = users.find(
         (u) => String(u.user_id) === String(user.user_id)
       );
 
       if (refreshedUser) {
-        // Update the seller object with fresh data
         setSeller({
           name: refreshedUser.name || "User",
           city: refreshedUser.city || "N/A",
           country: refreshedUser.country || "N/A",
           accountType: refreshedUser.account_type || "N/A",
+          profilePhoto: refreshedUser.profile_image || null,
           campaigns: Array.isArray(refreshedUser.campaigns)
             ? refreshedUser.campaigns
             : [],
           followers: refreshedUser.followers_count || 0,
           earnings: refreshedUser.earnings || 0,
         });
+
+        console.log(
+          "Refreshed user data from API:",
+          refreshedUser.profile_image
+        );
       }
     } catch (error) {
       console.error("Error refreshing user data:", error);
@@ -75,6 +151,7 @@ export default function ProfileScreen({ navigation }) {
     city: user?.city || "N/A",
     country: user?.country || "N/A",
     accountType: user?.account_type || "N/A",
+    profilePhoto: user?.profile_image || null,
     campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
     followers: user?.followers_count || 0,
     earnings: user?.earnings || 0,
@@ -118,9 +195,18 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.profileImageContainer}>
                 <Image
                   source={{
-                    uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+                    uri: seller.profilePhoto
+                      ? `${seller.profilePhoto}?t=${Date.now()}`
+                      : "https://via.placeholder.com/150",
                   }}
                   style={styles.profileImage}
+                  onError={(e) =>
+                    console.error(
+                      "Profile image load error:",
+                      e.nativeEvent.error,
+                      seller.profilePhoto
+                    )
+                  }
                 />
               </View>
             </View>
@@ -301,6 +387,33 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.buttonText}>Favorites</Text>
               </TouchableOpacity>
             </View>
+            {canSwitchBack && (
+              <TouchableOpacity
+                style={styles.modeSwitchBanner}
+                onPress={handleSwitchToBuyer}
+              >
+                <View style={styles.bannerContent}>
+                  <View style={styles.bannerIconContainer}>
+                    <Ionicons
+                      name="person-outline"
+                      size={24}
+                      color={colors.white}
+                    />
+                  </View>
+                  <View style={styles.bannerTextContainer}>
+                    <Text style={styles.bannerTitle}>Return to Buyer Mode</Text>
+                    <Text style={styles.bannerDescription}>
+                      Switch back to your buyer account
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -377,9 +490,9 @@ function getDynamicStyles(colors, isDarkMode) {
       marginBottom: 8, // Added margin to separate name from badges
     },
     badgeContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
     },
     accountTypeBadge: {
       backgroundColor: `${colors.primary}20`,
@@ -585,6 +698,57 @@ function getDynamicStyles(colors, isDarkMode) {
       color: isDarkMode ? "#ff6b6b" : "#dc2626",
       fontWeight: "600",
       fontSize: 14,
+    },
+    modeSwitchBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: isDarkMode
+        ? "rgba(255,255,255,0.1)"
+        : colors.cardBackground || "#f1f5f9",
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 24,
+      marginTop: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary,
+      shadowColor: colors.shadowColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    bannerContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    bannerIconContainer: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 16,
+      shadowColor: colors.shadowColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    bannerTextContainer: {
+      flex: 1,
+    },
+    bannerTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 4,
+    },
+    bannerDescription: {
+      fontSize: 14,
+      color: colors.subtitle,
     },
   });
 }

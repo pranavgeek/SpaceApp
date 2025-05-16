@@ -120,13 +120,6 @@ export default function InfluencerProgramScreen({ navigation }) {
         [{ text: "OK", style: "default" }]
       );
       return;
-    } else if (!user || user.role !== "buyer") {
-      Alert.alert(
-        "Access Denied",
-        "Only buyer accounts are eligible to switch to an influencer account."
-      );
-      navigation.navigate("Home");
-      return;
     }
 
     // Existing user flow for buyer selecting a tier

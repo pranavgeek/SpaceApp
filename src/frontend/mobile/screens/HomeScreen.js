@@ -110,17 +110,31 @@ export default function HomeScreen({ navigation }) {
   const slideUpAnim = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT)).current;
   const modalOpacity = useRef(new Animated.Value(0)).current;
 
-  const HEADER_MAX_HEIGHT = 140; // Full height (header + search)
+  const HEADER_MAX_HEIGHT = 130; // Full header height (logo + search)
   const HEADER_MIN_HEIGHT = 60; // Just search bar height
   const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+  const STATUSBAR_HEIGHT =
+    Platform.OS === "ios" ? 20 : StatusBar.currentHeight || 0;
 
   // Create animation value for scroll position
   const scrollY = useRef(new Animated.Value(0)).current;
 
   // Create interpolation for header movement
-  const headerTranslateY = scrollY.interpolate({
+  const headerHeight = scrollY.interpolate({
     inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -60], // Hide only the logo part
+    outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+    extrapolate: "clamp",
+  });
+
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+    outputRange: [1, 0.5, 0],
+    extrapolate: "clamp",
+  });
+
+  const searchBarTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -60],
     extrapolate: "clamp",
   });
 
@@ -291,9 +305,13 @@ export default function HomeScreen({ navigation }) {
             project: {
               name: product.product_name,
               description: product.description,
-              image: product.product_image.startsWith("http")
-                ? product.product_image
-                : `http://3.99.169.179/api/${product.product_image}`,
+              image: product.product_image
+                ? product.product_image.startsWith("http")
+                  ? product.product_image
+                  : product.product_image.startsWith("/")
+                    ? `http://10.0.0.25:5001${product.product_image}` // Absolute path with leading slash
+                    : `http://10.0.0.25:5001/uploads/products/${product.product_image}` // Relative path
+                : "https://via.placeholder.com/300x180?text=No+Image",
               price: product.cost,
               likes: 0,
               summary: product.summary,
@@ -302,6 +320,8 @@ export default function HomeScreen({ navigation }) {
               city: productCity,
               best_seller:
                 product.is_best_seller || product.product_id % 3 === 0,
+              product_id: product.product_id, // Keep the original product_id
+              product_image: product.product_image, // Keep the original product_image
             },
             creator: {
               name:
@@ -559,61 +579,81 @@ export default function HomeScreen({ navigation }) {
         <Animated.View
           style={[
             styles.headerContainer,
-            { transform: [{ translateY: headerTranslateY }] },
-            { zIndex: 999 },
+            {
+              height: isDesktopWeb
+                ? HEADER_MAX_HEIGHT
+                : headerHeight + STATUSBAR_HEIGHT,
+              paddingTop: isDesktopWeb ? 0 : STATUSBAR_HEIGHT,
+              zIndex: 999,
+            },
           ]}
         >
-        <View style={styles.customHeader}>
-          <View style={styles.headerLeft}>
-            <Image
-              source={require("../assets/logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.cartIconContainer}>
-            <TouchableOpacity
-              style={styles.cartButton}
-              onPress={() => navigation.navigate("CartScreen")}
-            >
-              <Icon name="shoppingcart" size={22} color={colors.background} />
-              {totalItems > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{totalItems}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* SEARCH BAR */}
-        <View style={styles.searchBarContainer}>
-          <View style={styles.searchInputWrap}>
-            <Ionicons
-              name="search-outline"
-              size={18}
-              color={colors.subtitle}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="What are you looking for?"
-              placeholderTextColor={colors.placeholderText}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={handleFilterPress}
+          <Animated.View
+            style={[
+              styles.customHeader,
+              {
+                opacity: isDesktopWeb ? 1 : headerOpacity,
+              },
+            ]}
           >
-            <Ionicons
-              name="options-outline"
-              size={20}
-              color={colors.background}
-            />
-          </TouchableOpacity>
-        </View>
+            <View style={styles.headerLeft}>
+              <Image
+                source={require("../assets/logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.cartIconContainer}>
+              <TouchableOpacity
+                style={styles.cartButton}
+                onPress={() => navigation.navigate("CartScreen")}
+              >
+                <Icon name="shoppingcart" size={22} color={colors.background} />
+                {totalItems > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{totalItems}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.searchBarContainer,
+              {
+                transform: [
+                  { translateY: isDesktopWeb ? 0 : searchBarTranslateY },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.searchInputWrap}>
+              <Ionicons
+                name="search-outline"
+                size={18}
+                color={colors.subtitle}
+                style={styles.searchIcon}
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="What are you looking for?"
+                placeholderTextColor={colors.placeholderText}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={handleFilterPress}
+            >
+              <Ionicons
+                name="options-outline"
+                size={20}
+                color={colors.background}
+              />
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
 
         {/* ACTIVE FILTERS DISPLAY */}
@@ -831,7 +871,16 @@ export default function HomeScreen({ navigation }) {
           </View>
         ) : (
           // MOBILE LAYOUT
-          <View style={styles.content}>
+          <View
+            style={[
+              styles.content,
+              {
+                marginTop: isDesktopWeb
+                  ? 0
+                  : HEADER_MAX_HEIGHT + STATUSBAR_HEIGHT,
+              },
+            ]}
+          >
             {filteredProjects.length > 0 ? (
               <FlatList
                 data={filteredProjects}
@@ -849,6 +898,12 @@ export default function HomeScreen({ navigation }) {
                 )}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.mobileListContent}
+                // Add these props to capture scroll events
+                scrollEventThrottle={16}
+                onScroll={Animated.event(
+                  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                  { useNativeDriver: false }
+                )}
               />
             ) : (
               <View style={styles.emptyState}>
@@ -1043,6 +1098,17 @@ const getDynamicStyles = (colors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
+    headerContainer: {
+      backgroundColor: colors.background,
+      overflow: "hidden",
+      position: "absolute",
+      top: Platform.OS === "ios" ? 50 : 0,
+      left: 0,
+      right: 0,
+      zIndex: 999,
+      borderBottomWidth: 5,
+      borderBottomColor: colors.baseContainerBody,
+    },
     customHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -1050,8 +1116,6 @@ const getDynamicStyles = (colors) =>
       paddingHorizontal: 16,
       height: 60,
       backgroundColor: colors.background,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.baseContainerBody,
     },
     headerLeft: {
       flexDirection: "row",
@@ -1100,9 +1164,10 @@ const getDynamicStyles = (colors) =>
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 10,
       backgroundColor: colors.background,
       justifyContent: "space-between",
+      height: 70,
     },
     searchInputWrap: {
       flex: 1,
@@ -1176,6 +1241,7 @@ const getDynamicStyles = (colors) =>
     mobileListContent: {
       paddingHorizontal: 16,
       paddingBottom: 20,
+      paddingTop: 8, // Reduced from the original to account for the header padding
     },
     webContainer: {
       flex: 1,

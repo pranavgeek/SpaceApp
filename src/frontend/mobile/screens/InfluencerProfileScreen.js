@@ -44,27 +44,55 @@ export default function InfluencerProfileScreen({ navigation }) {
 
   const refreshUserData = async () => {
     try {
-      // Fetch the latest user data
-      const users = await fetchUsers(); // Import this from your API
+      // First try to get fresh user data from AsyncStorage
+      const storedUserData = await AsyncStorage.getItem("user");
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
 
-      // Find the current user
+        // Update the seller state with this data
+        setInfluencer({
+          name: userData.name || "User",
+          city: userData.city || "N/A",
+          country: userData.country || "N/A",
+          accountType: userData.account_type || "N/A",
+          profilePhoto: userData.profile_image || null,
+          campaigns: Array.isArray(userData.campaigns)
+            ? userData.campaigns
+            : [],
+          followers: userData.followers_count || 0,
+          earnings: userData.earnings || 0,
+        });
+
+        console.log(
+          "Refreshed user data from AsyncStorage:",
+          userData.profile_image
+        );
+      }
+
+      // Optionally, also try to fetch from API for even fresher data
+      const users = await fetchUsers();
       const refreshedUser = users.find(
         (u) => String(u.user_id) === String(user.user_id)
       );
 
       if (refreshedUser) {
-        // Update the seller object with fresh data
         setInfluencer({
           name: refreshedUser.name || "User",
           city: refreshedUser.city || "N/A",
           country: refreshedUser.country || "N/A",
           accountType: refreshedUser.account_type || "N/A",
+          profilePhoto: refreshedUser.profile_image || null,
           campaigns: Array.isArray(refreshedUser.campaigns)
             ? refreshedUser.campaigns
             : [],
           followers: refreshedUser.followers_count || 0,
           earnings: refreshedUser.earnings || 0,
         });
+
+        console.log(
+          "Refreshed user data from API:",
+          refreshedUser.profile_image
+        );
       }
     } catch (error) {
       console.error("Error refreshing user data:", error);
@@ -81,6 +109,7 @@ export default function InfluencerProfileScreen({ navigation }) {
     city: user?.city || "N/A",
     country: user?.country || "N/A",
     accountType: user?.account_type || "N/A",
+    profilePhoto: user?.profile_image || null,
     campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
     followers: user?.followers_count || 0,
     earnings: user?.earnings || 0,
@@ -126,9 +155,18 @@ export default function InfluencerProfileScreen({ navigation }) {
               <View style={styles.profileImageContainer}>
                 <Image
                   source={{
-                    uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
+                    uri: influencer.profilePhoto
+                      ? `${influencer.profilePhoto}?t=${Date.now()}`
+                      : "https://via.placeholder.com/150",
                   }}
                   style={styles.profileImage}
+                  onError={(e) =>
+                    console.error(
+                      "Profile image load error:",
+                      e.nativeEvent.error,
+                      influencer.profilePhoto
+                    )
+                  }
                 />
               </View>
             </View>
