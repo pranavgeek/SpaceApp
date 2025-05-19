@@ -20,8 +20,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
-import { fetchUsers, canSwitchBackToOriginalRole } from "../backend/db/API";
+import { fetchUsers, canSwitchBackToOriginalRole, BASE_URL } from "../backend/db/API";
 import SubscriptionBadge from "../components/SubscriptionBadge";
+import ShareModal from "../components/ShareModal";
 
 export default function ProfileScreen({ navigation }) {
   const { colors, isDarkMode } = useTheme();
@@ -30,6 +31,12 @@ export default function ProfileScreen({ navigation }) {
   const [languages, setLanguages] = useState([]);
   const { user, toggleSellerMode } = useAuth();
   const [canSwitchBack, setCanSwitchBack] = useState(false);
+  
+  // Share modal state
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  
+  // Profile URL - in a real app this would be a real URL
+  const profileUrl = `${BASE_URL}/users/${user?.user_id || ''}`;
 
   // Add this useEffect to check if the user can switch back
   useEffect(() => {
@@ -241,7 +248,10 @@ export default function ProfileScreen({ navigation }) {
               >
                 <Text style={styles.editProfileText}>Edit Profile</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.shareButton}>
+              <TouchableOpacity 
+                style={styles.shareButton}
+                onPress={() => setShareModalVisible(true)}
+              >
                 <Ionicons
                   name="share-social-outline"
                   size={20}
@@ -417,6 +427,15 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
       </ScrollView>
+      
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        profileUrl={profileUrl}
+        userName={seller.name}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 }

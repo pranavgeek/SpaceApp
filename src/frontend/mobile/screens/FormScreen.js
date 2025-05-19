@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Image,
+  ActivityIndicator,
   Dimensions,
   ScrollView,
   Platform,
@@ -18,8 +20,16 @@ import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import DropDownPicker from "react-native-dropdown-picker";
 import { useAuth } from "../context/AuthContext";
 import { mockCities } from "../data/MockData";
-import { createProduct, getSellerProducts } from "../backend/db/API";
+import {
+  createProduct,
+  getSellerProducts,
+  updateProductPreviewImages,
+} from "../backend/db/API";
 import PriceCalculator from "../components/PriceCalculator";
+import {
+  uploadImage,
+  uploadMultiplePreviewImages,
+} from "../backend/FileService";
 
 /**
  * Single entry point: decides which layout to show based on the platform.
@@ -662,6 +672,11 @@ function AnimatedMobileWizard() {
   const [submitted, setSubmitted] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [direction, setDirection] = useState("next"); // "next" or "back"
+  const [uploading, setUploading] = useState(false);
+  const [mainImages, setMainImages] = useState([]); // For main product images
+  const [previewImages, setPreviewImages] = useState([]); // For preview images
+  const [uploadingMain, setUploadingMain] = useState(false);
+  const [uploadingPreviews, setUploadingPreviews] = useState(false);
 
   // Additional states for DropDownPicker in wizard for CATEGORY and COUNTRY
   const [categoryOpen, setCategoryOpen] = useState(false);
@@ -719,25 +734,276 @@ function AnimatedMobileWizard() {
   }, [user]);
 
   // For picking images
-  const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 1,
-    });
-    if (!result.canceled) {
-      setImages([
-        ...images,
-        ...result.assets.map((asset) => ({
-          uri: asset.uri,
-          name: asset.fileName || `image-${Date.now()}`,
-        })),
-      ]);
+  const pickMainImages = async () => {
+    // Check if already at the limit of 3 images
+    if (mainImages.length >= 3) {
+      Alert.alert(
+        "Image Limit Reached",
+        "You can only upload up to 3 main product images."
+      );
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        // Only add up to the maximum allowed
+        const remainingSlots = 3 - mainImages.length;
+        const newImages = result.assets.slice(0, remainingSlots);
+
+        if (newImages.length > 0) {
+          // Add the images to the state with upload status info
+          const imagesToAdd = newImages.map((asset) => ({
+            uri: asset.uri,
+            name: asset.fileName || `main-${Date.now()}`,
+            uploaded: false,
+            uploadUrl: null,
+            isMain: true,
+          }));
+
+          setMainImages((currentImages) => [...currentImages, ...imagesToAdd]);
+        }
+      }
+    } catch (error) {
+      console.error("Error picking main images:", error);
+      Alert.alert("Error", "Failed to pick images. Please try again.");
     }
   };
 
-  const handleRemoveImage = (index) => {
-    setImages(images.filter((_, i) => i !== index));
+  // Function to pick preview images
+  const pickPreviewImages = async () => {
+    // Check if already at the limit of 3 images
+    if (previewImages.length >= 3) {
+      Alert.alert(
+        "Preview Limit Reached",
+        "You can only upload up to 3 preview images per product."
+      );
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        // Only add up to the maximum allowed
+        const remainingSlots = 3 - previewImages.length;
+        const newImages = result.assets.slice(0, remainingSlots);
+
+        if (newImages.length > 0) {
+          // Add the images to the state with upload status info
+          const imagesToAdd = newImages.map((asset) => ({
+            uri: asset.uri,
+            name: asset.fileName || `preview-${Date.now()}`,
+            uploaded: false,
+            uploadUrl: null,
+            isPreview: true,
+          }));
+
+          setPreviewImages((currentImages) => [
+            ...currentImages,
+            ...imagesToAdd,
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error("Error picking preview images:", error);
+      Alert.alert("Error", "Failed to pick preview images. Please try again.");
+    }
+  };
+
+  // Function to remove a main image
+  const handleRemoveMainImage = (index) => {
+    setMainImages((currentImages) =>
+      currentImages.filter((_, i) => i !== index)
+    );
+  };
+
+  // Function to remove a preview image
+  const handleRemovePreviewImage = (index) => {
+    setPreviewImages((currentImages) =>
+      currentImages.filter((_, i) => i !== index)
+    );
+  };
+
+  // For uploading main product images
+  const uploadMainProductImages = async () => {
+    try {
+      setUploadingMain(true);
+
+      // Process each image
+      const promises = mainImages.map(async (image) => {
+        // Skip already uploaded images
+        if (image.uploaded && image.uploadUrl) {
+          return image;
+        }
+
+        // Upload each image to server
+        try {
+          const result = await uploadImage(image.uri, "products");
+
+          // Return updated image object with upload info
+          return {
+            ...image,
+            uploaded: true,
+            uploadUrl: result.fullUrl || result.url,
+          };
+        } catch (uploadError) {
+          console.error("Error uploading individual image:", uploadError);
+          // If upload fails, return original image
+          return image;
+        }
+      });
+
+      // Wait for all uploads to complete
+      const uploadedImages = await Promise.all(promises);
+
+      // Update state with results
+      setMainImages(uploadedImages);
+
+      // Return the first image URL as main product image
+      const mainImageUrl =
+        uploadedImages.find((img) => img.uploaded && img.uploadUrl)
+          ?.uploadUrl || "";
+      return mainImageUrl;
+    } catch (error) {
+      console.error("Error in uploadMainProductImages:", error);
+      throw error;
+    } finally {
+      setUploadingMain(false);
+    }
+  };
+
+  // For uploading preview images
+  const uploadProductPreviewImages = async (productId, previewImagesList) => {
+    if (!productId || !previewImagesList || previewImagesList.length === 0) {
+      console.log("No preview images to upload");
+      return [];
+    }
+
+    try {
+      setUploadingPreviews(true);
+      console.log(
+        `Starting upload of ${previewImagesList.length} preview images for product ${productId}`
+      );
+
+      // First, ensure the preview directory exists
+      try {
+        const setupResponse = await fetch(
+          `/api/products/${productId}/setup-previews`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!setupResponse.ok) {
+          const errorText = await setupResponse.text();
+          console.error(`Failed to set up preview directories: ${errorText}`);
+          throw new Error(
+            `Failed to set up preview directories: ${setupResponse.status}`
+          );
+        }
+
+        console.log(`Preview directories set up for product ${productId}`);
+      } catch (setupError) {
+        console.error("Error setting up preview directories:", setupError);
+        throw setupError;
+      }
+
+      // Now upload each preview image
+      const uploadResults = await Promise.all(
+        previewImagesList.map(async (image, index) => {
+          try {
+            // Prepare form data
+            const formData = new FormData();
+
+            // Get file details
+            const uriParts = image.uri.split(".");
+            const fileExtension = uriParts[uriParts.length - 1] || "jpg";
+            const fileType = `image/${fileExtension}`;
+            const fileName = `preview_${Date.now()}_${index}.${fileExtension}`;
+
+            // Append the file to form data
+            formData.append("file", {
+              uri: image.uri,
+              name: fileName,
+              type: fileType,
+            });
+
+            // Upload the image
+            const uploadResponse = await fetch(
+              `/api/products/upload-preview?productId=${productId}&previewIndex=${index}`,
+              {
+                method: "POST",
+                body: formData,
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "multipart/form-data",
+                },
+              }
+            );
+
+            if (!uploadResponse.ok) {
+              const errorText = await uploadResponse.text();
+              console.error(`Preview image upload failed: ${errorText}`);
+              throw new Error(
+                `Failed to upload preview image: ${uploadResponse.status}`
+              );
+            }
+
+            // Parse the response
+            const result = await uploadResponse.json();
+            console.log(`Preview image ${index + 1} uploaded:`, result);
+
+            // Return the URL
+            return {
+              ...image,
+              uploaded: true,
+              uploadUrl: result.fullUrl || result.url,
+            };
+          } catch (uploadError) {
+            console.error(
+              `Error uploading preview image ${index}:`,
+              uploadError
+            );
+            return {
+              ...image,
+              uploaded: false,
+              error: uploadError.message,
+            };
+          }
+        })
+      );
+
+      // Update the state with the results
+      setPreviewImages(uploadResults);
+
+      // Extract and return the URLs of successfully uploaded images
+      const successfulUploads = uploadResults
+        .filter((result) => result.uploaded && result.uploadUrl)
+        .map((result) => result.uploadUrl);
+
+      console.log(
+        `Successfully uploaded ${successfulUploads.length} preview images`
+      );
+      return successfulUploads;
+    } catch (error) {
+      console.error("Error in uploadProductPreviewImages:", error);
+      throw error;
+    } finally {
+      setUploadingPreviews(false);
+    }
   };
 
   // Helper function to get fee percentage based on user tier
@@ -823,7 +1089,7 @@ function AnimatedMobileWizard() {
       label: "Images",
       question: "Add some product images",
       icon: "photo-library",
-      isImageStep: true,
+      isEnhancedImageStep: true,
     },
   ];
 
@@ -916,7 +1182,7 @@ function AnimatedMobileWizard() {
     const step = steps[currentStep];
     if (
       !step.isSubscriptionStep &&
-      !step.isImageStep &&
+      !step.isEnhancedImageStep &&
       step.required &&
       !step.value
     ) {
@@ -942,12 +1208,231 @@ function AnimatedMobileWizard() {
     }
   };
 
+  // Enhanced Image Upload UI Component
+  const EnhancedImageUploadStep = ({ colors }) => {
+    return (
+      <View style={styles.imageStepWrapper}>
+        {/* Main Product Images Section */}
+        <View style={styles.imageSectionContainer}>
+          <Text style={styles.imageSectionTitle}>Main Product Images</Text>
+          <Text style={styles.imageSectionSubtitle}>
+            These will be the primary images shown for your product
+          </Text>
+
+          <View style={styles.imageUploadHeader}>
+            <Text style={styles.imageCountLabel}>
+              {mainImages.length}/3 main images
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.uploadButton,
+                mainImages.length >= 3 && styles.uploadButtonDisabled,
+              ]}
+              onPress={pickMainImages}
+              activeOpacity={0.7}
+              disabled={mainImages.length >= 3 || uploadingMain}
+            >
+              {uploadingMain ? (
+                <View style={styles.uploadingIndicator}>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text style={styles.uploadButtonText}>Uploading...</Text>
+                </View>
+              ) : (
+                <>
+                  <MaterialIcons
+                    name="add-photo-alternate"
+                    size={20}
+                    color="white"
+                  />
+                  <Text style={styles.uploadButtonText}>
+                    {mainImages.length === 0 ? "Add Main Images" : "Add More"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.selectedImagesContainer}>
+            {mainImages.map((img, index) => (
+              <Animated.View
+                key={`main-img-${index}`}
+                style={[styles.selectedImageItem]}
+              >
+                {/* Image preview */}
+                <View style={styles.imagePreviewContainer}>
+                  <Image
+                    source={{ uri: img.uri }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+
+                  {img.uploaded && (
+                    <View style={styles.uploadedBadge}>
+                      <Feather name="check-circle" size={14} color="white" />
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.imageDetails}>
+                  <Text style={styles.selectedImageName} numberOfLines={1}>
+                    {img.name}
+                  </Text>
+
+                  {img.uploaded ? (
+                    <Text style={styles.uploadedStatusText}>Uploaded</Text>
+                  ) : (
+                    <Text style={styles.pendingStatusText}>Pending upload</Text>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => handleRemoveMainImage(index)}
+                  disabled={uploadingMain}
+                >
+                  <AntDesign
+                    name="close"
+                    size={16}
+                    color={uploadingMain ? "#ccc" : colors.text}
+                  />
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+
+            {mainImages.length === 0 && (
+              <View style={styles.emptyImagesContainer}>
+                <MaterialIcons
+                  name="image"
+                  size={40}
+                  color={colors.secondary}
+                />
+                <Text style={styles.noImagesText}>
+                  No main images selected yet
+                </Text>
+                <Text style={styles.noImagesSubtext}>
+                  You can add up to 3 main product images
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Preview Images Section */}
+        <View
+          style={[styles.imageSectionContainer, styles.previewSectionContainer]}
+        >
+          <Text style={styles.imageSectionTitle}>Preview Images</Text>
+          <Text style={styles.imageSectionSubtitle}>
+            These will appear as thumbnails in the product gallery
+          </Text>
+
+          <View style={styles.imageUploadHeader}>
+            <Text style={styles.imageCountLabel}>
+              {previewImages.length}/3 preview images
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.uploadButton,
+                previewImages.length >= 3 && styles.uploadButtonDisabled,
+              ]}
+              onPress={pickPreviewImages}
+              activeOpacity={0.7}
+              disabled={previewImages.length >= 3 || uploadingPreviews}
+            >
+              {uploadingPreviews ? (
+                <View style={styles.uploadingIndicator}>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text style={styles.uploadButtonText}>Uploading...</Text>
+                </View>
+              ) : (
+                <>
+                  <MaterialIcons name="collections" size={20} color="white" />
+                  <Text style={styles.uploadButtonText}>
+                    {previewImages.length === 0
+                      ? "Add Preview Images"
+                      : "Add More"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.selectedImagesContainer}>
+            {previewImages.map((img, index) => (
+              <Animated.View
+                key={`preview-img-${index}`}
+                style={[styles.selectedImageItem, styles.previewImageItem]}
+              >
+                {/* Image preview */}
+                <View style={styles.imagePreviewContainer}>
+                  <Image
+                    source={{ uri: img.uri }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+
+                  {img.uploaded && (
+                    <View style={styles.uploadedBadge}>
+                      <Feather name="check-circle" size={14} color="white" />
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.imageDetails}>
+                  <Text style={styles.selectedImageName} numberOfLines={1}>
+                    {img.name}
+                  </Text>
+
+                  {img.uploaded ? (
+                    <Text style={styles.uploadedStatusText}>Uploaded</Text>
+                  ) : (
+                    <Text style={styles.pendingStatusText}>Pending upload</Text>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => handleRemovePreviewImage(index)}
+                  disabled={uploadingPreviews}
+                >
+                  <AntDesign
+                    name="close"
+                    size={16}
+                    color={uploadingPreviews ? "#ccc" : colors.text}
+                  />
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+
+            {previewImages.length === 0 && (
+              <View style={styles.emptyImagesContainer}>
+                <MaterialIcons
+                  name="collections"
+                  size={40}
+                  color={colors.secondary}
+                />
+                <Text style={styles.noImagesText}>
+                  No preview images selected yet
+                </Text>
+                <Text style={styles.noImagesSubtext}>
+                  Preview images enhance the product gallery experience
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   const handleSubmit = async () => {
     if (!title || !price || !detailedDescription || !country) {
       Alert.alert("Required Fields", "Please fill in all required fields");
       return;
     }
-  
+    
     // Check if user has reached product limit
     if (sellerProducts.length >= productLimit) {
       Alert.alert(
@@ -958,7 +1443,6 @@ function AnimatedMobileWizard() {
           {
             text: "Upgrade Plan",
             onPress: () => {
-              // Navigate to subscription screen
               console.log("Navigate to subscription screen");
             },
           },
@@ -966,18 +1450,21 @@ function AnimatedMobileWizard() {
       );
       return;
     }
-  
-    console.log("📤 Submitting product with values:", {
-      title,
-      category,
-      price,
-      sellingPrice,
-      detailedDescription,
-      country,
-      images,
-    });
-  
+    
     try {
+      setUploading(true);
+      
+      // Step 1: Upload main product images
+      let productImageUrl = "";
+      if (mainImages.length > 0) {
+        console.log(`Uploading ${mainImages.length} main product images...`);
+        productImageUrl = await uploadMainProductImages();
+        console.log("Main product image uploaded:", productImageUrl);
+      } else {
+        console.log("No main product images to upload");
+      }
+      
+      // Step 2: Create product with explicit empty preview_images array
       const productPayload = {
         product_name: title,
         category,
@@ -986,59 +1473,76 @@ function AnimatedMobileWizard() {
         description: detailedDescription,
         country,
         user_seller: user?.user_id,
-        product_image: images.length ? images[0].uri : "",
+        product_image: productImageUrl,
+        preview_images: [], // Always initialize with empty array
         verified: false,
         created_at: new Date().toISOString(),
+        fee_percentage: getFeePercentage(),
       };
-      console.log("🧾 Final product payload:", productPayload);
-  
-      // Add explicit logging before and after API call
-      console.log("🔄 Calling createProduct API...");
-      const res = await createProduct(productPayload);
-      console.log("✅ Product created response:", res);
-  
-      // Add a direct state change here to ensure the submitted state is updated
+      
+      console.log("Creating product with payload:", productPayload);
+      const productRes = await createProduct(productPayload);
+      
+      if (!productRes || !productRes.product_id) {
+        throw new Error("Failed to create product: Invalid response from server");
+      }
+      
+      const productId = productRes.product_id;
+      console.log(`Product created with ID: ${productId}`);
+      
+      // Step 3: Handle preview images - only if there are any to upload
+      if (previewImages.length > 0) {
+        console.log(`Processing ${previewImages.length} preview images for product ${productId}...`);
+        
+        try {
+          // Upload the preview images
+          setUploadingPreviews(true);
+          // Important: Call with proper parameters (previewImages array and productId)
+          const previewUrls = await uploadMultiplePreviewImages(previewImages, productId);
+          setUploadingPreviews(false);
+          
+          console.log(`Received ${previewUrls.length} preview URLs:`, previewUrls);
+          
+          // Update the product with preview images - only if we got any URLs back
+          if (previewUrls && previewUrls.length > 0) {
+            console.log(`Updating product ${productId} with ${previewUrls.length} preview images...`);
+            
+            try {
+              const updateResult = await updateProductPreviewImages(productId, previewUrls);
+              console.log("Product updated with preview images:", updateResult);
+            } catch (updateError) {
+              console.error("Error updating product with preview images:", updateError);
+              // Continue even if this fails, as the main product was created
+            }
+          } else {
+            console.warn("No preview URLs were returned after upload");
+          }
+        } catch (previewError) {
+          console.error("Error processing preview images:", previewError);
+          // Continue even if preview processing fails, as the main product was created
+        }
+      } else {
+        console.log("No preview images to process");
+      }
+      
+      // Step 4: Show success
+      console.log("Product submission completed successfully");
       setSubmitted(true);
       
-      // Then trigger the animation
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 0.95,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1.05,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        console.log("🎉 Success animation completed");
-        // Double-check that submitted state is true
-        setSubmitted(true);
-      });
-  
-      // Also update the sellerProducts list with the new product
-      setSellerProducts([...sellerProducts, res]);
-      
-      // Show a success alert to provide feedback even if the animation fails
       Alert.alert(
         "Success",
         "Your product has been submitted successfully!",
         [{ text: "OK" }]
       );
     } catch (err) {
-      console.error("❌ Product submission failed:", err);
-      // Log more detailed error information
-      if (err.response) {
-        console.error("❌ Server response:", err.response);
-      }
-      Alert.alert("Submission Failed", "Could not create product. " + (err.message || ""));
+      console.error("Submission failed:", err);
+      Alert.alert(
+        "Submission Failed", 
+        `Could not create product. ${err.message || "Unknown error"}`
+      );
+    } finally {
+      setUploading(false);
+      setUploadingPreviews(false);
     }
   };
 
@@ -1198,57 +1702,8 @@ function AnimatedMobileWizard() {
             onSellingPriceChange={current.setSellingPrice}
             colors={colors}
           />
-        ) : current.isImageStep ? (
-          <View style={styles.imageStepWrapper}>
-            <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={pickImage}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons
-                name="add-photo-alternate"
-                size={20}
-                color="white"
-              />
-              <Text style={styles.uploadButtonText}>Select Images</Text>
-            </TouchableOpacity>
-
-            <View style={styles.selectedImagesContainer}>
-              {images.map((img, index) => (
-                <Animated.View
-                  key={`mobile-img-${index}`}
-                  style={[styles.selectedImageItem]}
-                  entering={Animated.spring({
-                    duration: 300,
-                    dampingRatio: 0.7,
-                  })}
-                >
-                  <Text style={styles.selectedImageName} numberOfLines={1}>
-                    {img.name}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => handleRemoveImage(index)}
-                  >
-                    <AntDesign name="close" size={16} color={colors.text} />
-                  </TouchableOpacity>
-                </Animated.View>
-              ))}
-
-              {images.length === 0 && (
-                <View style={styles.emptyImagesContainer}>
-                  <MaterialIcons
-                    name="image"
-                    size={40}
-                    color={colors.secondary}
-                  />
-                  <Text style={styles.noImagesText}>
-                    No images selected yet
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
+        ) : current.isEnhancedImageStep ? (
+          <EnhancedImageUploadStep colors={colors} />
         ) : current.isDropdown ? (
           <View style={styles.dropdownContainer}>
             <DropDownPicker
@@ -1333,7 +1788,7 @@ function AnimatedMobileWizard() {
               styles.nextButtonDisabled,
             // Subtle disabled state for required fields
             !current.isSubscriptionStep &&
-              !current.isImageStep &&
+              !current.isEnhancedImageStep &&
               current.required &&
               !current.value &&
               styles.buttonDisabled,
@@ -1739,6 +2194,155 @@ function getEnhancedMobileStyles(colors) {
       fontSize: 18,
       color: "white",
       textAlign: "center",
+    },
+    imageSectionContainer: {
+      marginBottom: 30,
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: "rgba(0, 0, 0, 0.05)",
+    },
+    previewSectionContainer: {
+      backgroundColor: "rgba(100, 149, 237, 0.05)",
+      borderColor: "rgba(100, 149, 237, 0.15)",
+    },
+    imageSectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text || "#333",
+      marginBottom: 6,
+    },
+    imageSectionSubtitle: {
+      fontSize: 14,
+      color: colors.subtitle || "#666",
+      marginBottom: 16,
+    },
+    imageUploadHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    imageCountLabel: {
+      fontSize: 14,
+      color: colors.subtitle || "#666",
+      fontWeight: "500",
+    },
+    uploadButton: {
+      backgroundColor: colors.primary || "#3498db",
+      padding: 12,
+      borderRadius: 8,
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    uploadButtonDisabled: {
+      backgroundColor: "#cccccc",
+      opacity: 0.7,
+    },
+    uploadButtonText: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "600",
+      marginLeft: 8,
+    },
+    uploadingIndicator: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    selectedImagesContainer: {
+      marginTop: 10,
+    },
+    selectedImageItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: "rgba(0, 0, 0, 0.08)",
+      borderRadius: 10,
+      backgroundColor: "#ffffff",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    previewImageItem: {
+      borderColor: "rgba(100, 149, 237, 0.3)",
+      backgroundColor: "rgba(100, 149, 237, 0.02)",
+    },
+    imagePreviewContainer: {
+      position: "relative",
+      width: 60,
+      height: 60,
+      borderRadius: 6,
+      overflow: "hidden",
+      marginRight: 12,
+      backgroundColor: "#f0f0f0",
+    },
+    imagePreview: {
+      width: "100%",
+      height: "100%",
+    },
+    uploadedBadge: {
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      backgroundColor: "#4caf50",
+      borderTopLeftRadius: 6,
+      padding: 4,
+    },
+    imageDetails: {
+      flex: 1,
+    },
+    selectedImageName: {
+      fontSize: 14,
+      color: colors.text || "#333",
+      marginBottom: 4,
+    },
+    uploadedStatusText: {
+      fontSize: 12,
+      color: "#4caf50",
+      fontWeight: "500",
+    },
+    pendingStatusText: {
+      fontSize: 12,
+      color: "#ff9800",
+      fontWeight: "500",
+    },
+    removeImageButton: {
+      padding: 8,
+      backgroundColor: "rgba(0, 0, 0, 0.05)",
+      borderRadius: 20,
+    },
+    emptyImagesContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      borderWidth: 1,
+      borderColor: "rgba(0, 0, 0, 0.08)",
+      borderStyle: "dashed",
+      borderRadius: 10,
+    },
+    noImagesText: {
+      fontSize: 15,
+      color: colors.subtitle || "#666",
+      marginTop: 12,
+      textAlign: "center",
+    },
+    noImagesSubtext: {
+      fontSize: 13,
+      color: colors.subtitle || "#888",
+      textAlign: "center",
+      marginTop: 4,
     },
   });
 }

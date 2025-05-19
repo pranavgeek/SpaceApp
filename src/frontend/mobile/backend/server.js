@@ -27,80 +27,132 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static(path.join(__dirname, "public")));
 
-const uploadsPath = path.join(__dirname, "s3Local", "public", "uploads");
-const productImagesPath = path.join(__dirname, 's3Local', 'public', 'uploads', 'products');
-console.log("Serving static files from:", uploadsPath);
-console.log('Serving product images from:', productImagesPath);
+const BASE_DIR = __dirname;
+const S3_LOCAL_DIR = path.join(BASE_DIR, "s3Local", "public");
+const PUBLIC_DIR = path.join(BASE_DIR, "public");
 
-// Setup storage for uploaded files
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Get folder from request query params or use 'images' as default
-    const folder = req.query.folder || "images";
-    const uploadPath = path.join(__dirname, "public", "uploads", folder);
+// Define all upload paths
+const paths = {
+  // s3Local paths
+  s3LocalUploads: path.join(S3_LOCAL_DIR, "uploads"),
+  s3LocalProducts: path.join(S3_LOCAL_DIR, "uploads", "products"),
+  s3LocalPreviews: path.join(S3_LOCAL_DIR, "uploads", "previews"),
+  
+  // public paths - these seem to be used by default
+  publicUploads: path.join(PUBLIC_DIR, "uploads"),
+  publicProducts: path.join(PUBLIC_DIR, "uploads", "products"),
+  publicPreviews: path.join(PUBLIC_DIR, "uploads", "previews"),
+};
 
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    // Generate a unique filename using uuid or timestamp
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, uniqueSuffix + ext);
-  },
+// Log all paths for debugging
+console.log("=== DIRECTORY PATHS ===");
+Object.entries(paths).forEach(([key, value]) => {
+  console.log(`${key}: ${value}`);
 });
 
-// Configure multer
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept images only
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-      return cb(new Error("Only image files are allowed!"), false);
-    }
-    cb(null, true);
-  },
-});
-
-// Make sure uploads directory exists
-const uploadsDir = path.join(__dirname, "public", "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-if (!fs.existsSync(productImagesPath)) {
-  fs.mkdirSync(productImagesPath, { recursive: true });
-  console.log('Created products directory');
-}
-
-// Configure product image storage
-const productStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Use the products directory for product images
-    cb(null, productImagesPath);
-  },
-  filename: (req, file, cb) => {
-    // Generate a unique filename or use the product ID
-    const productId = req.query.productId || Date.now();
-    const ext = path.extname(file.originalname);
-    cb(null, `product-${productId}${ext}`);
+// Ensure all directories exist
+Object.values(paths).forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    console.log(`Creating directory: ${dir}`);
+    fs.mkdirSync(dir, { recursive: true });
   }
 });
 
-const productUpload = multer({ 
-  storage: productStorage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+// Define a helper function to know which base directory to use
+const useS3Local = true; // Set this to true to use s3Local, false to use public
+
+// Helper function to get the correct base path
+const getBasePath = (type) => {
+  if (useS3Local) {
+    switch(type) {
+      case 'products': return paths.s3LocalProducts;
+      case 'previews': return paths.s3LocalPreviews;
+      default: return paths.s3LocalUploads;
+    }
+  } else {
+    switch(type) {
+      case 'products': return paths.publicProducts;
+      case 'previews': return paths.publicPreviews;
+      default: return paths.publicUploads;
+    }
+  }
+};
+
+// Now let's redefine our storage configurations
+// Product image storage
+const productStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const productDir = getBasePath('products');
+    console.log(`Storing product image in: ${productDir}`);
+    cb(null, productDir);
   },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const random = Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    const filename = `${timestamp}-${random}${ext}`;
+    console.log(`Generated product filename: ${filename}`);
+    cb(null, filename);
+  }
+});
+
+// Preview image storage
+const previewStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const productId = req.query.productId || 'unknown';
+    const previewBaseDir = getBasePath('previews');
+    const productPreviewDir = path.join(previewBaseDir, productId);
+    
+    console.log(`Storing preview image for product ${productId} in: ${productPreviewDir}`);
+    
+    if (!fs.existsSync(productPreviewDir)) {
+      console.log(`Creating preview directory: ${productPreviewDir}`);
+      fs.mkdirSync(productPreviewDir, { recursive: true });
+    }
+    
+    cb(null, productPreviewDir);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const random = Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    const filename = `preview-${timestamp}-${random}${ext}`;
+    console.log(`Generated preview filename: ${filename}`);
+    cb(null, filename);
+  }
+});
+
+// General upload storage
+const generalStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const folder = req.query.folder || "images";
+    const baseDir = getBasePath('general');
+    const uploadDir = path.join(baseDir, folder);
+    
+    console.log(`Storing general file in: ${uploadDir}`);
+    
+    if (!fs.existsSync(uploadDir)) {
+      console.log(`Creating upload directory: ${uploadDir}`);
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const random = Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    const filename = `${timestamp}-${random}${ext}`;
+    console.log(`Generated filename: ${filename}`);
+    cb(null, filename);
+  }
+});
+
+// Configure Multer instances with the new storage
+const productUpload = multer({
+  storage: productStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    // Accept images only
     if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
       return cb(new Error('Only image files are allowed!'), false);
     }
@@ -108,8 +160,38 @@ const productUpload = multer({
   }
 });
 
-app.use("/uploads", express.static(uploadsPath));
-app.use('/uploads/products', express.static(productImagesPath));
+const previewUpload = multer({
+  storage: previewStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
+
+const upload = multer({
+  storage: generalStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
+
+// Set up static file serving
+// Serve from s3Local
+app.use('/uploads', express.static(paths.s3LocalUploads));
+app.use('/uploads/products', express.static(paths.s3LocalProducts));
+app.use('/uploads/previews', express.static(paths.s3LocalPreviews));
+
+// Also serve from public as a fallback
+app.use('/uploads', express.static(paths.publicUploads));
+app.use('/uploads/products', express.static(paths.publicProducts));
+app.use('/uploads/previews', express.static(paths.publicPreviews));
 
 app.use(cors());
 app.options("*", cors()); // Allow all CORS preflights
@@ -154,47 +236,495 @@ function writeData(data) {
     return false;
   }
 }
+// ================================================================
 
-// Product image upload endpoint
-app.post('/api/products/upload-image', productUpload.single('file'), (req, res) => {
+app.get('/api/products/:productId/previews', (req, res) => {
   try {
+    const productId = req.params.productId;
+    console.log(`Getting preview images for product ${productId}`);
+    
+    // Use the correct path variable from your defined paths
+    // This uses your existing helper function to get the right preview path
+    const previewBasePath = getBasePath('previews');
+    const productPreviewPath = path.join(previewBasePath, productId);
+    
+    console.log(`Looking for preview images in: ${productPreviewPath}`);
+    
+    // Check if directory exists
+    if (!fs.existsSync(productPreviewPath)) {
+      console.log(`No preview directory found for product ${productId}`);
+      return res.json([]);
+    }
+    
+    // Read directory contents
+    const files = fs.readdirSync(productPreviewPath)
+      .filter(file => file.match(/\.(jpg|jpeg|png|gif)$/));
+    
+    if (files.length === 0) {
+      console.log(`No preview images found for product ${productId}`);
+      return res.json([]);
+    }
+    
+    // Construct URLs for each preview image
+    const host = req.get('host');
+    const protocol = req.protocol;
+    
+    const previewUrls = files.map(file => {
+      return `${protocol}://${host}/uploads/previews/${productId}/${file}`;
+    });
+    
+    console.log(`Found ${previewUrls.length} preview images for product ${productId}`);
+    res.json(previewUrls);
+  } catch (error) {
+    console.error(`Error getting preview images:`, error);
+    res.status(500).json({ error: 'Failed to retrieve preview images' });
+  }
+});
+
+// Upload preview image endpoint
+app.post('/api/products/upload-preview', (req, res) => {
+  console.log('Received preview image upload request');
+  
+  // Use the previewUpload middleware
+  previewUpload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Upload middleware error:', err);
+      return res.status(400).json({
+        success: false,
+        error: err.message
+      });
+    }
+    
     if (!req.file) {
+      console.error('No file in request');
       return res.status(400).json({
         success: false,
         error: 'No file uploaded'
       });
     }
     
-    // Get the product ID from query params
+    // Get the product ID and preview index
     const productId = req.query.productId || 'unknown';
+    const previewIndex = req.query.previewIndex || '0';
     
-    // Construct the file URL relative to your server
-    const fileUrl = `/products/${path.basename(req.file.path)}`;
+    // Log the successful upload
+    console.log(`Preview image uploaded successfully:`);
+    console.log(`- File path: ${req.file.path}`);
+    console.log(`- File size: ${req.file.size} bytes`);
+    console.log(`- File type: ${req.file.mimetype}`);
+    console.log(`- Product ID: ${productId}`);
+    console.log(`- Preview index: ${previewIndex}`);
     
-    // Construct full URL including server address
+    // Construct the URL
+    const basePath = useS3Local ? '/uploads/previews' : '/uploads/previews';
+    const fileUrl = `${basePath}/${productId}/${req.file.filename}`;
     const host = req.get('host');
     const protocol = req.protocol;
     const fullUrl = `${protocol}://${host}${fileUrl}`;
     
-    console.log(`Product image uploaded successfully to ${req.file.path}`);
-    console.log(`File accessible at ${fullUrl}`);
+    console.log(`Preview image URL: ${fullUrl}`);
     
-    // Return success response with file details
+    // Return the response
     res.json({
       success: true,
-      fileName: path.basename(req.file.path),
+      fileName: req.file.filename,
+      filePath: req.file.path,
+      url: fileUrl,
+      fullUrl: fullUrl,
+      productId: productId,
+      previewIndex: previewIndex
+    });
+  });
+});
+
+app.put('/api/products/:productId/previews', (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const { preview_images } = req.body;
+    
+    console.log(`Updating product ${productId} with preview images:`, preview_images);
+    
+    if (!Array.isArray(preview_images)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid preview_images data. Expected an array.' 
+      });
+    }
+    
+    // Load current data
+    const data = loadData();
+    
+    // Find the product
+    const productIndex = data.products.findIndex(p => p.product_id.toString() === productId.toString());
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ 
+        success: false,
+        error: `Product with ID ${productId} not found` 
+      });
+    }
+    
+    // Update the product with preview images
+    data.products[productIndex].preview_images = preview_images;
+    
+    // Save the changes
+    saveData(data);
+    
+    console.log(`✅ Product ${productId} successfully updated with ${preview_images.length} preview images`);
+    
+    // Return success
+    res.json({
+      success: true,
+      product_id: productId,
+      preview_images: preview_images
+    });
+  } catch (error) {
+    console.error(`Error updating product preview images:`, error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to update preview images' 
+    });
+  }
+});
+
+app.get('/api/debug/product-preview-status/:productId', (req, res) => {
+  try {
+    const productId = req.params.productId;
+    
+    // Load current data
+    const data = loadData();
+    
+    // Find the product
+    const product = data.products.find(p => p.product_id.toString() === productId.toString());
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false,
+        error: `Product with ID ${productId} not found` 
+      });
+    }
+    
+    // Check directory structure
+    const previewBasePath = getBasePath('previews');
+    const productPreviewPath = path.join(previewBasePath, productId.toString());
+    
+    const directoryExists = fs.existsSync(productPreviewPath);
+    let previewFiles = [];
+    
+    if (directoryExists) {
+      try {
+        previewFiles = fs.readdirSync(productPreviewPath)
+          .filter(file => file.match(/\.(jpg|jpeg|png|gif)$/))
+          .map(file => {
+            return {
+              name: file,
+              path: path.join(productPreviewPath, file)
+            };
+          });
+      } catch (readError) {
+        console.error(`Error reading preview directory for product ${productId}:`, readError);
+      }
+    }
+    
+    // Return the status
+    res.json({
+      success: true,
+      product_id: productId,
+      product_name: product.product_name,
+      preview_images: product.preview_images || [],
+      directory_status: {
+        path: productPreviewPath,
+        exists: directoryExists,
+        files: previewFiles
+      }
+    });
+  } catch (error) {
+    console.error(`Error checking product preview status:`, error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to check preview status' 
+    });
+  }
+});
+
+// Debug endpoint to check the file system
+app.get('/debug/file-system-check', (req, res) => {
+  try {
+    const result = {
+      timestamp: new Date().toISOString(),
+      basePaths: {
+        BASE_DIR,
+        S3_LOCAL_DIR,
+        PUBLIC_DIR
+      },
+      paths,
+      directories: {}
+    };
+    
+    // Check if all directories exist
+    Object.entries(paths).forEach(([key, dir]) => {
+      const exists = fs.existsSync(dir);
+      result.directories[key] = {
+        path: dir,
+        exists,
+      };
+      
+      if (exists) {
+        try {
+          const items = fs.readdirSync(dir);
+          result.directories[key].items = items.map(item => {
+            const itemPath = path.join(dir, item);
+            const stats = fs.statSync(itemPath);
+            return {
+              name: item,
+              isDirectory: stats.isDirectory(),
+              size: stats.isFile() ? stats.size : null,
+              path: itemPath
+            };
+          });
+        } catch (error) {
+          result.directories[key].error = error.message;
+        }
+      }
+    });
+    
+    // If a product ID was specified, check for its preview directories
+    const productId = req.query.productId;
+    if (productId) {
+      result.product = {
+        id: productId,
+        directories: {}
+      };
+      
+      const s3LocalProductPreviewDir = path.join(paths.s3LocalPreviews, productId);
+      const publicProductPreviewDir = path.join(paths.publicPreviews, productId);
+      
+      result.product.directories.s3Local = {
+        path: s3LocalProductPreviewDir,
+        exists: fs.existsSync(s3LocalProductPreviewDir)
+      };
+      
+      result.product.directories.public = {
+        path: publicProductPreviewDir,
+        exists: fs.existsSync(publicProductPreviewDir)
+      };
+      
+      // List files in the directories if they exist
+      if (result.product.directories.s3Local.exists) {
+        try {
+          const files = fs.readdirSync(s3LocalProductPreviewDir);
+          result.product.directories.s3Local.files = files.map(file => {
+            const filePath = path.join(s3LocalProductPreviewDir, file);
+            const stats = fs.statSync(filePath);
+            return {
+              name: file,
+              size: stats.size,
+              path: filePath,
+              url: `/uploads/previews/${productId}/${file}`,
+              fullUrl: `${req.protocol}://${req.get('host')}/uploads/previews/${productId}/${file}`
+            };
+          });
+        } catch (error) {
+          result.product.directories.s3Local.error = error.message;
+        }
+      }
+      
+      if (result.product.directories.public.exists) {
+        try {
+          const files = fs.readdirSync(publicProductPreviewDir);
+          result.product.directories.public.files = files.map(file => {
+            const filePath = path.join(publicProductPreviewDir, file);
+            const stats = fs.statSync(filePath);
+            return {
+              name: file,
+              size: stats.size,
+              path: filePath,
+              url: `/uploads/previews/${productId}/${file}`,
+              fullUrl: `${req.protocol}://${req.get('host')}/uploads/previews/${productId}/${file}`
+            };
+          });
+        } catch (error) {
+          result.product.directories.public.error = error.message;
+        }
+      }
+    }
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+app.get('/debug/preview-check/:productId', (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const s3LocalPreviewPath = path.join(paths.s3LocalPreviews, productId);
+    const publicPreviewPath = path.join(paths.publicPreviews, productId);
+    
+    const result = {
+      productId,
+      s3Local: {
+        path: s3LocalPreviewPath,
+        exists: fs.existsSync(s3LocalPreviewPath),
+        files: []
+      },
+      public: {
+        path: publicPreviewPath,
+        exists: fs.existsSync(publicPreviewPath),
+        files: []
+      },
+      previewBasePath: getBasePath('previews'),
+      useS3Local
+    };
+    
+    // Check S3 local files
+    if (result.s3Local.exists) {
+      const files = fs.readdirSync(s3LocalPreviewPath)
+        .filter(file => file.match(/\.(jpg|jpeg|png|gif)$/));
+      
+      result.s3Local.files = files.map(file => {
+        return {
+          name: file,
+          url: `/uploads/previews/${productId}/${file}`,
+          fullUrl: `${req.protocol}://${req.get('host')}/uploads/previews/${productId}/${file}`
+        };
+      });
+    }
+    
+    // Check public files
+    if (result.public.exists) {
+      const files = fs.readdirSync(publicPreviewPath)
+        .filter(file => file.match(/\.(jpg|jpeg|png|gif)$/));
+      
+      result.public.files = files.map(file => {
+        return {
+          name: file,
+          url: `/uploads/previews/${productId}/${file}`,
+          fullUrl: `${req.protocol}://${req.get('host')}/uploads/previews/${productId}/${file}`
+        };
+      });
+    }
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload multiple preview images at once 
+app.post('/api/products/upload-previews', (req, res) => {
+  // Make sure we're using the correct upload middleware
+  const upload = previewUpload.array('files', 3); // Max 3 files
+
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      console.error('Multer error during preview upload:', err);
+      return res.status(400).json({
+        success: false,
+        error: `Upload error: ${err.message}`
+      });
+    } else if (err) {
+      console.error('Unknown error during preview upload:', err);
+      return res.status(500).json({
+        success: false,
+        error: `Unknown error: ${err.message}`
+      });
+    }
+    
+    // Successfully uploaded files
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No files uploaded'
+      });
+    }
+    
+    const productId = req.query.productId || 'unknown';
+    const host = req.get('host');
+    const protocol = req.protocol;
+    
+    // Log all uploaded files
+    console.log(`Successfully uploaded ${req.files.length} preview images for product ${productId}:`);
+    req.files.forEach((file, index) => {
+      console.log(`  ${index+1}. ${file.path}`);
+    });
+    
+    // Process all uploaded files and create response
+    const uploadedFiles = req.files.map((file, index) => {
+      const fileUrl = `/uploads/previews/${productId}/${file.filename}`;
+      const fullUrl = `${protocol}://${host}${fileUrl}`;
+      
+      return {
+        fileName: file.filename,
+        filePath: file.path,
+        url: fileUrl,
+        fullUrl: fullUrl,
+        previewIndex: index
+      };
+    });
+    
+    console.log(`Uploaded ${uploadedFiles.length} preview images for product ${productId}`);
+    
+    res.json({
+      success: true,
+      files: uploadedFiles,
+      productId: productId
+    });
+  });
+});
+
+// Product image upload endpoint
+app.post('/api/products/upload-image', (req, res) => {
+  console.log('Received product image upload request');
+  
+  productUpload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Upload middleware error:', err);
+      return res.status(400).json({
+        success: false,
+        error: err.message
+      });
+    }
+    
+    if (!req.file) {
+      console.error('No file in request');
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+    
+    // Get the product ID
+    const productId = req.query.productId || 'unknown';
+    
+    // Log the successful upload
+    console.log(`Product image uploaded successfully:`);
+    console.log(`- File path: ${req.file.path}`);
+    console.log(`- File size: ${req.file.size} bytes`);
+    console.log(`- File type: ${req.file.mimetype}`);
+    
+    // Construct the URL
+    const basePath = useS3Local ? '/uploads/products' : '/uploads/products';
+    const fileUrl = `${basePath}/${req.file.filename}`;
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const fullUrl = `${protocol}://${host}${fileUrl}`;
+    
+    console.log(`Product image URL: ${fullUrl}`);
+    
+    // Return the response
+    res.json({
+      success: true,
+      fileName: req.file.filename,
       filePath: req.file.path,
       url: fileUrl,
       fullUrl: fullUrl,
       productId: productId
     });
-  } catch (error) {
-    console.error('Error uploading product image:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
+  });
 });
 
 // Add a test endpoint for debugging image access
@@ -231,6 +761,45 @@ app.get('/debug/image-test', (req, res) => {
       error: 'File not found'
     });
   }
+});
+
+app.get('/debug/preview-images/:productId', (req, res) => {
+  const productId = req.params.productId;
+  const productPreviewPath = path.join(previewImagesPath, productId);
+  
+  const info = {
+    requestedProductId: productId,
+    previewDirectoryPath: productPreviewPath,
+    previewDirectoryExists: false,
+    files: [],
+    uploadPreviewEndpoint: `/api/products/upload-preview?productId=${productId}`,
+    getPreviewEndpoint: `/api/products/${productId}/previews`,
+    previewBasePath: previewImagesPath,
+    previewBasePathExists: fs.existsSync(previewImagesPath)
+  };
+  
+  if (fs.existsSync(productPreviewPath)) {
+    info.previewDirectoryExists = true;
+    try {
+      const files = fs.readdirSync(productPreviewPath);
+      info.files = files.map(file => {
+        const filePath = path.join(productPreviewPath, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          path: filePath,
+          size: stats.size,
+          isImage: file.match(/\.(jpg|jpeg|png|gif)$/) !== null,
+          url: `/uploads/previews/${productId}/${file}`,
+          fullUrl: `${req.protocol}://${req.get('host')}/uploads/previews/${productId}/${file}`
+        };
+      });
+    } catch (error) {
+      info.readError = error.message;
+    }
+  }
+  
+  res.json(info);
 });
 
 // File upload endpoint
@@ -271,6 +840,187 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
       success: false,
       error: error.message,
     });
+  }
+});
+
+// Helper function to set up preview directory
+// Add this to your server.js file
+
+// Helper function to ensure product preview directory exists
+const ensureProductPreviewDir = (productId) => {
+  try {
+    // Get the base paths
+    const s3PreviewPath = path.join(paths.s3LocalPreviews, productId.toString());
+    const publicPreviewPath = path.join(paths.publicPreviews, productId.toString());
+    
+    // Create the directories if they don't exist
+    if (!fs.existsSync(s3PreviewPath)) {
+      console.log(`Creating S3 preview directory for product ${productId}: ${s3PreviewPath}`);
+      fs.mkdirSync(s3PreviewPath, { recursive: true });
+    }
+    
+    if (!fs.existsSync(publicPreviewPath)) {
+      console.log(`Creating public preview directory for product ${productId}: ${publicPreviewPath}`);
+      fs.mkdirSync(publicPreviewPath, { recursive: true });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`Error ensuring preview directory for product ${productId}:`, error);
+    return false;
+  }
+};
+
+app.get('/api/products/:productId', (req, res) => {
+  try {
+    const productId = req.params.productId;
+    
+    // Load data
+    const data = loadData();
+    
+    // Find the product
+    const product = data.products.find(p => p.product_id.toString() === productId.toString());
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Product not found'
+      });
+    }
+    
+    // Ensure preview_images exists
+    if (!product.preview_images) {
+      product.preview_images = [];
+      
+      // Since we're fixing the data structure, save it
+      saveData(data);
+      console.log(`Added missing preview_images field to product ${productId}`);
+    }
+    
+    res.json(product);
+  } catch (error) {
+    console.error(`Error getting product:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get product'
+    });
+  }
+});
+
+// Add this endpoint to create preview directories and handle preview image uploads
+app.post('/api/products/:productId/setup-previews', (req, res) => {
+  try {
+    const productId = req.params.productId;
+    console.log(`Setting up preview directories for product ID: ${productId}`);
+    
+    // Get the base paths
+    const s3PreviewPath = path.join(paths.s3LocalPreviews, productId.toString());
+    const publicPreviewPath = path.join(paths.publicPreviews, productId.toString());
+    
+    // Create the directories if they don't exist
+    if (!fs.existsSync(s3PreviewPath)) {
+      console.log(`Creating S3 preview directory: ${s3PreviewPath}`);
+      fs.mkdirSync(s3PreviewPath, { recursive: true });
+    }
+    
+    if (!fs.existsSync(publicPreviewPath)) {
+      console.log(`Creating public preview directory: ${publicPreviewPath}`);
+      fs.mkdirSync(publicPreviewPath, { recursive: true });
+    }
+    
+    // Determine which directory to use based on your storage strategy
+    const previewBasePath = useS3Local ? s3PreviewPath : publicPreviewPath;
+    
+    // Return the result
+    res.json({
+      success: true,
+      productId,
+      directories: {
+        s3: {
+          path: s3PreviewPath,
+          created: fs.existsSync(s3PreviewPath)
+        },
+        public: {
+          path: publicPreviewPath,
+          created: fs.existsSync(publicPreviewPath)
+        }
+      },
+      basePath: previewBasePath
+    });
+  } catch (error) {
+    console.error(`Error setting up preview directories:`, error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to set up preview directories',
+      message: error.message
+    });
+  }
+});
+
+// Add this as a new migration function to transfer existing product images to preview images
+app.post('/api/admin/migrate-product-images-to-previews', async (req, res) => {
+  try {
+    // This endpoint requires admin authentication
+    // This is a simplified version - you should add proper auth checks
+    
+    console.log("Starting migration of product images to preview images");
+    
+    // Load products data
+    const data = loadData();
+    const products = data.products || [];
+    const results = [];
+    
+    // Process each product
+    for (const product of products) {
+      try {
+        const productId = product.product_id;
+        const productImage = product.product_image;
+        
+        // Skip products with no image or already having preview images
+        if (!productId || !productImage || (product.preview_images && product.preview_images.length > 0)) {
+          continue;
+        }
+        
+        console.log(`Processing product ID ${productId} with image: ${productImage}`);
+        
+        // Ensure preview directory exists
+        ensureProductPreviewDir(productId);
+        
+        // Only process if the product has a valid image URL
+        if (productImage && (productImage.startsWith('http') || productImage.startsWith('/uploads/'))) {
+          // Create a preview image based on the main product image
+          const previewUrl = productImage;
+          
+          // Update the product with the preview image
+          product.preview_images = [previewUrl];
+          
+          results.push({
+            productId,
+            success: true,
+            message: `Added preview image for product ${productId}`
+          });
+        }
+      } catch (productError) {
+        console.error(`Error processing product ID ${product.product_id}:`, productError);
+        results.push({
+          productId: product.product_id,
+          success: false,
+          error: productError.message
+        });
+      }
+    }
+    
+    // Save updated data
+    saveData(data);
+    
+    res.json({
+      success: true,
+      message: `Processed ${results.length} products`,
+      results
+    });
+  } catch (error) {
+    console.error('Error in migration process:', error);
+    res.status(500).json({ error: 'Migration failed', message: error.message });
   }
 });
 

@@ -27,10 +27,14 @@ import {
   updateUserRole,
   fetchCampaignRequests,
   updateCampaignRequestStatus,
+  checkProductPreviewImages,
+  getProductPreviewImages,
+  BASE_URL,
 } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
 import SubscriptionManagementScreen from "../components/SubscriptionManagementScreen";
 import { Ionicons } from "@expo/vector-icons";
+import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 
 export default function AdminDashboardScreen() {
   const { colors } = useTheme();
@@ -45,11 +49,83 @@ export default function AdminDashboardScreen() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [campaignRequests, setCampaignRequests] = useState([]);
+  const [previewImages, setPreviewImages] = useState([]);
+  const [loadingPreviews, setLoadingPreviews] = useState(false);
+  const [uploadingPreviewImage, setUploadingPreviewImage] = useState(false);
 
   useEffect(() => {
     loadAdminDashboard();
     loadCampaignRequests();
   }, []);
+
+  const fetchProductPreviews = async (productId) => {
+    if (!productId) return;
+  
+    try {
+      setLoadingPreviews(true);
+      console.log(`Fetching preview images for product ${productId}...`);
+  
+      // Try direct method first - using API function
+      try {
+        const previewUrls = await getProductPreviewImages(productId);
+        console.log(`Direct method returned ${previewUrls?.length || 0} preview images:`, previewUrls);
+        
+        if (previewUrls && Array.isArray(previewUrls) && previewUrls.length > 0) {
+          setPreviewImages(previewUrls);
+          return;
+        }
+      } catch (directError) {
+        console.error("Error using direct preview images method:", directError);
+      }
+  
+      // If direct method failed, try checking the product data
+      try {
+        const productCheck = await checkProductPreviewImages(productId);
+        console.log("Product check result:", productCheck);
+        
+        if (productCheck.success && productCheck.previewImages && productCheck.previewImages.length > 0) {
+          console.log(`Found ${productCheck.previewImages.length} preview images in product data`);
+          setPreviewImages(productCheck.previewImages);
+          return;
+        }
+      } catch (checkError) {
+        console.error("Error checking product preview images:", checkError);
+      }
+  
+      // Last resort - fetch the product directly and look for preview_images
+      try {
+        const response = await fetch(`${BASE_URL}/products/${productId}`);
+        
+        if (response.ok) {
+          const product = await response.json();
+          console.log("Fetched product directly:", product);
+          
+          if (product && product.preview_images && Array.isArray(product.preview_images) && product.preview_images.length > 0) {
+            console.log(`Found ${product.preview_images.length} preview images in product data`);
+            setPreviewImages(product.preview_images);
+            return;
+          }
+        }
+      } catch (fallbackError) {
+        console.error("Error in fallback product fetch:", fallbackError);
+      }
+  
+      // If we got here, no images were found
+      console.log("No preview images found for this product");
+      setPreviewImages([]);
+    } catch (error) {
+      console.error("Error in fetchProductPreviews:", error);
+      setPreviewImages([]);
+    } finally {
+      setLoadingPreviews(false);
+    }
+  };
+
+  const handleOpenProductModal = (product) => {
+    setSelectedProduct(product);
+    setShowProductModal(true);
+    fetchProductPreviews(product.product_id);
+  };
 
   const loadCampaignRequests = async () => {
     try {
@@ -321,70 +397,91 @@ export default function AdminDashboardScreen() {
   };
 
   const handleProductVerify = async (productId, productName) => {
+    setProcessingAction(true);
+
     try {
-      setProcessingAction(true);
-      console.log(
-        `Attempting to verify product: ID ${productId}, Name: "${productName}"`
-      );
+      console.log(`Verifying product ID: ${productId}, Name: ${productName}`);
 
-      // Call the API to verify the product, passing both ID and name
-      const response = await verifyProduct(productId, productName);
-      console.log("API Response:", response);
+      // First, verify the product directly using fetch
+      const verifyResponse = await verifyProduct(productId, productName);
 
-      if (!response.success) {
-        throw new Error(response.message || "Verification failed");
+      if (!verifyResponse.ok) {
+        const errorText = await verifyResponse.text();
+        throw new Error(`Verification failed: ${errorText}`);
       }
 
-      // Refresh products data
-      const allProducts = await fetchProducts();
+      const result = await verifyResponse.json();
 
-      // Verify that the product was actually updated
-      const verifiedProduct = allProducts.find(
-        (p) =>
-          p.product_id === productId &&
-          p.product_name === productName &&
-          p.verified === true
-      );
+      if (result.success) {
+        // After successful verification, set up preview directories
+        try {
+          // Set up preview directories using direct fetch
+          const previewSetupResponse = await fetch(
+            `/api/products/${productId}/setup-previews`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
-      if (!verifiedProduct) {
-        console.warn(
-          "Product may not have been verified. Product not showing as verified in database."
-        );
-        setProducts(allProducts);
-        Alert.alert(
-          "Verification Issue",
-          "The product appears to have verification issues. Please check the database.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
+          if (previewSetupResponse.ok) {
+            const setupResult = await previewSetupResponse.json();
+            console.log(
+              "Preview directories set up successfully:",
+              setupResult
+            );
 
-      // Successfully verified, notify the seller
-      const seller = users.find(
-        (u) => u.user_id === verifiedProduct.user_seller
-      );
+            // If the product has no preview images, migrate the main product image to be a preview
+            try {
+              // Use direct fetch for migration
+              await fetch(`/api/admin/migrate-product-images-to-previews`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ productIds: [productId] }),
+              });
+              console.log(
+                `Preview images migration triggered for product ${productId}`
+              );
+            } catch (migrateError) {
+              console.error("Error migrating preview images:", migrateError);
+            }
+          }
+        } catch (setupError) {
+          console.error("Error setting up preview directories:", setupError);
+          // Continue with verification success message even if preview setup fails
+        }
 
-      if (seller) {
-        await createNotification({
-          user_id: seller.user_id,
-          message: `✅ Your product "${verifiedProduct.product_name}" has been verified and is now live!`,
-          date_timestamp: new Date().toISOString(),
+        // Show success message and update UI
+        Toast.show({
+          type: "success",
+          text1: "Product Verified",
+          text2: `${productName} has been verified successfully`,
         });
-        console.log(
-          `Notification sent to seller ${seller.name} (ID: ${seller.user_id})`
+
+        // Update the local state to reflect the verification
+        setProducts((currentProducts) =>
+          currentProducts.map((p) =>
+            p.product_id === productId ? { ...p, verified: true } : p
+          )
         );
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Verification Failed",
+          text2: result.error || "Could not verify product",
+        });
       }
-
-      // Update the local products state
-      setProducts(allProducts);
-
-      Alert.alert(
-        "Success",
-        `Product "${productName}" verified successfully and is now live on the platform.`
-      );
     } catch (error) {
       console.error("Error verifying product:", error);
-      Alert.alert("Error", `Failed to verify product: ${error.message}`);
+      Toast.show({
+        type: "error",
+        text1: "Verification Error",
+        text2: error.message || "An unexpected error occurred",
+      });
     } finally {
       setProcessingAction(false);
     }
@@ -1095,10 +1192,7 @@ export default function AdminDashboardScreen() {
               <View style={styles.productFooter}>
                 <TouchableOpacity
                   style={styles.detailsButton}
-                  onPress={() => {
-                    setSelectedProduct(product);
-                    setShowProductModal(true);
-                  }}
+                  onPress={() => {handleOpenProductModal(product)}}
                 >
                   <Text style={styles.detailsButtonText}>View Details</Text>
                 </TouchableOpacity>
@@ -1147,40 +1241,174 @@ export default function AdminDashboardScreen() {
           >
             <View style={modalStyles.modalOverlay}>
               <View style={modalStyles.modalContent}>
-                <Text style={modalStyles.modalTitle}>
-                  {selectedProduct.product_name}
-                </Text>
-                <ScrollView>
-                  <Text style={modalStyles.modalText}>
-                    Category: {selectedProduct.category || "Not specified"}
+                <View style={modalStyles.modalHeader}>
+                  <Text style={modalStyles.modalTitle}>
+                    {selectedProduct.product_name}
                   </Text>
-                  <Text style={modalStyles.modalText}>
-                    Price: ${selectedProduct.cost}
-                  </Text>
-                  <Text style={modalStyles.modalText}>
-                    Summary: {selectedProduct.summary || "No summary provided"}
-                  </Text>
-                  <Text style={modalStyles.modalText}>Description:</Text>
-                  <Text style={modalStyles.modalText}>
-                    {selectedProduct.description}
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowProductModal(false)}
+                    style={modalStyles.closeIcon}
+                  >
+                    <Ionicons name="close" size={24} color="#555" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={modalStyles.scrollContainer}>
+                  {/* Basic product info */}
+                  <View style={modalStyles.section}>
+                    <Text style={modalStyles.sectionTitle}>
+                      Product Details
+                    </Text>
+                    <View style={modalStyles.infoRow}>
+                      <Text style={modalStyles.infoLabel}>Category:</Text>
+                      <Text style={modalStyles.infoValue}>
+                        {selectedProduct.category || "Not specified"}
+                      </Text>
+                    </View>
+                    <View style={modalStyles.infoRow}>
+                      <Text style={modalStyles.infoLabel}>Price:</Text>
+                      <Text style={modalStyles.infoValue}>
+                        ${selectedProduct.cost}
+                      </Text>
+                    </View>
+                    <View style={modalStyles.infoRow}>
+                      <Text style={modalStyles.infoLabel}>Status:</Text>
+                      <View
+                        style={[
+                          modalStyles.statusBadge,
+                          {
+                            backgroundColor: selectedProduct.verified
+                              ? "#dcfce7"
+                              : "#fee2e2",
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            modalStyles.statusText,
+                            {
+                              color: selectedProduct.verified
+                                ? "#16a34a"
+                                : "#ef4444",
+                            },
+                          ]}
+                        >
+                          {selectedProduct.verified ? "Verified" : "Unverified"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Main product image */}
                   {selectedProduct.product_image && (
-                    <Image
-                      source={{
-                        uri: selectedProduct.product_image.startsWith("http")
-                          ? selectedProduct.product_image
-                          : `http://10.0.0.25:5001/${selectedProduct.product_image}`,
-                      }}
-                      style={modalStyles.modalImage}
-                    />
+                    <View style={modalStyles.section}>
+                      <Text style={modalStyles.sectionTitle}>
+                        Main Product Image
+                      </Text>
+                      <Image
+                        source={{
+                          uri: selectedProduct.product_image.startsWith("http")
+                            ? selectedProduct.product_image
+                            : `/uploads/products/${selectedProduct.product_image.split("/").pop()}`,
+                        }}
+                        style={modalStyles.mainImage}
+                        resizeMode="contain"
+                      />
+                    </View>
                   )}
+
+                  {/* Preview images section */}
+                  <View style={modalStyles.section}>
+                    <View style={modalStyles.sectionHeaderRow}>
+                      <Text style={modalStyles.sectionTitle}>
+                        Preview Images
+                      </Text>
+                      <Text style={modalStyles.previewNote}>
+                      Added by seller ({previewImages.length})
+                      </Text>
+                    </View>
+
+                    {loadingPreviews ? (
+                      <View style={modalStyles.loadingContainer}>
+                        <ActivityIndicator size="small" color="#555" />
+                        <Text style={modalStyles.loadingText}>
+                          Loading preview images...
+                        </Text>
+                      </View>
+                    ) : previewImages.length > 0 ? (
+                      <View style={modalStyles.previewGrid}>
+                        {previewImages.map((previewUrl, index) => (
+                          <View
+                            key={`preview-${index}-${encodeURIComponent(previewUrl).substring(0, 20)}`}
+                            style={modalStyles.previewContainer}
+                          >
+                            <Image
+                              source={{ uri: previewUrl }}
+                              style={modalStyles.previewImage}
+                              resizeMode="cover"
+                            />
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <View style={modalStyles.emptyPreviewsContainer}>
+                        <Ionicons
+                          name="images-outline"
+                          size={40}
+                          color="#ccc"
+                        />
+                        <Text style={modalStyles.emptyPreviewsText}>
+                          No preview images available
+                        </Text>
+                        <Text style={modalStyles.emptyPreviewsSubtext}>
+                          The seller did not add any preview images for this
+                          product
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Description section */}
+                  <View style={modalStyles.section}>
+                    <Text style={modalStyles.sectionTitle}>Description</Text>
+                    <Text style={modalStyles.descriptionText}>
+                      {selectedProduct.description || "No description provided"}
+                    </Text>
+                  </View>
                 </ScrollView>
-                <TouchableOpacity
-                  onPress={() => setShowProductModal(false)}
-                  style={modalStyles.closeButton}
-                >
-                  <Text style={{ color: "#fff" }}>Close</Text>
-                </TouchableOpacity>
+
+                {/* Action buttons */}
+                <View style={modalStyles.actionButtons}>
+                  <TouchableOpacity
+                    onPress={() => setShowProductModal(false)}
+                    style={modalStyles.cancelButton}
+                  >
+                    <Text style={modalStyles.cancelButtonText}>Close</Text>
+                  </TouchableOpacity>
+
+                  {!selectedProduct.verified && (
+                    <TouchableOpacity
+                      style={modalStyles.verifyButton}
+                      onPress={() => {
+                        setShowProductModal(false);
+                        handleProductVerify(
+                          selectedProduct.product_id,
+                          selectedProduct.product_name
+                        );
+                      }}
+                    >
+                      <Ionicons
+                        name="shield-checkmark"
+                        size={18}
+                        color="#fff"
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={modalStyles.verifyButtonText}>
+                        Verify Product
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
           </Modal>
@@ -1353,7 +1581,7 @@ export default function AdminDashboardScreen() {
       case "campaigns":
         return renderCampaignRequests();
       case "subscriptions":
-          return <SubscriptionManagementScreen />;
+        return <SubscriptionManagementScreen />;
       default:
         return renderPendingApprovals();
     }
@@ -1396,42 +1624,179 @@ const { width } = Dimensions.get("window");
 const modalStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   modalContent: {
-    width: "100%",
-    maxHeight: "80%",
-    backgroundColor: "#fff",
+    backgroundColor: "white",
     borderRadius: 12,
-    padding: 20,
+    padding: 0,
+    width: "100%",
+    maxWidth: 500,
+    maxHeight: "90%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
     elevation: 5,
+    overflow: "hidden",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 10,
-    color: "#111827",
+    fontWeight: "bold",
+    color: "#333",
+    flex: 1,
   },
-  modalText: {
-    fontSize: 14,
-    color: "#374151",
+  closeIcon: {
+    padding: 4,
+  },
+  scrollContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    maxHeight: "80%",
+  },
+  section: {
+    marginBottom: 20,
+    paddingTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  previewNote: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
-  modalImage: {
+  infoLabel: {
+    width: 90,
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  infoValue: {
+    fontSize: 14,
+    color: "#333",
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  mainImage: {
     width: "100%",
     height: 200,
     borderRadius: 8,
-    marginTop: 12,
+    backgroundColor: "#f5f5f5",
   },
-  closeButton: {
-    marginTop: 16,
-    backgroundColor: "#ef4444",
-    paddingVertical: 10,
-    borderRadius: 8,
+  previewGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -5,
+  },
+  previewContainer: {
+    width: "33.33%",
+    padding: 5,
+  },
+  previewImage: {
+    width: "100%",
+    height: 80,
+    borderRadius: 6,
+    backgroundColor: "#f0f0f0",
+  },
+  loadingContainer: {
     alignItems: "center",
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginTop: 8,
+    color: "#555",
+    fontSize: 14,
+  },
+  emptyPreviewsContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f9f9f9",
+    padding: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderStyle: "dashed",
+  },
+  emptyPreviewsText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#555",
+    marginTop: 10,
+  },
+  emptyPreviewsSubtext: {
+    fontSize: 13,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 5,
+  },
+  descriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#333",
+  },
+  actionButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    padding: 16,
+  },
+  cancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    backgroundColor: "#f5f5f5",
+    marginRight: 10,
+  },
+  cancelButtonText: {
+    color: "#555",
+    fontWeight: "500",
+  },
+  verifyButton: {
+    backgroundColor: "#16a34a",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  verifyButtonText: {
+    color: "white",
+    fontWeight: "500",
   },
 });
 

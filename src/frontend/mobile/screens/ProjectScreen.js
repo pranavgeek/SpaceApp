@@ -20,6 +20,7 @@ import { useLikeContext } from "../theme/LikeContext";
 import { getProjectId } from "../context/projectIdHelper";
 import { useWishlist } from "../context/WishlistContext";
 import { useAuth } from "../context/AuthContext";
+import ImprovedGalleryContainer from '../components/ImprovedGalleryContainer';
 
 import {
   fetchProductById,
@@ -27,6 +28,8 @@ import {
   fetchReviews,
   createReview,
   findProductIdByName,
+  getProductPreviewImages,
+  BASE_URL,
 } from "../backend/db/API.js";
 
 const ProjectScreen = ({ route, navigation }) => {
@@ -36,6 +39,8 @@ const ProjectScreen = ({ route, navigation }) => {
   const { colors } = useTheme();
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const [previewImages, setPreviewImages] = useState([]);
+  const [previewImagesLoading, setPreviewImagesLoading] = useState(false);
 
   // Get window dimensions for responsive layout
   const { width } = Dimensions.get("window");
@@ -57,7 +62,6 @@ const ProjectScreen = ({ route, navigation }) => {
   // For image gallery
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollViewRef = useRef(null);
-  const imageCount = 3; // adjust if needed
 
   // Animation values
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -80,6 +84,40 @@ const ProjectScreen = ({ route, navigation }) => {
   const projectId = getProjectId(project);
   const isLiked = getLikes(projectId);
   const isFavorite = isInWishlist(projectId);
+
+  // Determine the product to display
+  const displayProduct = productDetail
+    ? {
+        name: productDetail.product_name,
+        description: productDetail.description,
+        summary: productDetail.summary,
+        image:
+          productDetail.product_image &&
+          productDetail.product_image.startsWith("http")
+            ? productDetail.product_image
+            : `${BASE_URL.split("/api")[0]}/${productDetail.product_image}`,
+        price: productDetail.cost,
+        currency: productDetail.currency || "$",
+        likes: productDetail.likes || project.likes || 0,
+        reviews: productDetail.reviews || [],
+        // Use preview images from the product if available, otherwise use what we've fetched
+        previewImages:
+          productDetail.preview_images &&
+          productDetail.preview_images.length > 0
+            ? productDetail.preview_images
+            : previewImages,
+        // Additional useful fields
+        verified: productDetail.verified || false,
+        product_id: productDetail.product_id,
+      }
+    : {
+        ...project,
+        // Use preview images either from the project or what we've fetched
+        previewImages:
+          project.previewImages && project.previewImages.length > 0
+            ? project.previewImages
+            : previewImages,
+      };
 
   const handleToggleWishlist = () => {
     toggleWishlistItem({ project, creator, category: project.category });
@@ -129,6 +167,153 @@ const ProjectScreen = ({ route, navigation }) => {
     return null;
   };
 
+  useEffect(() => {
+    const fetchPreviewImages = async () => {
+      try {
+        // Don't fetch while initial product loading
+        if (loading) return;
+
+        setPreviewImagesLoading(true);
+
+        // Get product ID using our existing function
+        const prodId = await getProductId();
+
+        if (!prodId) {
+          console.log("Cannot fetch preview images: No product ID available");
+          setPreviewImagesLoading(false);
+          return;
+        }
+
+        console.log(`Fetching preview images for product ID: ${prodId}`);
+
+        // Try different approaches to get the preview images
+        let previewUrls = [];
+
+        // First approach: Use the API function
+        try {
+          previewUrls = await getProductPreviewImages(prodId);
+          console.log(
+            `API returned ${previewUrls?.length || 0} preview images`
+          );
+        } catch (apiError) {
+          console.error("Error using getProductPreviewImages API:", apiError);
+        }
+
+        // If the first approach fails or returns empty, try direct fetch
+        if (!previewUrls || previewUrls.length === 0) {
+          try {
+            // Extract base URL without /api if needed for direct fetch
+            let baseUrl = "";
+            if (typeof global !== "undefined" && global.BASE_URL) {
+              baseUrl = global.BASE_URL.split("/api")[0];
+            }
+
+            const response = await fetch(
+              `${baseUrl}/api/products/${prodId}/previews`
+            );
+
+            if (response.ok) {
+              previewUrls = await response.json();
+              console.log(
+                `Direct fetch returned ${previewUrls.length} preview images`
+              );
+            } else {
+              console.log(
+                `Direct fetch failed with status: ${response.status}`
+              );
+            }
+          } catch (fetchError) {
+            console.error("Error with direct fetch:", fetchError);
+          }
+        }
+
+        // Last resort: Check if the product itself has preview_images
+        if (!previewUrls || previewUrls.length === 0) {
+          if (
+            productDetail &&
+            productDetail.preview_images &&
+            productDetail.preview_images.length > 0
+          ) {
+            previewUrls = productDetail.preview_images;
+            console.log(
+              `Found ${previewUrls.length} preview images in product data`
+            );
+          } else if (
+            project &&
+            project.preview_images &&
+            project.preview_images.length > 0
+          ) {
+            previewUrls = project.preview_images;
+            console.log(
+              `Found ${previewUrls.length} preview images in project data`
+            );
+          }
+        }
+
+        // If we have preview images, set them
+        if (previewUrls && previewUrls.length > 0) {
+          console.log(
+            `Setting ${previewUrls.length} preview images:`,
+            previewUrls
+          );
+          setPreviewImages(previewUrls);
+        } else {
+          console.log("No preview images found for this product");
+          setPreviewImages([]);
+        }
+      } catch (error) {
+        console.error("Error in fetchPreviewImages:", error);
+        setPreviewImages([]);
+      } finally {
+        setPreviewImagesLoading(false);
+      }
+    };
+
+    // Only fetch preview images if we have a project and loading is complete
+    if (project && !loading) {
+      fetchPreviewImages();
+    }
+  }, [project, productDetail, loading]);
+
+  const getGalleryImages = () => {
+    const images = [];
+    
+    // First try to get preview images if available
+    if (Array.isArray(previewImages) && previewImages.length > 0) {
+      // Add valid preview images to the gallery
+      previewImages.forEach((url) => {
+        if (url && typeof url === "string" && url.trim() !== "") {
+          // For relative URLs, make them absolute
+          if (!url.startsWith("http")) {
+            const baseUrl = BASE_URL
+              ? BASE_URL.split("/api")[0]
+              : "https://example.com";
+            url = `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+          }
+          images.push(url);
+        }
+      });
+    }
+
+    // Add the main image if it exists and isn't already included
+    const mainImage = displayProduct.image;
+    if (mainImage && typeof mainImage === 'string' && 
+        mainImage.trim() !== '' && !images.includes(mainImage)) {
+      images.unshift(mainImage); // Add to the beginning
+    }
+
+    // If we still don't have any images, add a placeholder
+    if (images.length === 0) {
+      images.push("https://via.placeholder.com/400x280?text=Product+Image");
+    }
+
+    console.log(`Returning ${images.length} gallery images`);
+    return images;
+  };
+
+  const galleryImages = getGalleryImages();
+  const imageCount = galleryImages.length;
+
   // Fetch product details
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -141,7 +326,7 @@ const ProjectScreen = ({ route, navigation }) => {
             summary: project.summary,
             product_image: project.image,
             cost: project.price,
-            currency: "USD", // Add a default currency if not provided
+            currency: "CA$", // Add a default currency if not provided
             likes: project.likes || 0,
           });
           setLoading(false);
@@ -160,7 +345,7 @@ const ProjectScreen = ({ route, navigation }) => {
           summary: project.summary || "No summary available",
           product_image: project.image || "",
           cost: project.price || 0,
-          currency: "USD",
+          currency: "CA$",
           likes: project.likes || 0,
         });
       } catch (error) {
@@ -270,20 +455,16 @@ const ProjectScreen = ({ route, navigation }) => {
         direction === "left"
           ? Math.max(prevIndex - 1, 0)
           : Math.min(prevIndex + 1, imageCount - 1);
-      
+
       // Calculate exact scroll position based on card width
-      const scrollWidth = isMobile 
-        ? width - 32 
-        : isDesktop 
-          ? 500 
-          : 350;
-          
+      const scrollWidth = isMobile ? width - 32 : isDesktop ? 500 : 350;
+
       scrollViewRef.current?.scrollTo({
         x: newIndex * scrollWidth,
         y: 0,
         animated: true,
       });
-  
+
       return newIndex;
     });
   };
@@ -400,21 +581,111 @@ const ProjectScreen = ({ route, navigation }) => {
     }
   };
 
-  // Determine the product to display
-  const displayProduct = productDetail
-    ? {
-        name: productDetail.product_name,
-        description: productDetail.description,
-        summary: productDetail.summary,
-        image: productDetail.product_image.startsWith("http")
-          ? productDetail.product_image
-          : `http://10.0.0.25:5001/${productDetail.product_image}`,
-        price: productDetail.cost,
-        currency: productDetail.currency,
-        likes: productDetail.likes || project.likes || 0,
-        reviews: productDetail.reviews || [],
+  const EnhancedImage = ({ uri, style, resizeMode = "contain" }) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [hasError, setHasError] = useState(false);
+    const [imageUrl, setImageUrl] = useState("");
+    const [retryCount, setRetryCount] = useState(0);
+
+    // Process URL when URI changes or on retry
+    useEffect(() => {
+      setIsLoading(true);
+      setHasError(false);
+
+      // Ensure we have a valid URL
+      if (!uri) {
+        console.log("Empty image URI provided");
+        setHasError(true);
+        return;
       }
-    : project;
+
+      let processedUri = uri;
+
+      // Handle relative URLs
+      if (uri && typeof uri === "string" && !uri.startsWith("http")) {
+        // Extract base URL without /api if it exists
+        const baseUrl = BASE_URL
+          ? BASE_URL.split("/api")[0]
+          : "http://10.0.0.25:5001";
+        processedUri = `${baseUrl}${uri.startsWith("/") ? "" : "/"}${uri}`;
+        console.log(`Converted relative URL: ${uri} -> ${processedUri}`);
+      }
+
+      // Add cache-busting parameter for retries
+      if (retryCount > 0) {
+        const separator = processedUri.includes("?") ? "&" : "?";
+        processedUri = `${processedUri}${separator}cache=${Date.now()}`;
+        console.log(`Retry ${retryCount} with cache-busting: ${processedUri}`);
+      }
+
+      setImageUrl(processedUri);
+    }, [uri, retryCount]);
+
+    const handleRetry = () => {
+      setRetryCount((prev) => prev + 1);
+    };
+
+    if (hasError) {
+      return (
+        <View style={[style, styles.imageErrorContainer]}>
+          <Ionicons name="image-outline" size={40} color={colors.subtitle} />
+          <Text style={styles.imageErrorText}>Failed to load image</Text>
+          <TouchableOpacity
+            style={styles.imageErrorButton}
+            onPress={handleRetry}
+          >
+            <Text style={styles.imageErrorButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[style, { position: "relative" }]}>
+        <Image
+          source={{
+            uri: imageUrl,
+            cache: "reload",
+            headers: { Pragma: "no-cache" },
+          }}
+          style={[
+            style,
+            {
+              opacity: isLoading ? 0 : 1,
+              backgroundColor: "#f8f8f8",
+            },
+          ]}
+          resizeMode={resizeMode}
+          onLoadStart={() => setIsLoading(true)}
+          onLoad={() => {
+            console.log(`Image loaded successfully: ${imageUrl}`);
+            setIsLoading(false);
+          }}
+          onError={(e) => {
+            setIsLoading(false);
+            setHasError(true);
+            console.log(
+              `Failed to load image: ${imageUrl}`,
+              e.nativeEvent.error
+            );
+          }}
+        />
+
+        {isLoading && (
+          <View
+            style={[
+              style,
+              styles.imageLoadingContainer,
+              { position: "absolute", top: 0, left: 0 },
+            ]}
+          >
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.imageLoadingText}>Loading image...</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   // Displayed likes (accounting for current user's like)
   const displayedLikes = displayProduct.likes + (isLiked ? 1 : 0);
@@ -480,92 +751,18 @@ const ProjectScreen = ({ route, navigation }) => {
         scrollEventThrottle={16}
       >
         {/* Image Gallery with indicator dots and navigation arrows */}
-        <View style={styles.galleryContainer}>
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            pagingEnabled
-            scrollEnabled={true}
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(event) => {
-              const newIndex = Math.floor(
-                (event.nativeEvent.contentOffset.x + (width - 32) / 2) /
-                  (width - 32)
-              );
-              setCurrentImageIndex(newIndex);
-            }}
-          >
-            {[
-              displayProduct.image,
-              displayProduct.image,
-              displayProduct.image,
-            ].map((img, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.imageCard,
-                  { width: width - 32 }, // Ensure width matches the calculation in onMomentumScrollEnd
-                ]}
-              >
-                <Image
-                  source={{ uri: img }}
-                  style={styles.galleryImage}
-                  resizeMode="contain"
-                />
-              </View>
-            ))}
-          </ScrollView>
+        <ImprovedGalleryContainer
+          galleryImages={galleryImages}
+          previewImagesLoading={previewImagesLoading}
+          creator={creator}
+          colors={colors}
+          handleScroll={handleScroll}
+          currentImageIndex={currentImageIndex}
+          setCurrentImageIndex={setCurrentImageIndex}
+        />
 
-          {/* Navigation arrows */}
-          {currentImageIndex > 0 && (
-            <TouchableOpacity
-              style={[styles.galleryArrow, styles.galleryArrowLeft]}
-              onPress={() => handleScroll("left")}
-            >
-              <Ionicons name="chevron-back-circle" size={40} color="white" />
-            </TouchableOpacity>
-          )}
-
-          {currentImageIndex < imageCount - 1 && (
-            <TouchableOpacity
-              style={[styles.galleryArrow, styles.galleryArrowRight]}
-              onPress={() => handleScroll("right")}
-            >
-              <Ionicons name="chevron-forward-circle" size={40} color="white" />
-            </TouchableOpacity>
-          )}
-
-          {/* Pagination dots */}
-          <View style={styles.paginationContainer}>
-            {[0, 1, 2].map((dot) => (
-              <View
-                key={dot}
-                style={[
-                  styles.paginationDot,
-                  {
-                    backgroundColor:
-                      dot === currentImageIndex
-                        ? colors.primary
-                        : colors.border,
-                    width: dot === currentImageIndex ? 20 : 8,
-                  },
-                ]}
-              />
-            ))}
-          </View>
-
-          {/* Creator badge remains the same */}
-          <View style={styles.creatorBadge}>
-            <Image
-              source={{ uri: creator.image }}
-              style={styles.creatorBadgeImage}
-            />
-            <View style={styles.creatorBadgeInfo}>
-              <Text style={styles.creatorLabel}>Creator</Text>
-              <Text style={styles.creatorName}>{creator.name}</Text>
-            </View>
-          </View>
-        </View>
+        {/* Thumbnail strip for mobile */}
+        
 
         {/* Product Info Card */}
         <View style={[styles.productCard, { backgroundColor: colors.card }]}>
@@ -1287,6 +1484,60 @@ const ProjectScreen = ({ route, navigation }) => {
   );
 };
 
+const updatedGalleryStyles = {
+  // Container for the entire gallery
+  galleryContainer: {
+    position: "relative",
+    marginBottom: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 0,
+    overflow: "hidden",
+    height: 280,
+    alignItems: "center", // Center items horizontally
+    justifyContent: "center", // Center items vertically
+  },
+  // ScrollView container style
+  galleryScrollContainer: {
+    alignItems: "center", // Center items horizontally
+    justifyContent: "center", // Center items vertically
+  },
+  // Style for individual image cards
+  imageCard: {
+    overflow: "hidden",
+    backgroundColor: "#ffffff",
+    width: Dimensions.get("window").width - 32, // Full width minus padding
+    height: 280,
+    justifyContent: "center",
+    alignItems: "center", // Center the image within the card
+  },
+  // Style for the actual image
+  galleryImage: {
+    width: "90%", // Reduced to ensure centering works
+    height: "90%", // Reduced to ensure centering works
+    alignSelf: "center", // Extra centering
+  },
+  // Thumbnail strip at the bottom
+  thumbnailStrip: {
+    flexDirection: "row",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    justifyContent: "center", // Center thumbnails
+    alignItems: "center", // Align vertically
+  },
+  // Style for the thumbnail container
+  thumbnailContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 4,
+    marginHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "transparent",
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center", // Center thumbnail images
+  },
+};
+
 const getDynamicStyles = (colors, { isWeb, isDesktop, isTablet, isMobile }) =>
   StyleSheet.create({
     container: {
@@ -1732,6 +1983,137 @@ const getDynamicStyles = (colors, { isWeb, isDesktop, isTablet, isMobile }) =>
     },
     bottomSpacing: {
       height: 40,
+    },
+    imageLoadingContainer: {
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "#f9f9f9",
+      height: "100%",
+    },
+    imageLoadingText: {
+      marginTop: 10,
+      fontSize: 14,
+      color: colors.subtitle,
+    },
+    imageErrorContainer: {
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "#f9f9f9",
+      height: "100%",
+    },
+    imageErrorText: {
+      marginTop: 10,
+      fontSize: 14,
+      color: colors.error,
+      textAlign: "center",
+      paddingHorizontal: 20,
+    },
+    imageErrorButton: {
+      marginTop: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+    },
+    imageErrorButtonText: {
+      color: "white",
+      fontWeight: "500",
+    },
+
+    // Thumbnail version for a detail view
+    thumbnailContainer: {
+      marginTop: 10,
+      flexDirection: "row",
+      justifyContent: "center",
+    },
+    thumbnail: {
+      width: 60,
+      height: 60,
+      borderRadius: 4,
+      marginHorizontal: 5,
+      borderWidth: 2,
+      borderColor: "transparent",
+    },
+    activeThumbnail: {
+      borderColor: colors.primary,
+    },
+
+    // Preview images count indicator
+    previewCounter: {
+      position: "absolute",
+      top: 10,
+      left: 10,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+    },
+    previewCounterText: {
+      color: "white",
+      fontSize: 12,
+      fontWeight: "500",
+    },
+
+    // For a simple thumbnail strip
+    thumbnailStrip: {
+      flexDirection: "row",
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      marginTop: 10,
+      justifyContent: "center",
+    },
+    // Preview indicator for the product card
+    previewImagesIndicator: {
+      marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    previewImagesCount: {
+      fontSize: 13,
+      marginLeft: 5,
+      color: colors.subtitle,
+    },
+    previewImagesIcon: {
+      color: colors.subtitle,
+    },
+
+    // For when verification status matters
+    verificationBadge: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      backgroundColor: colors.success,
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    verificationBadgeText: {
+      color: "white",
+      fontSize: 12,
+      fontWeight: "500",
+      marginLeft: 4,
+    },
+
+    // Enhanced thumbnail styling
+    thumbnailStrip: {
+      flexDirection: "row",
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      marginTop: 5,
+      justifyContent: "center",
+    },
+    thumbnail: {
+      width: 60,
+      height: 60,
+      borderRadius: 4,
+      marginHorizontal: 4,
+      borderWidth: 2,
+      borderColor: "transparent",
+    },
+    activeThumbnail: {
+      borderColor: colors.primary,
     },
   });
 

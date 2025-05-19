@@ -14,6 +14,7 @@ import ButtonSetting from "../components/ButtonSetting";
 import BaseContainer from "../components/BaseContainer";
 import { useTheme } from "../theme/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { BASE_URL } from "../backend/db/API";
 
 export default function SettingsScreen({ navigation }) {
   const { colors, isDarkMode, toggleTheme } = useTheme();
@@ -59,6 +60,20 @@ export default function SettingsScreen({ navigation }) {
         { cancelable: false }
       );
     }
+  };
+
+  const getProfileImageUrl = (imagePath) => {
+    if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
+      return 'https://via.placeholder.com/150x150?text=Profile'; // fallback
+    }
+  
+    // If it's already a full URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+  
+    // Otherwise, treat as a filename in uploads
+    return `${BASE_URL}/uploads/profile/${imagePath}`;
   };
 
   // Custom setting item with modern design
@@ -125,7 +140,7 @@ export default function SettingsScreen({ navigation }) {
           <Image
             source={{
               uri:
-                user?.profile_image || // Use profile_image instead of avatar
+              getProfileImageUrl(user.profile_image) || // Use profile_image instead of avatar
                 "https://ui-avatars.com/api/?name=" +
                   user?.name?.replace(/\s+/g, "+") +
                   "&background=random",

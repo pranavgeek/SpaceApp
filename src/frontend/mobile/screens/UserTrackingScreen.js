@@ -17,6 +17,7 @@ import { useAuth } from "../context/AuthContext";
 import { fetchUsers } from "../backend/db/API"; 
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
+import { BASE_URL } from "../backend/db/API";
 
 export default function UserTrackingScreen() {
   const { user } = useAuth();
@@ -172,6 +173,18 @@ export default function UserTrackingScreen() {
     });
   };
 
+  const getProfileImageUrl = (imagePath) => {
+    if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
+      return 'https://via.placeholder.com/150x150?text=Profile'; // Default fallback
+    }
+  
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+  
+    return `${BASE_URL}/uploads/profile/${imagePath}`;
+  };
+
   const styles = getStyles(colors);
 
   return (
@@ -291,7 +304,7 @@ export default function UserTrackingScreen() {
                     >
                       {user.profile_image ? (
                         <Image 
-                          source={{ uri: user.profile_image }} 
+                          source={{ uri: getProfileImageUrl(user.profile_image) }} 
                           style={styles.userImage} 
                         />
                       ) : (

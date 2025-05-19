@@ -23,7 +23,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import BuyerOrdersScreen from "./BuyerOrdersScreen";
 import { LinearGradient } from "expo-linear-gradient";
-import { fetchNotifications, fetchUsers } from "../backend/db/API";
+import { fetchNotifications, fetchUsers, BASE_URL } from "../backend/db/API";
+import ShareModal from "../components/ShareModal";
 
 export default function BuyerProfileScreen({ navigation, route }) {
   const { colors, isDarkMode } = useTheme();
@@ -33,6 +34,12 @@ export default function BuyerProfileScreen({ navigation, route }) {
   const [location, setLocation] = useState("");
   const [languages, setLanguages] = useState([]);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
+
+  // Share modal state
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+
+  // Profile URL - in a real app this would be a real URL
+  const profileUrl = `${BASE_URL}/users/${user?.user_id || ""}`;
 
   const handleToggleSellerMode = () => {
     Alert.alert(
@@ -331,7 +338,10 @@ export default function BuyerProfileScreen({ navigation, route }) {
                 <Text style={styles.editProfileText}>Edit Profile</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.shareButton}>
+              <TouchableOpacity
+                style={styles.shareButton}
+                onPress={() => setShareModalVisible(true)}
+              >
                 <Ionicons
                   name="share-social-outline"
                   size={20}
@@ -405,6 +415,14 @@ export default function BuyerProfileScreen({ navigation, route }) {
           </View>
         </View>
       </ScrollView>
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        profileUrl={profileUrl}
+        userName={profile.name}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 }

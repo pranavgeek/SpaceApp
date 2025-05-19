@@ -14,13 +14,6 @@ export default function AdminSettingsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.title, { color: colors.text }]}>Admin Settings</Text>
 
-      <TouchableOpacity
-        style={[styles.logoutBtn, { backgroundColor: colors.primary }]}
-        onPress={logout}
-      >
-        <Ionicons name="log-out-outline" size={20} color="#fff" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
     </View>
   );
 }

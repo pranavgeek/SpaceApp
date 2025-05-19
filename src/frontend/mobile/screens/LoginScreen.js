@@ -1490,7 +1490,7 @@ const getDynamicStyles = (colors) =>
     accountTypeText: {
       color: colors.primary,
       fontWeight: "600",
-      fontSize: 13,
+      fontSize: 10,
       marginLeft: 6,
     },
     selectedAccountTypeText: {

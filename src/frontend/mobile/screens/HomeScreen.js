@@ -110,11 +110,11 @@ export default function HomeScreen({ navigation }) {
   const slideUpAnim = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT)).current;
   const modalOpacity = useRef(new Animated.Value(0)).current;
 
-  const HEADER_MAX_HEIGHT = 130; // Full header height (logo + search)
-  const HEADER_MIN_HEIGHT = 60; // Just search bar height
+  const HEADER_MAX_HEIGHT = 110; // Full header height (logo + search)
+  const HEADER_MIN_HEIGHT = 65; // Just search bar height
   const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
   const STATUSBAR_HEIGHT =
-    Platform.OS === "ios" ? 20 : StatusBar.currentHeight || 0;
+    Platform.OS === "ios" ? 20 : 0;
 
   // Create animation value for scroll position
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -125,16 +125,22 @@ export default function HomeScreen({ navigation }) {
     outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
     extrapolate: "clamp",
   });
-
+  
   const headerOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-    outputRange: [1, 0.5, 0],
-    extrapolate: "clamp",
+    inputRange: [0, HEADER_SCROLL_DISTANCE / 2],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
   });
 
   const searchBarTranslateY = scrollY.interpolate({
     inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -60],
+    outputRange: [0, -HEADER_SCROLL_DISTANCE],
+    extrapolate: 'clamp',
+  });
+
+  const searchBarHeight = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [60, 50], // Shrinks from 60 to 40
     extrapolate: "clamp",
   });
 
@@ -309,8 +315,8 @@ export default function HomeScreen({ navigation }) {
                 ? product.product_image.startsWith("http")
                   ? product.product_image
                   : product.product_image.startsWith("/")
-                    ? `http://10.0.0.25:5001${product.product_image}` // Absolute path with leading slash
-                    : `http://10.0.0.25:5001/uploads/products/${product.product_image}` // Relative path
+                    ? `http://3.98.198.170/${product.product_image}` // Absolute path with leading slash
+                    : `http://3.98.198.170/uploads/products/${product.product_image}` // Relative path
                 : "https://via.placeholder.com/300x180?text=No+Image",
               price: product.cost,
               likes: 0,
@@ -580,11 +586,8 @@ export default function HomeScreen({ navigation }) {
           style={[
             styles.headerContainer,
             {
-              height: isDesktopWeb
-                ? HEADER_MAX_HEIGHT
-                : headerHeight + STATUSBAR_HEIGHT,
-              paddingTop: isDesktopWeb ? 0 : STATUSBAR_HEIGHT,
-              zIndex: 999,
+              height: headerHeight,
+              paddingTop: STATUSBAR_HEIGHT,
             },
           ]}
         >
@@ -875,9 +878,8 @@ export default function HomeScreen({ navigation }) {
             style={[
               styles.content,
               {
-                marginTop: isDesktopWeb
-                  ? 0
-                  : HEADER_MAX_HEIGHT + STATUSBAR_HEIGHT,
+                paddingTop: (selectedFilter || selectedCountry || selectedCity || 
+                       selectedPriceRanges.length > 0 || showBestSellersOnly) ? 0 : HEADER_MIN_HEIGHT,
               },
             ]}
           >
@@ -1105,8 +1107,8 @@ const getDynamicStyles = (colors) =>
       top: Platform.OS === "ios" ? 50 : 0,
       left: 0,
       right: 0,
-      zIndex: 999,
-      borderBottomWidth: 5,
+      zIndex: 1000,
+      borderBottomWidth: 1,
       borderBottomColor: colors.baseContainerBody,
     },
     customHeader: {
@@ -1114,7 +1116,7 @@ const getDynamicStyles = (colors) =>
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 16,
-      height: 60,
+      height: 40,
       backgroundColor: colors.background,
     },
     headerLeft: {
@@ -1130,9 +1132,9 @@ const getDynamicStyles = (colors) =>
     },
     cartButton: {
       backgroundColor: colors.primary,
-      borderRadius: 50,
-      width: 46,
-      height: 46,
+      borderRadius: 10,
+      width: 35,
+      height: 35,
       justifyContent: "center",
       alignItems: "center",
       shadowColor: colors.primary,
@@ -1164,10 +1166,11 @@ const getDynamicStyles = (colors) =>
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingBottom: 10,
+      paddingVertical: 20,
       backgroundColor: colors.background,
       justifyContent: "space-between",
-      height: 70,
+      flex: 1,
     },
     searchInputWrap: {
       flex: 1,
@@ -1177,7 +1180,7 @@ const getDynamicStyles = (colors) =>
       borderRadius: 12,
       paddingHorizontal: 12,
       marginRight: 10,
-      height: 46,
+      height: 35,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.1,
@@ -1199,9 +1202,9 @@ const getDynamicStyles = (colors) =>
     },
     filterButton: {
       backgroundColor: colors.primary,
-      borderRadius: 12,
-      width: 46,
-      height: 46,
+      borderRadius: 10,
+      width: 35,
+      height: 35,
       justifyContent: "center",
       alignItems: "center",
       shadowColor: colors.primary,
@@ -1241,7 +1244,7 @@ const getDynamicStyles = (colors) =>
     mobileListContent: {
       paddingHorizontal: 16,
       paddingBottom: 20,
-      paddingTop: 8, // Reduced from the original to account for the header padding
+      paddingTop: 50, // Reduced from the original to account for the header padding
     },
     webContainer: {
       flex: 1,

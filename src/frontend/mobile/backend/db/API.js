@@ -8,9 +8,10 @@ export const BASE_URL =
     ? "http://localhost:5001/api"
     : "http://10.0.0.25:5001/api";
 
-// const BASE_URL = Platform.OS === "web"
-//   ? "http://3.99.169.179/api"
-//   : "http://3.99.169.179/api";
+// export const BASE_URL =
+//     Platform.OS === "web"
+//       ? "http://3.98.198.170/api"
+//       : "http://3.98.198.170/api";
 
 console.log(`Using API base URL: ${BASE_URL}`);
 
@@ -539,14 +540,225 @@ export const fetchProductById = async (id) => {
   return response.json();
 };
 
+export const getProductPreviewImages = async (productId) => {
+  try {
+    if (!productId) {
+      console.log('Invalid product ID provided to getProductPreviewImages');
+      return [];
+    }
+    
+    console.log(`Fetching preview images for product ID: ${productId}`);
+    
+    // Make the API request directly using fetch
+    const response = await fetch(`${BASE_URL}/products/${productId}/previews`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Preview images request failed: ${response.status}`, errorText);
+      return [];
+    }
+    
+    // Parse and return the preview URLs
+    const previewUrls = await response.json();
+    
+    // Log the results
+    if (previewUrls && previewUrls.length > 0) {
+      console.log(`Found ${previewUrls.length} preview images for product ${productId}`);
+    } else {
+      console.warn('Preview images request succeeded but returned no data');
+    }
+    
+    return previewUrls || [];
+  } catch (error) {
+    console.error('Error in getProductPreviewImages:', error);
+    return [];
+  }
+};
+
+export const setupProductPreviewDirectories = async (productId) => {
+  try {
+    if (!productId) {
+      console.log('Invalid product ID provided to setupProductPreviewDirectories');
+      return { success: false, error: 'Invalid product ID' };
+    }
+    
+    console.log(`Setting up preview directories for product ID: ${productId}`);
+    
+    // Make the API request directly using fetch
+    const response = await fetch(`/api/products/${productId}/setup-previews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Preview directory setup failed: ${response.status}`, errorText);
+      return { success: false, error: errorText };
+    }
+    
+    // Parse and return the result
+    const result = await response.json();
+    console.log('Preview directories set up successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in setupProductPreviewDirectories:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Migrate product images to preview images
+ * @param {Array<number|string>} [productIds] - Optional array of product IDs to migrate (all products if not specified)
+ * @returns {Promise<Object>} - Migration result information
+ */
+export const migrateProductImagesToPreviews = async (productIds = []) => {
+  try {
+    console.log('Migrating product images to preview images');
+    
+    // Make the API request directly using fetch
+    const response = await fetch(`/api/admin/migrate-product-images-to-previews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ productIds }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Migration failed: ${response.status}`, errorText);
+      return { success: false, error: errorText };
+    }
+    
+    // Parse and return the result
+    const result = await response.json();
+    console.log('Migration completed successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in migrateProductImagesToPreviews:', error);
+    return { success: false, error: error.message };
+  }
+};
+/**
+ * Update a product with preview image URLs
+ * @param {string} productId - ID of the product to update
+ * @param {Array<string>} previewUrls - Array of preview image URLs
+ * @returns {Promise<Object>} - Updated product data
+ */
+export const updateProductPreviewImages = async (productId, previewUrls) => {
+  try {
+    console.log(`Updating product ${productId} with ${previewUrls.length} preview images:`, previewUrls);
+    
+    if (!productId) {
+      console.error('No product ID provided to updateProductPreviewImages');
+      return { success: false, error: 'No product ID provided' };
+    }
+    
+    if (!previewUrls || !Array.isArray(previewUrls)) {
+      console.warn('No preview URLs provided or invalid format, initializing with empty array');
+      previewUrls = [];
+    }
+    
+    // Use BASE_URL instead of relative path
+    const response = await fetch(`${BASE_URL}/products/${productId}/previews`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        preview_images: previewUrls
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Failed to update product with preview images: ${response.status}`, errorText);
+      throw new Error(`Failed to update preview images: ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log('Successfully updated product with preview images:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in updateProductPreviewImages:', error);
+    throw error;
+  }
+};
+
+export const checkProductPreviewImages = async (productId) => {
+  try {
+    if (!productId) {
+      return { success: false, error: 'No product ID provided' };
+    }
+    
+    // Fetch the product
+    const response = await fetch(`${BASE_URL}/products/${productId}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { 
+        success: false, 
+        error: `Failed to fetch product: ${errorText}` 
+      };
+    }
+    
+    const product = await response.json();
+    
+    // Check if preview_images exists and is an array
+    const hasPreviewImages = !!product.preview_images;
+    const isArray = hasPreviewImages && Array.isArray(product.preview_images);
+    
+    return {
+      success: true,
+      productId,
+      productName: product.product_name,
+      hasPreviewImages,
+      isArray,
+      previewImages: hasPreviewImages ? product.preview_images : null,
+      previewCount: isArray ? product.preview_images.length : 0
+    };
+  } catch (error) {
+    console.error('Error in checkProductPreviewImages:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 export const createProduct = async (productData) => {
-  const response = await fetch(`${BASE_URL}/products`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(productData),
-  });
-  if (!response.ok) throw new Error("Failed to create product");
-  return response.json();
+  try {
+    // Ensure preview_images field exists if not provided
+    const enhancedProductData = {
+      ...productData,
+      preview_images: productData.preview_images || [], // Initialize with empty array if not provided
+    };
+    
+    // Make API request to create the product
+    const response = await fetch(`${BASE_URL}/products`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json" 
+      },
+      body: JSON.stringify(enhancedProductData),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Failed to create product: ${response.status}`, errorText);
+      throw new Error(`Failed to create product: ${errorText}`);
+    }
+    
+    // Parse and return the created product
+    const createdProduct = await response.json();
+    console.log(`✅ Product "${createdProduct.product_name}" created with ID ${createdProduct.product_id}`);
+    return createdProduct;
+  } catch (error) {
+    console.error("Error creating product:", error);
+    throw new Error('Failed to create product');
+  }
 };
 
 export const verifyProduct = async (productId, productName) => {

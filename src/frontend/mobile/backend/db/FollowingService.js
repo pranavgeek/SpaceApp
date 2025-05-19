@@ -3,10 +3,16 @@ import { Platform } from "react-native";
 import { fetchUsers, updateUser } from "./API";
 
 // Dynamic base URL for API calls
-const BASE_URL =
-  Platform.OS === "web"
-    ? "http://localhost:5001/api"
-    : "http://10.0.0.25:5001/api";
+// const BASE_URL =
+//   Platform.OS === "web"
+//     ? "http://3.98.198.170/api"
+//     : "http://3.98.198.170/api";
+
+  export const BASE_URL =
+    Platform.OS === "web"
+      ? "http://localhost:5001/api"
+      : "http://10.0.0.25:5001/api";
+  
 
 /**
  * Service for handling following/follower relationships

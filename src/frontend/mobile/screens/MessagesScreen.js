@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
-import { fetchMessages } from "../backend/db/API";
+import { fetchMessages, BASE_URL } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import TermsOfUseManager from "../components/TermsOfUseModal";
@@ -128,6 +128,20 @@ const ConversationItem = ({ chat, onPress, onDelete }) => {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
   };
 
+    const getProfileImageUrl = (imagePath) => {
+      if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
+        return 'https://via.placeholder.com/150x150?text=Profile'; // fallback
+      }
+    
+      // If it's already a full URL, return as is
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath;
+      }
+    
+      // Otherwise, treat as a filename in uploads
+      return `${BASE_URL}/uploads/profile/${imagePath}`;
+    };
+
   return (
     <Swipeable renderRightActions={renderRightActions}>
       <TouchableOpacity
@@ -137,7 +151,7 @@ const ConversationItem = ({ chat, onPress, onDelete }) => {
         <Image
           source={{
             uri:
-              user?.profile_image || // Use profile_image instead of avatar
+            getProfileImageUrl(user.profile_image) || // Use profile_image instead of avatar
               "https://ui-avatars.com/api/?name=" +
                 user?.name?.replace(/\s+/g, "+") +
                 "&background=random",

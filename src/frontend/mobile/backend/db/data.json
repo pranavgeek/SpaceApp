@@ -2,7 +2,7 @@
   "users": [
     {
       "user_id": 99,
-      "name": "Space kAdmin",
+      "name": "KSpace Admin",
       "about_us": "System administrator",
       "address": "Admin HQ",
       "city": "Ottawa",
@@ -10,7 +10,7 @@
       "social_media_x": "@admin",
       "social_media_linkedin": "linkedin.com/admin",
       "social_media_website": "admin.com",
-      "profile_image": "admin.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/logo.png",
       "email": "kspace@admin.com",
       "password": "kspace123",
       "account_type": "admin"
@@ -25,7 +25,7 @@
       "social_media_x": "@johndoe",
       "social_media_linkedin": "linkedin.com/johndoe",
       "social_media_website": "johndoe.com",
-      "profile_image": "http://10.0.0.25:5001/uploads/profile/263c8ecb-efc6-4044-b9ea-5f29635300d1.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/1747444272822-312363864.jpg",
       "gender": "Male",
       "age": 30,
       "email": "john@example.com",
@@ -130,7 +130,7 @@
         {
           "user_id": 5,
           "name": "Shubh Rai",
-          "profile_image": "default_profile.jpg",
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747682441400-421216970.jpg",
           "account_type": "Seller",
           "follow_date": "2025-05-15T22:15:03.041Z"
         }
@@ -149,7 +149,7 @@
       "social_media_x": "@sarahsmith",
       "social_media_linkedin": "linkedin.com/sarahsmith",
       "social_media_website": "sarahsmith.com",
-      "profile_image": "profile2.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/1747670410431-463901661.jpg",
       "gender": "Female",
       "age": 25,
       "email": "sarah@example.com",
@@ -278,7 +278,8 @@
       "role": "seller",
       "tier": "enterprise",
       "influencer_tier": "pro",
-      "subscription_end_date": "2025-06-14T23:34:30.886Z"
+      "subscription_end_date": "2025-06-14T23:34:30.886Z",
+      "id": "2"
     },
     {
       "user_id": 3,
@@ -290,7 +291,7 @@
       "social_media_x": "@mikeinfluencer",
       "social_media_linkedin": "linkedin.com/mikeinfluencer",
       "social_media_website": "mikeinfluencer.com",
-      "profile_image": "http://10.0.0.25:5001/uploads/profile/0a81c65b-ac99-4cd9-9f40-8a1e7c8b873e.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/1747682759031-854245190.jpg",
       "gender": "Male",
       "age": 28,
       "email": "mike@example.com",
@@ -337,7 +338,7 @@
       "social_media_x": "",
       "social_media_linkedin": "",
       "social_media_website": "",
-      "profile_image": "file:///var/mobile/Containers/Data/Application/B9627EDE-6085-41FD-9C9B-7361F684055A/Library/Caches/ImagePicker/4C96D8D0-0D8A-4937-9ADE-F7A65DF7F8B1.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/1747682441400-421216970.jpg",
       "gender": "Male",
       "age": 25,
       "is_two_factor_enabled": false,
@@ -355,8 +356,8 @@
         {
           "user_id": 1,
           "name": "John Doe",
-          "profile_image": "profile1.jpg",
-          "follow_date": "2025-05-15T22:15:03.027Z"
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/263c8ecb-efc6-4044-b9ea-5f29635300d1.jpg",
+          "follow_date": "2025-05-17T00:17:39.690Z"
         }
       ],
       "followers_count": 1,
@@ -432,7 +433,7 @@
       "product_id": 101,
       "product_name": "Smartphone",
       "category": "Hardware",
-      "product_image": "/uploads/products/shopping.webp",
+      "product_image": "http://10.0.0.25:5001/uploads/products/shopping.webp",
       "cost": 699,
       "currency": "USD",
       "summary": "High-end smartphone",
@@ -472,7 +473,7 @@
       "product_id": 102,
       "product_name": "Wireless Headphones",
       "category": "Hardware",
-      "product_image": "/uploads/products/15732775.jpg",
+      "product_image": "http://10.0.0.25:5001/uploads/products/15732775.jpg",
       "cost": 120,
       "currency": "USD",
       "summary": "Noise-cancelling wireless headphones",
@@ -507,7 +508,7 @@
       "description": "13” inch",
       "country": "Delhi, India",
       "user_seller": 2,
-      "product_image": "/uploads/products/mbp14-spaceblack-select-202410.jpeg",
+      "product_image": "http://10.0.0.25:5001/uploads/products/mbp14-spaceblack-select-202410.jpeg",
       "verified": true,
       "created_at": "2025-04-15T02:22:56.818Z",
       "product_id": 4,
@@ -530,7 +531,7 @@
       "description": "Logitech",
       "country": "São Paulo, Brazil",
       "user_seller": 2,
-      "product_image": "/uploads/products/mx-keys-s-top-view-black-us.webp",
+      "product_image": "http://10.0.0.25:5001/uploads/products/mx-keys-s-top-view-black-us.webp",
       "verified": true,
       "created_at": "2025-04-15T02:45:37.090Z",
       "product_id": 5,
@@ -562,7 +563,12 @@
       "description": "2025 modal",
       "country": "São Paulo, Brazil",
       "user_seller": 5,
-      "product_image": "/uploads/products/616z23YvqML._AC_UL640_FMwebp_QL65_.webp",
+      "product_image": "http://10.0.0.25:5001/uploads/products/616z23YvqML._AC_UL640_FMwebp_QL65_.webp",
+      "preview_images": [
+        "http://10.0.0.25:5001/uploads/previews/104/preview-1747598927925-149806955.jpg",
+        "http://10.0.0.25:5001/uploads/previews/104/preview-1747598927915-367434674.jpg",
+        "http://10.0.0.25:5001/uploads/previews/104/preview-1747598927926-765640943.jpg"
+      ],
       "verified": true,
       "created_at": "2025-04-29T03:25:38.828Z",
       "product_id": 103
@@ -642,6 +648,34 @@
       "message_content": "I've accepted your collaboration request. Let's work together!",
       "date_timestamp_sent": "2025-05-15T23:34:20.192Z",
       "timestamp": "2025-05-15T23:34:20.192Z",
+      "is_read": false
+    },
+    {
+      "message_id": 3,
+      "user_from": "3",
+      "user_to": "2",
+      "sender_id": "3",
+      "receiver_id": "2",
+      "from_name": "Mike Influencer",
+      "to_name": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "Hi, I'm interested in collaborating on your products!",
+      "date_timestamp_sent": "2025-05-19T19:33:39.124Z",
+      "timestamp": "2025-05-19T19:33:39.124Z",
+      "is_read": false
+    },
+    {
+      "message_id": 4,
+      "user_from": "2",
+      "user_to": "Mike Influencer",
+      "sender_id": "2",
+      "receiver_id": "Mike Influencer",
+      "from_name": "Sarah Smith",
+      "to_name": "Mike Influencer",
+      "type_message": "text",
+      "message_content": "I've accepted your collaboration request. Let's work together!",
+      "date_timestamp_sent": "2025-05-19T19:33:53.506Z",
+      "timestamp": "2025-05-19T19:33:53.506Z",
       "is_read": false
     }
   ],
@@ -1225,6 +1259,18 @@
       "timestamp": "2025-05-15T05:54:47.209Z",
       "request_id": "req-1747288487242",
       "statusUpdatedAt": "2025-05-15T23:34:20.060Z"
+    },
+    {
+      "requestId": "1747683219031",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "product": "Collaboration Request",
+      "status": "Accepted",
+      "timestamp": "2025-05-19T19:33:39.031Z",
+      "request_id": "req-1747683219132",
+      "statusUpdatedAt": "2025-05-19T19:33:53.504Z"
     }
   ],
   "subscription_cancellations": [

@@ -23,7 +23,7 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   // Use different base URLs based on platform
   const BASE_URL = Platform.OS === "web" 
-  ? "http://localhost:5001/api"
+  ? "http://10.0.0.25:5001/api"
   : "http://10.0.0.25:5001/api";
 
 
