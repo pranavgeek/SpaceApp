@@ -13,6 +13,8 @@ import {
   Platform,
   Animated,
   Easing,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "../theme/ThemeContext";
@@ -41,6 +43,7 @@ export default function FormScreen() {
     return <AnimatedMobileWizard />;
   }
 }
+
 
 /* ------------------------------------------------------------------
    1) WEB LAYOUT: Form with searchable dropdowns for CATEGORY and COUNTRY
@@ -355,6 +358,8 @@ function WebForm() {
         <FormField
           label="DETAILED DESCRIPTION"
           value={detailedDescription}
+          keyboardType={Platform.OS === 'ios' ? "numbers-and-punctuation" : "numeric"}
+          returnKeyType="done"
           onChangeText={setDetailedDescription}
           placeholder="Describe your product"
           multiline
@@ -452,6 +457,11 @@ function FormField({
   required = false,
 }) {
   const styles = getWebStyles(colors);
+
+  const handleKeyboardDismiss = () => {
+    Keyboard.dismiss();
+  };
+  
   return (
     <View style={styles.fieldContainer}>
       <Text style={styles.label}>
@@ -466,6 +476,9 @@ function FormField({
         editable={editable}
         multiline={multiline}
         keyboardType={keyboardType}
+        returnKeyType={multiline ? "default" : "done"}
+        blurOnSubmit={!multiline} // For multiline, don't blur on submit to allow line breaks
+        onSubmitEditing={!multiline ? handleKeyboardDismiss : undefined}
       />
     </View>
   );
@@ -736,7 +749,7 @@ function AnimatedMobileWizard() {
   // For picking images
   const pickMainImages = async () => {
     // Check if already at the limit of 3 images
-    if (mainImages.length >= 3) {
+    if (mainImages.length >= 1) {
       Alert.alert(
         "Image Limit Reached",
         "You can only upload up to 3 main product images."
@@ -1211,27 +1224,31 @@ function AnimatedMobileWizard() {
   // Enhanced Image Upload UI Component
   const EnhancedImageUploadStep = ({ colors }) => {
     return (
-      <View style={styles.imageStepWrapper}>
+      <ScrollView 
+        style={styles.imageStepScrollView}
+        contentContainerStyle={styles.imageStepWrapper}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Main Product Images Section */}
         <View style={styles.imageSectionContainer}>
-          <Text style={styles.imageSectionTitle}>Main Product Images</Text>
+          <Text style={styles.imageSectionTitle}>Main Product Image</Text>
           <Text style={styles.imageSectionSubtitle}>
-            These will be the primary images shown for your product
+            This will be the primary image shown for your product
           </Text>
-
+  
           <View style={styles.imageUploadHeader}>
             <Text style={styles.imageCountLabel}>
-              {mainImages.length}/3 main images
+              {mainImages.length}/1 main image
             </Text>
-
+  
             <TouchableOpacity
               style={[
                 styles.uploadButton,
-                mainImages.length >= 3 && styles.uploadButtonDisabled,
+                mainImages.length >= 1 && styles.uploadButtonDisabled,
               ]}
               onPress={pickMainImages}
               activeOpacity={0.7}
-              disabled={mainImages.length >= 3 || uploadingMain}
+              disabled={mainImages.length >= 1 || uploadingMain}
             >
               {uploadingMain ? (
                 <View style={styles.uploadingIndicator}>
@@ -1246,13 +1263,13 @@ function AnimatedMobileWizard() {
                     color="white"
                   />
                   <Text style={styles.uploadButtonText}>
-                    {mainImages.length === 0 ? "Add Main Images" : "Add More"}
+                    {mainImages.length === 0 ? "Add Main Image" : "Replace"}
                   </Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
-
+  
           <View style={styles.selectedImagesContainer}>
             {mainImages.map((img, index) => (
               <Animated.View
@@ -1266,26 +1283,26 @@ function AnimatedMobileWizard() {
                     style={styles.imagePreview}
                     resizeMode="cover"
                   />
-
+  
                   {img.uploaded && (
                     <View style={styles.uploadedBadge}>
                       <Feather name="check-circle" size={14} color="white" />
                     </View>
                   )}
                 </View>
-
+  
                 <View style={styles.imageDetails}>
                   <Text style={styles.selectedImageName} numberOfLines={1}>
                     {img.name}
                   </Text>
-
+  
                   {img.uploaded ? (
                     <Text style={styles.uploadedStatusText}>Uploaded</Text>
                   ) : (
                     <Text style={styles.pendingStatusText}>Pending upload</Text>
                   )}
                 </View>
-
+  
                 <TouchableOpacity
                   style={styles.removeImageButton}
                   onPress={() => handleRemoveMainImage(index)}
@@ -1299,7 +1316,7 @@ function AnimatedMobileWizard() {
                 </TouchableOpacity>
               </Animated.View>
             ))}
-
+  
             {mainImages.length === 0 && (
               <View style={styles.emptyImagesContainer}>
                 <MaterialIcons
@@ -1308,16 +1325,16 @@ function AnimatedMobileWizard() {
                   color={colors.secondary}
                 />
                 <Text style={styles.noImagesText}>
-                  No main images selected yet
+                  No main image selected yet
                 </Text>
                 <Text style={styles.noImagesSubtext}>
-                  You can add up to 3 main product images
+                  You need to add one main product image
                 </Text>
               </View>
             )}
           </View>
         </View>
-
+  
         {/* Preview Images Section */}
         <View
           style={[styles.imageSectionContainer, styles.previewSectionContainer]}
@@ -1326,12 +1343,12 @@ function AnimatedMobileWizard() {
           <Text style={styles.imageSectionSubtitle}>
             These will appear as thumbnails in the product gallery
           </Text>
-
+  
           <View style={styles.imageUploadHeader}>
             <Text style={styles.imageCountLabel}>
               {previewImages.length}/3 preview images
             </Text>
-
+  
             <TouchableOpacity
               style={[
                 styles.uploadButton,
@@ -1358,7 +1375,7 @@ function AnimatedMobileWizard() {
               )}
             </TouchableOpacity>
           </View>
-
+  
           <View style={styles.selectedImagesContainer}>
             {previewImages.map((img, index) => (
               <Animated.View
@@ -1372,26 +1389,26 @@ function AnimatedMobileWizard() {
                     style={styles.imagePreview}
                     resizeMode="cover"
                   />
-
+  
                   {img.uploaded && (
                     <View style={styles.uploadedBadge}>
                       <Feather name="check-circle" size={14} color="white" />
                     </View>
                   )}
                 </View>
-
+  
                 <View style={styles.imageDetails}>
                   <Text style={styles.selectedImageName} numberOfLines={1}>
                     {img.name}
                   </Text>
-
+  
                   {img.uploaded ? (
                     <Text style={styles.uploadedStatusText}>Uploaded</Text>
                   ) : (
                     <Text style={styles.pendingStatusText}>Pending upload</Text>
                   )}
                 </View>
-
+  
                 <TouchableOpacity
                   style={styles.removeImageButton}
                   onPress={() => handleRemovePreviewImage(index)}
@@ -1405,7 +1422,7 @@ function AnimatedMobileWizard() {
                 </TouchableOpacity>
               </Animated.View>
             ))}
-
+  
             {previewImages.length === 0 && (
               <View style={styles.emptyImagesContainer}>
                 <MaterialIcons
@@ -1423,7 +1440,7 @@ function AnimatedMobileWizard() {
             )}
           </View>
         </View>
-      </View>
+      </ScrollView>
     );
   };
 
@@ -1751,7 +1768,9 @@ function AnimatedMobileWizard() {
               value={current.value}
               onChangeText={current.setValue}
               keyboardType={current.keyboardType}
-              multiline={current.multiline}
+              multiline={false}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
               editable={current.editable !== false}
             />
             {current.required && (
@@ -2242,6 +2261,13 @@ function getEnhancedMobileStyles(colors) {
       shadowRadius: 2,
       elevation: 2,
     },
+    imageStepScrollView: {
+      flex: 1,
+      width: '100%',
+    },
+    imageStepWrapper: {
+      paddingBottom: 100, // Add extra padding at bottom to ensure content is accessible
+    },    
     uploadButtonDisabled: {
       backgroundColor: "#cccccc",
       opacity: 0.7,

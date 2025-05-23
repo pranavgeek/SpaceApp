@@ -469,12 +469,22 @@ const ProjectScreen = ({ route, navigation }) => {
     });
   };
   // Handle adding to cart
-  const handleAddToCart = () => {
-    const cartItem = { ...displayProduct, cartItemId: projectId };
+  const handleAddToCart = async () => {
+    const productId = await getProductId(); // Resolve actual product_id
+    const sellerId = productDetail?.user_seller || project?.user_seller;
+  
+    const cartItem = {
+      ...displayProduct,
+      cartItemId: projectId,
+      product_id: productId,        // ✅ explicitly include
+      user_seller: sellerId,        // ✅ this will become seller_id in checkout
+    };
+  
+    console.log("🛒 Adding to cart:", cartItem);
+  
     addToCart(cartItem);
     setAddedToCart(true);
-
-    // Reset after animation
+  
     setTimeout(() => {
       setAddedToCart(false);
     }, 2000);

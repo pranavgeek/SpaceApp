@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext"; // Import Auth context to access user tier
@@ -23,6 +26,7 @@ const PriceCalculator = ({
   const [sellingPrice, setSellingPrice] = useState(0);
   const [showProcessingFeeInfo, setShowProcessingFeeInfo] = useState(false);
   const infoHeight = useState(new Animated.Value(0))[0];
+  const inputRef = useRef(null);
   
   // Determine fee percentage based on the user's subscription tier
   const getFeePercentage = () => {
@@ -79,106 +83,122 @@ const PriceCalculator = ({
     }
   };
 
+  // Function to dismiss keyboard
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
+  // Function to handle "Done" button press on keyboard
+  const handleSubmitEditing = () => {
+    dismissKeyboard();
+  };
+
   return (
-    <View style={styles.container}>
-      {/* Price Input */}
-      <View style={styles.row}>
-        <Text style={[styles.label, { color: colors.text }]}>Price</Text>
-        <TextInput
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
+      <View style={styles.container}>
+        {/* Price Input */}
+        <View style={styles.row}>
+          <Text style={[styles.label, { color: colors.text }]}>Price</Text>
+          <TextInput
+            ref={inputRef}
+            style={[
+              styles.input,
+              { 
+                borderColor: colors.inputBorder || "#E0E0E0",
+                backgroundColor: colors.cardBackground || "#FFFFFF",
+                color: colors.text 
+              }
+            ]}
+            value={basePrice}
+            onChangeText={handlePriceChange}
+            placeholder="0"
+            placeholderTextColor={colors.placeholderText || "#888"}
+            keyboardType={Platform.OS === 'ios' ? "numbers-and-punctuation" : "numeric"}
+            returnKeyType="done"
+            onSubmitEditing={handleSubmitEditing}
+            blurOnSubmit={true}
+          />
+        </View>
+        
+        {/* Processing Fees */}
+        <View style={styles.row}>
+          <Text style={[styles.label, { color: colors.text }]}>Processing Fees</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{feePercentage}%</Text>
+        </View>
+        
+        {/* Selling Price */}
+        <View style={styles.row}>
+          <Text style={[styles.label, { color: colors.text }]}>Selling Price</Text>
+          <Text style={[styles.value, { color: colors.primary }]}>
+            {sellingPrice.toLocaleString()}
+          </Text>
+        </View>
+        
+        {/* Show subscription tier information */}
+        <View style={styles.tierInfoContainer}>
+          <Text style={[styles.tierInfo, { color: colors.secondary }]}>
+            {`Your current plan (${user?.tier || 'Basic'}) has a ${feePercentage}% processing fee`}
+          </Text>
+        </View>
+        
+        {/* Terms Section */}
+        <View style={styles.termsSection}>
+          <Text style={[styles.termsSectionLabel, { color: colors.text }]}>Terms</Text>
+          
+          <TouchableOpacity 
+            style={styles.checkboxRow}
+            onPress={() => setShowProcessingFeeInfo(!showProcessingFeeInfo)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, { borderColor: colors.text }]}>
+              {showProcessingFeeInfo && (
+                <View style={[styles.checkboxInner, { backgroundColor: colors.text }]} />
+              )}
+            </View>
+            <Text style={[styles.checkboxLabel, { color: colors.text }]}>
+              Talk about processing fee
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Processing Fee Info - Animated */}
+        <Animated.View 
           style={[
-            styles.input,
+            styles.infoBox, 
             { 
-              borderColor: colors.inputBorder || "#E0E0E0",
-              backgroundColor: colors.cardBackground || "#FFFFFF",
-              color: colors.text 
+              maxHeight: infoHeight.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 150]
+              }),
+              opacity: infoHeight,
+              backgroundColor: `${colors.primary}22`, // Semi-transparent primary color
             }
           ]}
-          value={basePrice}
-          onChangeText={handlePriceChange}
-          placeholder="0"
-          placeholderTextColor={colors.placeholderText || "#888"}
-          keyboardType="numeric"
-        />
-      </View>
-      
-      {/* Processing Fees */}
-      <View style={styles.row}>
-        <Text style={[styles.label, { color: colors.text }]}>Processing Fees</Text>
-        <Text style={[styles.value, { color: colors.text }]}>{feePercentage}%</Text>
-      </View>
-      
-      {/* Selling Price */}
-      <View style={styles.row}>
-        <Text style={[styles.label, { color: colors.text }]}>Selling Price</Text>
-        <Text style={[styles.value, { color: colors.primary }]}>
-          {sellingPrice.toLocaleString()}
-        </Text>
-      </View>
-      
-      {/* Show subscription tier information */}
-      <View style={styles.tierInfoContainer}>
-        <Text style={[styles.tierInfo, { color: colors.secondary }]}>
-          {`Your current plan (${user?.tier || 'Basic'}) has a ${feePercentage}% processing fee`}
-        </Text>
-      </View>
-      
-      {/* Terms Section */}
-      <View style={styles.termsSection}>
-        <Text style={[styles.termsSectionLabel, { color: colors.text }]}>Terms</Text>
-        
-        <TouchableOpacity 
-          style={styles.checkboxRow}
-          onPress={() => setShowProcessingFeeInfo(!showProcessingFeeInfo)}
-          activeOpacity={0.7}
         >
-          <View style={[styles.checkbox, { borderColor: colors.text }]}>
-            {showProcessingFeeInfo && (
-              <View style={[styles.checkboxInner, { backgroundColor: colors.text }]} />
-            )}
+          <View style={styles.infoContent}>
+            <View style={styles.infoIconContainer}>
+              <MaterialIcons 
+                name="info" 
+                size={20} 
+                color={colors.primary} 
+              />
+            </View>
+            <View style={styles.infoTextContainer}>
+              <Text style={[styles.infoTitle, { color: colors.primary }]}>
+                Processing Fee Information
+              </Text>
+              <Text style={[styles.infoText, { color: colors.text }]}>
+                A {feePercentage}% processing fee is applied to all transactions to cover payment 
+                processing costs. This fee is automatically calculated and added to 
+                your base price to determine the final selling price.
+                {user?.tier !== 'enterprise' && 
+                  "\n\nUpgrade your plan to reduce this fee."}
+              </Text>
+            </View>
           </View>
-          <Text style={[styles.checkboxLabel, { color: colors.text }]}>
-            Talk about processing fee
-          </Text>
-        </TouchableOpacity>
+        </Animated.View>
       </View>
-      
-      {/* Processing Fee Info - Animated */}
-      <Animated.View 
-        style={[
-          styles.infoBox, 
-          { 
-            maxHeight: infoHeight.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 150]
-            }),
-            opacity: infoHeight,
-            backgroundColor: `${colors.primary}22`, // Semi-transparent primary color
-          }
-        ]}
-      >
-        <View style={styles.infoContent}>
-          <View style={styles.infoIconContainer}>
-            <MaterialIcons 
-              name="info" 
-              size={20} 
-              color={colors.primary} 
-            />
-          </View>
-          <View style={styles.infoTextContainer}>
-            <Text style={[styles.infoTitle, { color: colors.primary }]}>
-              Processing Fee Information
-            </Text>
-            <Text style={[styles.infoText, { color: colors.text }]}>
-              A {feePercentage}% processing fee is applied to all transactions to cover payment 
-              processing costs. This fee is automatically calculated and added to 
-              your base price to determine the final selling price.
-              {user?.tier !== 'enterprise' && 
-                "\n\nUpgrade your plan to reduce this fee."}
-            </Text>
-          </View>
-        </View>
-      </Animated.View>
-    </View>
+    </TouchableWithoutFeedback>
   );
 };
 

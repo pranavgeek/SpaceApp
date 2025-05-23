@@ -1639,7 +1639,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNIap (11.0.7):
+  - RNIap (12.16.2):
     - React-Core
   - RNReanimated (3.16.7):
     - DoubleConversion
@@ -2124,7 +2124,7 @@ SPEC CHECKSUMS:
   RNCClipboard: e1d17c9d093d8129ef50b39b63a17a0e8ccd0ade
   RNCPicker: 124b4fb5859ba1a3fd53a91e16d1e7a0fc016e59
   RNGestureHandler: 5f6ac390363304cc91c18f064d5426c9a0cc117c
-  RNIap: bd4bd4792527499762b33ef4282e1517652bc160
+  RNIap: f94647b3a3dbd5fa08ad7ed847eb588aa5fe95fe
   RNReanimated: b4130128f9ea5f1d6005fe3f5b6f94b7112d2613
   RNScreens: d34484f307f9b897625807d83c1613691f7aab84
   RNSVG: a07e14363aa208062c6483bad24a438d5986d490

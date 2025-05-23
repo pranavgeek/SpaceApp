@@ -23,8 +23,8 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   // Use different base URLs based on platform
   const BASE_URL = Platform.OS === "web" 
-  ? "http://10.0.0.25:5001/api"
-  : "http://10.0.0.25:5001/api";
+  ? "http://localhost:5001"
+  : "http://10.0.0.25:5001";
 
 
   // const BASE_URL = Platform.OS === "web" 
@@ -68,7 +68,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (Platform.OS === "web") {
       const handleWebMessage = async (event) => {
         // Check origin based on environment
-        if (event.origin !== "http://3.99.169.179") return;
+        if (event.origin !== "http://10.0.0.25:5001") return;
 
         try {
           console.log("Received message from iframe:", event.data);

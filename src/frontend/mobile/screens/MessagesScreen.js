@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
-import { fetchMessages, BASE_URL } from "../backend/db/API";
+import { fetchMessages, BASE_URL, fetchUsers } from "../backend/db/API";
 import { useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import TermsOfUseManager from "../components/TermsOfUseModal";
@@ -83,11 +83,44 @@ const formatMessagePreview = (message, isFromCurrentUser) => {
   return prefix + truncated;
 };
 
-const ConversationItem = ({ chat, onPress, onDelete }) => {
+// Improved ConversationItem component with robust image handling
+const ConversationItem = ({ chat, onPress, onDelete, storedUsers }) => {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
-  const [imageError, setImageError] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const { user } = useAuth();
+
+  // Find the chat partner in stored users - with better error handling
+  const chatPartner = useMemo(() => {
+    if (!storedUsers || !Array.isArray(storedUsers) || storedUsers.length === 0) {
+      console.log(`No stored users available for ${chat.chatName}`);
+      return null;
+    }
+    return storedUsers.find(u => u.name === chat.chatName);
+  }, [storedUsers, chat.chatName]);
+  
+  // Get profile image URL with better fallback handling
+  const getProfileImageUrl = (imagePath) => {
+    if (
+      !imagePath ||
+      typeof imagePath !== "string" ||
+      imagePath.trim() === "" ||
+      imagePath === "default_profile.jpg"
+    ) {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.chatName)}&background=random&color=fff`;
+    }
+  
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath;
+    }
+  
+    return `${BASE_URL}/uploads/profile/${imagePath}`;
+  };
+
+  // Determine the image source URI
+  const profileImageUri = chatPartner && chatPartner.profile_image
+    ? getProfileImageUrl(chatPartner.profile_image)
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.chatName)}&background=random&color=fff`;
 
   // Render the right swipe actions (delete)
   const renderRightActions = (progress, dragX) => {
@@ -123,47 +156,28 @@ const ConversationItem = ({ chat, onPress, onDelete }) => {
   // Format timestamp for display
   const formattedTime = chat.timestamp ? formatMessageDate(chat.timestamp) : "";
 
-  // Generate a UI Avatars URL as a fallback
-  const getAvatarUrl = (name) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
-  };
-
-    const getProfileImageUrl = (imagePath) => {
-      if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
-        return 'https://via.placeholder.com/150x150?text=Profile'; // fallback
-      }
-    
-      // If it's already a full URL, return as is
-      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        return imagePath;
-      }
-    
-      // Otherwise, treat as a filename in uploads
-      return `${BASE_URL}/uploads/profile/${imagePath}`;
-    };
-
   return (
     <Swipeable renderRightActions={renderRightActions}>
       <TouchableOpacity
         style={[styles.conversationItem, chat.isNew && styles.newConversation]}
         onPress={onPress}
       >
-        <Image
-          source={{
-            uri:
-            getProfileImageUrl(user.profile_image) || // Use profile_image instead of avatar
-              "https://ui-avatars.com/api/?name=" +
-                user?.name?.replace(/\s+/g, "+") +
-                "&background=random",
-          }}
-          style={styles.profileImage}
-          onError={(e) => {
-            console.error(
-              "Profile image load error in settings:",
-              e.nativeEvent.error
-            );
-          }}
-        />
+        {imageLoadFailed ? (
+          <View style={[styles.profileImage, styles.fallbackAvatar]}>
+            <Text style={styles.fallbackAvatarText}>
+              {chat.chatName.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        ) : (
+          <Image
+            source={{ uri: profileImageUri }}
+            style={styles.profileImage}
+            onError={() => {
+              console.log(`Profile image load error for: ${chat.chatName}`);
+              setImageLoadFailed(true);
+            }}
+          />
+        )}
 
         <View style={styles.conversationInfo}>
           <View style={styles.conversationHeader}>
@@ -206,6 +220,42 @@ export default function MessagesScreen({ navigation }) {
   const [isSearching, setIsSearching] = useState(false);
   const [storedUsers, setStoredUsers] = useState([]);
 
+  // Initial users data loading
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        // Try to get users from storage first
+        const usersData = await AsyncStorage.getItem("users");
+        let parsedUsers = [];
+        
+        if (usersData) {
+          parsedUsers = JSON.parse(usersData);
+          console.log(`Loaded ${parsedUsers.length} users from storage`);
+        }
+        
+        // If no users in storage, fetch from API
+        if (!parsedUsers || parsedUsers.length === 0) {
+          console.log("No users in storage, fetching from API...");
+          parsedUsers = await fetchUsers();
+          
+          // Cache the users
+          if (Array.isArray(parsedUsers) && parsedUsers.length > 0) {
+            await AsyncStorage.setItem("users", JSON.stringify(parsedUsers));
+            console.log(`Cached ${parsedUsers.length} users from API`);
+          }
+        }
+        
+        // Set the users in state
+        setStoredUsers(parsedUsers);
+      } catch (error) {
+        console.error("Error initializing users data:", error);
+      }
+    };
+    
+    initializeData();
+  }, []);
+
+  // Load stored users on component mount
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -221,12 +271,14 @@ export default function MessagesScreen({ navigation }) {
     fetchUsers();
   }, []);
 
+  // Fetch data when currentUser changes
   useEffect(() => {
     if (!currentUser || !currentUser.name) return;
 
     fetchAllData();
   }, [currentUser]);
 
+  // Enhanced fetchAllData function with better error handling
   const fetchAllData = async () => {
     if (!currentUser || !currentUser.name) return;
 
@@ -238,16 +290,45 @@ export default function MessagesScreen({ navigation }) {
         AsyncStorage.getItem("users"),
       ]);
 
-      // Set users if available
-      if (usersData) {
-        setStoredUsers(JSON.parse(usersData));
+      // Parse and validate users data
+      let parsedUsers = [];
+      try {
+        if (usersData) {
+          parsedUsers = JSON.parse(usersData);
+          console.log(`Loaded ${parsedUsers.length} users from storage`);
+        }
+      } catch (error) {
+        console.error("Error parsing users data:", error);
       }
 
+      // If no users in storage or invalid data, fetch from API
+      if (!parsedUsers || parsedUsers.length === 0) {
+        try {
+          console.log("Fetching users from API...");
+          parsedUsers = await fetchUsers();
+          
+          if (Array.isArray(parsedUsers) && parsedUsers.length > 0) {
+            await AsyncStorage.setItem("users", JSON.stringify(parsedUsers));
+            console.log(`Cached ${parsedUsers.length} users from API`);
+          } else {
+            console.error("API returned invalid users data");
+          }
+        } catch (err) {
+          console.error("❌ Failed to fetch users from API:", err);
+        }
+      }
+
+      // Set the users in state
+      setStoredUsers(parsedUsers);
+
+      // Parse collaboration requests
       const allRequests = storedRequests ? JSON.parse(storedRequests) : [];
       setCollabRequests(allRequests);
 
+      // Process messages
       let updatedMessages = [...messages];
 
+      // Add demo message for influencers if needed
       if (currentUser.account_type === "Influencer") {
         const hasPending = allRequests.find(
           (req) =>
@@ -615,6 +696,7 @@ export default function MessagesScreen({ navigation }) {
               currentUser={currentUser}
               onPress={() => handleChatOpen(item.chatName)}
               onDelete={() => handleDeleteConversation(item.chatName)}
+              storedUsers={storedUsers}
             />
           )}
           keyExtractor={(item, index) => `${item.chatName}-${index}`}
@@ -821,5 +903,16 @@ const getDynamicStyles = (colors) =>
       color: colors.subtitle,
       textAlign: "center",
       marginTop: 8,
+    },
+    // New styles for fallback avatar
+    fallbackAvatar: {
+      backgroundColor: colors.primary + '20',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fallbackAvatarText: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: colors.primary,
     },
   });

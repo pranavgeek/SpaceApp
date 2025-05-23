@@ -10,11 +10,6 @@ const fs = require("fs");
 const multer = require("multer");
 const nodeMailer = require("nodemailer");
 
-// const fileRoutes = require("./s3 local/fileRoutes.js");
-// const fileStorage = require("./s3 local/fileStorage");
-
-// fileStorage.initializeStorage();
-
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -23,7 +18,6 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// app.use("/api/files", fileRoutes);
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -37,11 +31,7 @@ const paths = {
   s3LocalUploads: path.join(S3_LOCAL_DIR, "uploads"),
   s3LocalProducts: path.join(S3_LOCAL_DIR, "uploads", "products"),
   s3LocalPreviews: path.join(S3_LOCAL_DIR, "uploads", "previews"),
-  
-  // public paths - these seem to be used by default
-  publicUploads: path.join(PUBLIC_DIR, "uploads"),
-  publicProducts: path.join(PUBLIC_DIR, "uploads", "products"),
-  publicPreviews: path.join(PUBLIC_DIR, "uploads", "previews"),
+
 };
 
 // Log all paths for debugging
@@ -50,13 +40,13 @@ Object.entries(paths).forEach(([key, value]) => {
   console.log(`${key}: ${value}`);
 });
 
-// Ensure all directories exist
-Object.values(paths).forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    console.log(`Creating directory: ${dir}`);
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+// // Ensure all directories exist
+// Object.values(paths).forEach(dir => {
+//   if (!fs.existsSync(dir)) {
+//     console.log(`Creating directory: ${dir}`);
+//     fs.mkdirSync(dir, { recursive: true });
+//   }
+// });
 
 // Define a helper function to know which base directory to use
 const useS3Local = true; // Set this to true to use s3Local, false to use public
@@ -188,10 +178,10 @@ app.use('/uploads', express.static(paths.s3LocalUploads));
 app.use('/uploads/products', express.static(paths.s3LocalProducts));
 app.use('/uploads/previews', express.static(paths.s3LocalPreviews));
 
-// Also serve from public as a fallback
-app.use('/uploads', express.static(paths.publicUploads));
-app.use('/uploads/products', express.static(paths.publicProducts));
-app.use('/uploads/previews', express.static(paths.publicPreviews));
+// // Also serve from public as a fallback
+// app.use('/uploads', express.static(paths.publicUploads));
+// app.use('/uploads/products', express.static(paths.publicProducts));
+// app.use('/uploads/previews', express.static(paths.publicPreviews));
 
 app.use(cors());
 app.options("*", cors()); // Allow all CORS preflights
@@ -236,6 +226,7 @@ function writeData(data) {
     return false;
   }
 }
+
 // ================================================================
 
 app.get('/api/products/:productId/previews', (req, res) => {

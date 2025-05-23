@@ -13,7 +13,8 @@
       "profile_image": "http://10.0.0.25:5001/uploads/profile/logo.png",
       "email": "kspace@admin.com",
       "password": "kspace123",
-      "account_type": "admin"
+      "account_type": "Admin",
+      "role": "admin"
     },
     {
       "user_id": 1,
@@ -25,7 +26,7 @@
       "social_media_x": "@johndoe",
       "social_media_linkedin": "linkedin.com/johndoe",
       "social_media_website": "johndoe.com",
-      "profile_image": "http://10.0.0.25:5001/uploads/profile/1747444272822-312363864.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/1747859170244-355089683.jpg",
       "gender": "Male",
       "age": 30,
       "email": "john@example.com",
@@ -81,7 +82,7 @@
         {
           "order_id": "ORD-1744063126853-307",
           "product_id": 101,
-          "product_name": "Smartphone",
+          "product_name": "Iphone 16",
           "quantity": 1,
           "order_date": "2025-04-07T21:58:46.854Z",
           "status": "Completed",
@@ -128,11 +129,11 @@
       "tier": "basic",
       "following": [
         {
-          "user_id": 5,
-          "name": "Shubh Rai",
-          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747682441400-421216970.jpg",
+          "user_id": 2,
+          "name": "Sarah Smith",
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747670410431-463901661.jpg",
           "account_type": "Seller",
-          "follow_date": "2025-05-15T22:15:03.041Z"
+          "follow_date": "2025-05-21T20:25:42.677Z"
         }
       ],
       "followers": [],
@@ -181,7 +182,7 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 0,
+      "followers_count": 1,
       "earnings": 500,
       "received_orders": [
         {
@@ -208,7 +209,7 @@
         {
           "order_id": "ORD-1744063126853-307",
           "product_id": 101,
-          "product_name": "Smartphone",
+          "product_name": "Iphone 16",
           "quantity": 1,
           "order_date": "2025-04-07T21:58:46.854Z",
           "status": "Completed",
@@ -229,7 +230,7 @@
         {
           "order_id": "ORD-1744679639079-766",
           "product_id": 101,
-          "product_name": "Smartphone",
+          "product_name": "Iphone 16",
           "quantity": 1,
           "order_date": "2025-04-15T01:13:59.079Z",
           "status": "Completed",
@@ -273,13 +274,22 @@
       "verification_id": "1744934821300",
       "verification_expiry": 1744935121301,
       "temp_phone_number": "5192804167",
-      "followers": [],
+      "followers": [
+        {
+          "user_id": 1,
+          "name": "John Liver",
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747859003832-764528314.jpg",
+          "follow_date": "2025-05-21T20:25:42.656Z"
+        }
+      ],
       "_preventReload": true,
       "role": "seller",
-      "tier": "enterprise",
+      "tier": "pro",
       "influencer_tier": "pro",
-      "subscription_end_date": "2025-06-14T23:34:30.886Z",
-      "id": "2"
+      "id": "2",
+      "subscription_cancelled": true,
+      "subscription_cancelled_at": "2025-05-21T20:37:46.937Z",
+      "subscription_end_date": "2026-05-21T20:38:01.801Z"
     },
     {
       "user_id": 3,
@@ -352,18 +362,12 @@
       },
       "user_id": 5,
       "id": "5",
-      "followers": [
-        {
-          "user_id": 1,
-          "name": "John Doe",
-          "profile_image": "http://10.0.0.25:5001/uploads/profile/263c8ecb-efc6-4044-b9ea-5f29635300d1.jpg",
-          "follow_date": "2025-05-17T00:17:39.690Z"
-        }
-      ],
-      "followers_count": 1,
+      "followers": [],
+      "followers_count": 0,
       "tier": "basic",
       "subscription_cancelled": true,
-      "subscription_cancelled_at": "2025-05-15T23:32:57.725Z"
+      "subscription_cancelled_at": "2025-05-21T21:29:11.189Z",
+      "received_orders": []
     },
     {
       "name": "Taylor",
@@ -431,14 +435,15 @@
   "products": [
     {
       "product_id": 101,
-      "product_name": "Smartphone",
+      "product_name": "Iphone 16",
       "category": "Hardware",
       "product_image": "http://10.0.0.25:5001/uploads/products/shopping.webp",
       "cost": 699,
-      "currency": "USD",
-      "summary": "High-end smartphone",
-      "description": "Latest model with advanced features",
+      "currency": "CAD",
+      "summary": "High-end Iphone 16",
+      "description": "iPhone 16 is built for Apple Intelligence, the personal intelligence system that helps you write, express yourself, and get things done effortlessly. With groundbreaking privacy protections, it gives you peace of mind that no one else can access your data — not even Apple.",
       "user_seller": 2,
+      "country": "Canada",
       "reviews": [
         {
           "review_id": 201,
@@ -463,6 +468,15 @@
           "review": "Best product I ever saw.",
           "date_timestamp": "2025-05-16T00:41:46.985Z",
           "review_id": 5
+        },
+        {
+          "product_id": 101,
+          "user_id": 1,
+          "user_name": "John Doe",
+          "number_stars": 5,
+          "review": "Nice product!",
+          "date_timestamp": "2025-05-21T00:32:43.951Z",
+          "review_id": 6
         }
       ],
       "download_url": "kspace-technologies.com",
@@ -471,13 +485,14 @@
     },
     {
       "product_id": 102,
-      "product_name": "Wireless Headphones",
+      "product_name": "Logitech G435 LIGHTSPEED",
       "category": "Hardware",
       "product_image": "http://10.0.0.25:5001/uploads/products/15732775.jpg",
       "cost": 120,
-      "currency": "USD",
+      "currency": "CAD",
       "summary": "Noise-cancelling wireless headphones",
-      "description": "High-quality sound with long battery life",
+      "country": "USA",
+      "description": "Immerse yourself in the action of your favourite games or the beat of your favourite tunes with the Logitech G435 LIGHTSPEED wireless gaming headset. Designed with smaller head sizes in mind, it boasts a lightweight fit to help you stay comfortable for extended playing sessions. It connects wirelessly to a wide range of devices for convenient compatibility.",
       "user_seller": 2,
       "reviews": [
         {
@@ -505,7 +520,7 @@
       "product_name": "MacBook",
       "category": "",
       "cost": 2500,
-      "description": "13” inch",
+      "description": "MacBook Pro features the most advanced lineup of chips ever built for a pro laptop. Phenomenal single- and multithreaded CPU performance, faster unified memory, enhanced machine learning accelerators",
       "country": "Delhi, India",
       "user_seller": 2,
       "product_image": "http://10.0.0.25:5001/uploads/products/mbp14-spaceblack-select-202410.jpeg",
@@ -521,14 +536,23 @@
           "review": "Love it",
           "date_timestamp": "2025-04-17T00:27:41.967Z",
           "review_id": 7
+        },
+        {
+          "product_id": 4,
+          "user_id": 1,
+          "user_name": "John Doe",
+          "number_stars": 4,
+          "review": "Best laptop",
+          "date_timestamp": "2025-05-21T15:43:32.690Z",
+          "review_id": 7
         }
       ]
     },
     {
-      "product_name": "Keyboard",
+      "product_name": "MX Keys S",
       "category": "",
       "cost": 300,
-      "description": "Logitech",
+      "description": "MX Keys S Rechargeable Li-Po (1500 mAh) battery Full charge lasts up to 10 days with predefined settings or up to 5 months with backlighting off ? Connect via Bluetooth low energy technology or the Logi Bolt USB Receiver ? Easy-switch keys to connect up to three devices and switch between them at the push of a button",
       "country": "São Paulo, Brazil",
       "user_seller": 2,
       "product_image": "http://10.0.0.25:5001/uploads/products/mx-keys-s-top-view-black-us.webp",
@@ -571,7 +595,37 @@
       ],
       "verified": true,
       "created_at": "2025-04-29T03:25:38.828Z",
-      "product_id": 103
+      "product_id": 103,
+      "reviews": [
+        {
+          "product_id": 103,
+          "user_id": 1,
+          "user_name": "John Liver",
+          "number_stars": 4,
+          "review": "Nice ipad modal",
+          "date_timestamp": "2025-05-21T19:39:47.993Z",
+          "review_id": 8
+        }
+      ]
+    },
+    {
+      "product_name": "Airpods Max",
+      "category": "",
+      "cost": 650,
+      "selling_price": 682.5,
+      "description": "2025 Modal",
+      "country": "Melbourne, Australia",
+      "user_seller": 5,
+      "product_image": "http://10.0.0.25:5001/uploads/products/1747865491890-565815508.jpg",
+      "preview_images": [
+        "http://10.0.0.25:5001/uploads/previews/104/preview-1747865492024-808466211.jpg",
+        "http://10.0.0.25:5001/uploads/previews/104/preview-1747865492026-399274688.jpg",
+        "http://10.0.0.25:5001/uploads/previews/104/preview-1747865492015-492338208.jpg"
+      ],
+      "verified": true,
+      "created_at": "2025-05-21T22:11:31.967Z",
+      "fee_percentage": 5,
+      "product_id": 104
     }
   ],
   "reviews": [
@@ -619,37 +673,36 @@
       "review": "Best product I ever saw.",
       "date_timestamp": "2025-05-16T00:41:46.985Z",
       "review_id": 5
+    },
+    {
+      "product_id": 101,
+      "user_id": 1,
+      "user_name": "John Doe",
+      "number_stars": 5,
+      "review": "Nice product!",
+      "date_timestamp": "2025-05-21T00:32:43.951Z",
+      "review_id": 6
+    },
+    {
+      "product_id": 4,
+      "user_id": 1,
+      "user_name": "John Doe",
+      "number_stars": 4,
+      "review": "Best laptop",
+      "date_timestamp": "2025-05-21T15:43:32.690Z",
+      "review_id": 7
+    },
+    {
+      "product_id": 103,
+      "user_id": 1,
+      "user_name": "John Liver",
+      "number_stars": 4,
+      "review": "Nice ipad modal",
+      "date_timestamp": "2025-05-21T19:39:47.993Z",
+      "review_id": 8
     }
   ],
   "messages": [
-    {
-      "message_id": 1,
-      "user_from": "3",
-      "user_to": "5",
-      "sender_id": "3",
-      "receiver_id": "5",
-      "from_name": "Mike Influencer",
-      "to_name": "Shubh Rai",
-      "type_message": "text",
-      "message_content": "Hi, I'm interested in collaborating on your products!",
-      "date_timestamp_sent": "2025-05-15T05:54:47.250Z",
-      "timestamp": "2025-05-15T05:54:47.250Z",
-      "is_read": false
-    },
-    {
-      "message_id": 2,
-      "user_from": "5",
-      "user_to": "Mike Influencer",
-      "sender_id": "5",
-      "receiver_id": "Mike Influencer",
-      "from_name": "Shubh Rai",
-      "to_name": "Mike Influencer",
-      "type_message": "text",
-      "message_content": "I've accepted your collaboration request. Let's work together!",
-      "date_timestamp_sent": "2025-05-15T23:34:20.192Z",
-      "timestamp": "2025-05-15T23:34:20.192Z",
-      "is_read": false
-    },
     {
       "message_id": 3,
       "user_from": "3",
@@ -676,6 +729,34 @@
       "message_content": "I've accepted your collaboration request. Let's work together!",
       "date_timestamp_sent": "2025-05-19T19:33:53.506Z",
       "timestamp": "2025-05-19T19:33:53.506Z",
+      "is_read": false
+    },
+    {
+      "message_id": 3,
+      "user_from": "3",
+      "user_to": "5",
+      "sender_id": "3",
+      "receiver_id": "5",
+      "from_name": "Mike Influencer",
+      "to_name": "Shubh Rai",
+      "type_message": "text",
+      "message_content": "Hi, I'm interested in collaborating on your products!",
+      "date_timestamp_sent": "2025-05-21T22:43:35.838Z",
+      "timestamp": "2025-05-21T22:43:35.838Z",
+      "is_read": false
+    },
+    {
+      "message_id": 4,
+      "user_from": "5",
+      "user_to": "3",
+      "sender_id": "5",
+      "receiver_id": "3",
+      "from_name": "Shubh Rai",
+      "to_name": "Mike Influencer",
+      "type_message": "text",
+      "message_content": "I've accepted your collaboration request. Let's work together!",
+      "date_timestamp_sent": "2025-05-21T22:44:11.505Z",
+      "timestamp": "2025-05-21T22:44:11.505Z",
       "is_read": false
     }
   ],
@@ -716,7 +797,7 @@
     },
     {
       "user_id": 2,
-      "message": "✅ Your product \"Smartphone\" has been verified and is now live!",
+      "message": "✅ Your product \"Iphone 16\" has been verified and is now live!",
       "date_timestamp": "2025-04-12T05:20:39.684Z",
       "notification_id": 7
     },
@@ -1071,6 +1152,38 @@
       "message": "Your campaign request with Taylor for \"iPad Pro\" has been approved.",
       "date_timestamp": "2025-05-14T17:57:00.645Z",
       "notification_id": 64
+    },
+    {
+      "user_id": 1,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-21T20:34:02.421Z",
+      "notification_id": 65
+    },
+    {
+      "user_id": 1,
+      "message": "We've reviewed your influencer application. Unfortunately, we are unable to approve it at this time. Please contact support for more information.",
+      "date_timestamp": "2025-05-21T20:34:07.452Z",
+      "notification_id": 66
+    },
+    {
+      "user_id": 1,
+      "message": "Your tracking link for order #ORD-1747859294215-416 is now available. Sent by Shubh Rai",
+      "date_timestamp": "2025-05-21T21:27:11.281Z",
+      "link": "https://kspace-technologies.com/components/Legal/Termsandcondition",
+      "order_id": "ORD-1747859294215-416",
+      "notification_id": 67
+    },
+    {
+      "user_id": "3",
+      "message": "Your campaign for \"Airpods Max\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-05-21T22:44:50.876Z",
+      "notification_id": 68
+    },
+    {
+      "user_id": "5",
+      "message": "Your campaign request with Mike Influencer for \"Airpods Max\" has been approved.",
+      "date_timestamp": "2025-05-21T22:44:50.887Z",
+      "notification_id": 69
     }
   ],
   "admin_data": [
@@ -1124,11 +1237,12 @@
     },
     {
       "action": "Campaign Approval Request",
-      "user_id": "2",
-      "status": "pending",
-      "date_timestamp": "2025-05-14T20:02:21.079Z",
-      "details": "{\"campaignRequestId\":\"1747252941018\",\"productName\":\"Keyboard\",\"influencerName\":\"Taylor\",\"sellerName\":\"Sarah Smith\",\"campaignDuration\":1,\"commission\":10}",
-      "admin_id": 6
+      "user_id": "5",
+      "status": "approved",
+      "date_timestamp": "2025-05-21T22:44:39.871Z",
+      "details": "{\"campaignRequestId\":\"1747867479814\",\"productName\":\"Airpods Max\",\"influencerName\":\"Mike Influencer\",\"sellerName\":\"Shubh Rai\",\"campaignDuration\":5,\"commission\":10}",
+      "admin_id": 6,
+      "updated_at": "2025-05-21T22:44:50.862Z"
     }
   ],
   "orders": [
@@ -1232,6 +1346,23 @@
       "status": "Accepted",
       "timestamp": "2025-04-30T00:13:58.800Z",
       "statusUpdatedAt": "2025-04-30T00:14:40.486Z"
+    },
+    {
+      "requestId": "1747867479814",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
+      "sellerId": "5",
+      "sellerName": "Shubh Rai",
+      "productId": "104",
+      "productName": "Airpods Max",
+      "productImage": "http://10.0.0.25:5001/uploads/products/1747865491890-565815508.jpg",
+      "productPrice": 650,
+      "commission": 10,
+      "campaignDetails": "Request for Mike Influencer to promote Airpods Max",
+      "campaignDuration": 5,
+      "status": "Accepted",
+      "timestamp": "2025-05-21T22:44:39.814Z",
+      "statusUpdatedAt": "2025-05-21T22:44:50.873Z"
     }
   ],
   "subscriptions": [],
@@ -1249,28 +1380,16 @@
       "statusUpdatedAt": "2025-05-15T05:13:59.658Z"
     },
     {
-      "requestId": "1747288487209",
+      "requestId": "1747867415787",
       "sellerId": "5",
       "sellerName": "Shubh Rai",
       "influencerId": "3",
       "influencerName": "Mike Influencer",
       "product": "Collaboration Request",
       "status": "Accepted",
-      "timestamp": "2025-05-15T05:54:47.209Z",
-      "request_id": "req-1747288487242",
-      "statusUpdatedAt": "2025-05-15T23:34:20.060Z"
-    },
-    {
-      "requestId": "1747683219031",
-      "sellerId": "2",
-      "sellerName": "Sarah Smith",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "product": "Collaboration Request",
-      "status": "Accepted",
-      "timestamp": "2025-05-19T19:33:39.031Z",
-      "request_id": "req-1747683219132",
-      "statusUpdatedAt": "2025-05-19T19:33:53.504Z"
+      "timestamp": "2025-05-21T22:43:35.787Z",
+      "request_id": "req-1747867415742",
+      "statusUpdatedAt": "2025-05-21T22:44:11.393Z"
     }
   ],
   "subscription_cancellations": [
@@ -1280,6 +1399,22 @@
       "reason": "User requested cancellation",
       "cancelled_at": "2025-05-15T23:32:57.725Z",
       "subscription_end_date": "2025-06-15T23:32:08.196Z",
+      "auto_downgrade": true
+    },
+    {
+      "user_id": 2,
+      "previous_tier": "enterprise",
+      "reason": "Too expensive",
+      "cancelled_at": "2025-05-21T20:37:46.937Z",
+      "subscription_end_date": "2025-06-14T23:34:30.886Z",
+      "auto_downgrade": true
+    },
+    {
+      "user_id": 5,
+      "previous_tier": "enterprise",
+      "reason": "Found a better alternative",
+      "cancelled_at": "2025-05-21T21:29:11.189Z",
+      "subscription_end_date": "2025-06-21T21:28:59.934Z",
       "auto_downgrade": true
     }
   ]

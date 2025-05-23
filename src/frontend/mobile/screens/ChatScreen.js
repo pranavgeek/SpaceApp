@@ -73,9 +73,90 @@ export default function ChatScreen({ navigation, route }) {
   const [processedMessages, setProcessedMessages] = useState([]);
   const [hasHandledAccept, setHasHandledAccept] = useState(false);
 
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+  const [chatPartnerImageUri, setChatPartnerImageUri] = useState(null);
+  const [chatPartnerData, setChatPartnerData] = useState(null);
+
   const sendButtonPosition = useRef(new Animated.Value(100)).current;
   const flatListRef = useRef(null);
   const swipeableRefs = useRef({});
+
+  //Profile image URI generation
+  useEffect(() => {
+    const fetchChatPartnerProfile = async () => {
+      try {
+        // Try to get users from AsyncStorage
+        const storedUsers = await AsyncStorage.getItem("users");
+        if (!storedUsers) {
+          console.log("No stored users found");
+          return;
+        }
+  
+        const users = JSON.parse(storedUsers);
+        if (!Array.isArray(users) || users.length === 0) {
+          console.log("No users in the stored data");
+          return;
+        }
+  
+        // Try to find the chat partner by name or ID
+        const partner = users.find(user => {
+          if (typeof chatPartner === 'string') {
+            return user.name === chatPartner || 
+                   String(user.user_id) === chatPartner || 
+                   String(user.id) === chatPartner;
+          }
+          return false;
+        });
+  
+        if (partner) {
+          console.log(`Found chat partner in stored users: ${partner.name}`);
+          setChatPartnerData(partner);
+          
+          // Generate the profile image URI
+          let imageUri = null;
+          
+          if (partner.profile_image) {
+            // Handle default profile image case
+            if (partner.profile_image === 'default_profile.jpg') {
+              imageUri = `https://ui-avatars.com/api/?name=${encodeURIComponent(partner.name)}&background=random&color=fff`;
+            } 
+            // Handle URLs
+            else if (partner.profile_image.startsWith('http://') || partner.profile_image.startsWith('https://')) {
+              imageUri = partner.profile_image;
+            } 
+            // Handle server paths
+            else if (typeof partner.profile_image === 'string' && partner.profile_image.trim() !== '') {
+              imageUri = `${BASE_URL}/uploads/profile/${partner.profile_image}`;
+            }
+          }
+          
+          // If no valid image URL was generated, use UI Avatars
+          if (!imageUri) {
+            imageUri = `https://ui-avatars.com/api/?name=${encodeURIComponent(partner.name)}&background=random&color=fff`;
+          }
+          
+          console.log(`Setting chat partner image URI: ${imageUri}`);
+          setChatPartnerImageUri(imageUri);
+        } else {
+          console.log(`Chat partner "${chatPartner}" not found in stored users`);
+          
+          // Use UI Avatars as fallback
+          const fallbackUri = `https://ui-avatars.com/api/?name=${encodeURIComponent(chatPartner || 'User')}&background=random&color=fff`;
+          setChatPartnerImageUri(fallbackUri);
+        }
+      } catch (error) {
+        console.error("Error fetching chat partner profile:", error);
+        
+        // Use UI Avatars as fallback on error
+        const fallbackUri = `https://ui-avatars.com/api/?name=${encodeURIComponent(chatPartner || 'User')}&background=random&color=fff`;
+        setChatPartnerImageUri(fallbackUri);
+      }
+    };
+  
+    if (chatPartner) {
+      fetchChatPartnerProfile();
+    }
+  }, [chatPartner]);
 
   useEffect(() => {
     const checkIfAccepted = async () => {
@@ -1418,22 +1499,33 @@ export default function ChatScreen({ navigation, route }) {
                     <Ionicons name="chevron-back" size={24} color="#fff" />
                   </TouchableOpacity>
                   <View style={styles.profilePreview}>
-                    <Image
-                      source={{
-                        uri:
-                          currentUser?.profile_image || // Use profile_image instead of avatar
-                          "https://ui-avatars.com/api/?name=" +
-                            currentUser?.name?.replace(/\s+/g, "+") +
-                            "&background=random",
-                      }}
-                      style={styles.profileImage}
-                      onError={(e) => {
-                        console.error(
-                          "Profile image load error in settings:",
-                          e.nativeEvent.error
-                        );
-                      }}
-                    />
+                    {/* We'll use a state to track image loading status */}
+                    {imageLoadFailed ? (
+                      <View
+                        style={[styles.profileImage, styles.fallbackAvatar]}
+                      >
+                        <Text style={styles.fallbackAvatarText}>
+                          {chatPartner && typeof chatPartner === "string"
+                            ? chatPartner.charAt(0).toUpperCase()
+                            : "?"}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Image
+                        source={{
+                          uri:
+                            chatPartnerImageUri ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(chatPartner || "User")}&background=random&color=fff`,
+                        }}
+                        style={styles.profileImage}
+                        onError={() => {
+                          console.log(
+                            `Failed to load profile image for: ${chatPartner}`
+                          );
+                          setImageLoadFailed(true);
+                        }}
+                      />
+                    )}
                     <View style={styles.nameContainer}>
                       <Text style={styles.profileName} numberOfLines={1}>
                         {chatPartner}
@@ -1825,6 +1917,19 @@ function getDynamicStyles(colors) {
       borderRadius: 20,
       justifyContent: "center",
       alignItems: "center",
+    },
+    fallbackAvatar: {
+      backgroundColor: colors.primary + '20', // Light version of primary color
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    
+    fallbackAvatarText: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.primary,
+      textAlign: 'center',
     },
   });
 }

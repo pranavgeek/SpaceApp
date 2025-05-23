@@ -2,7 +2,7 @@
   "name": "krachisspaceapp",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
+  "scripts": {   
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",

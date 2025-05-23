@@ -315,8 +315,8 @@ export default function HomeScreen({ navigation }) {
                 ? product.product_image.startsWith("http")
                   ? product.product_image
                   : product.product_image.startsWith("/")
-                    ? `http://3.98.198.170/${product.product_image}` // Absolute path with leading slash
-                    : `http://3.98.198.170/uploads/products/${product.product_image}` // Relative path
+                    ? `http://10.0.0.25:5001/${product.product_image}` // Absolute path with leading slash
+                    : `http://10.0.0.25:5001/uploads/products/${product.product_image}` // Relative path
                 : "https://via.placeholder.com/300x180?text=No+Image",
               price: product.cost,
               likes: 0,

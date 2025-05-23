@@ -69,17 +69,17 @@ export default function CartScreen() {
 
   const handleCheckout = () => {
     const cartItem = cartItems[0];
-  
+
     if (!cartItem) {
       console.error("🚫 No item in cart.");
       return;
     }
-  
+
     const productId = cartItem.product_id || cartItem.id || cartItem.project_id;
     const quantity = cartItem.quantity || 1;
-    const seller_id = cartItem.seller_id;
+    const seller_id = cartItem.seller_id ?? cartItem.user_seller;
     const buyer_id = user?.user_id;
-  
+
     console.log("🛒 Final cart item:", cartItem);
     console.log("🛒 Passing to Checkout:", {
       productId,
@@ -88,7 +88,7 @@ export default function CartScreen() {
       buyer_id,
       seller_id,
     });
-  
+
     navigation.navigate("ContactForm", {
       total: total.toFixed(2),
       productId,
@@ -98,8 +98,6 @@ export default function CartScreen() {
       product_name: cartItem.name,
     });
   };
-  
-  
 
   const decrementQuantity = (item) => {
     if (item.quantity > 1) {
@@ -689,7 +687,6 @@ const getDynamicStyles = (colors) =>
       color: colors.text, // or use colors.text if available
       marginTop: 5,
     },
-    
 
     // Discount Code
     discountContainer: {
