@@ -291,7 +291,8 @@
         sendMessage({ type: "payment_started" });
         
         // Determine the API URL based on whether we're in web or mobile
-        const apiBaseUrl = isInIframe ? "http://localhost:5001" : "http://10.0.0.25:5001";
+        // const apiBaseUrl = isInIframe ? "http://localhost:5001" : "http://10.0.0.25:5001";
+        const apiBaseUrl = isInIframe ? "http://3.98.198.170" : "http://3.98.198.170";
         const apiUrl = `${apiBaseUrl}/api/payment?total=${amount}`;
         
         console.log("Fetching ticket from:", apiUrl);

@@ -20,7 +20,7 @@ platform :ios do
   lane :build_ipa do
     build_ios_app(
       workspace: "KrachisSpaceApp.xcworkspace",
-      scheme: "KrachisSpaceApp",
+      scheme: "SpaceApp",
       export_method: "development",
       output_directory: "../build/ios",
       clean: true,

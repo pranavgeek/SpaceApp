@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>KrachisSpaceApp.ipa</key>
+	<array>
+		<dict>
+			<key>architectures</key>
+			<array>
+				<string>arm64</string>
+			</array>
+			<key>buildNumber</key>
+			<string>2</string>
+			<key>certificate</key>
+			<dict>
+				<key>SHA1</key>
+				<string>3F1805A7B74321655033BEC16C3191F7ABF23449</string>
+				<key>dateExpires</key>
+				<string>2026-05-05</string>
+				<key>type</key>
+				<string>Cloud Managed Apple Distribution</string>
+			</dict>
+			<key>entitlements</key>
+			<dict>
+				<key>application-identifier</key>
+				<string>P65AA242M9.com.kspace.SpaceApp2025</string>
+				<key>beta-reports-active</key>
+				<true/>
+				<key>com.apple.developer.team-identifier</key>
+				<string>P65AA242M9</string>
+				<key>get-task-allow</key>
+				<false/>
+			</dict>
+			<key>name</key>
+			<string>KrachisSpaceApp.app</string>
+			<key>profile</key>
+			<dict>
+				<key>UUID</key>
+				<string>853d93de-f562-4b35-b0e1-c9721c818b81</string>
+				<key>dateExpires</key>
+				<string>2026-05-05</string>
+				<key>name</key>
+				<string>iOS Team Store Provisioning Profile: com.kspace.SpaceApp2025</string>
+			</dict>
+			<key>symbols</key>
+			<true/>
+			<key>team</key>
+			<dict>
+				<key>id</key>
+				<string>P65AA242M9</string>
+				<key>name</key>
+				<string>Krachi's Space Technologies Inc.</string>
+			</dict>
+			<key>versionNumber</key>
+			<string>1.0.0</string>
+		</dict>
+	</array>
+</dict>
+</plist>

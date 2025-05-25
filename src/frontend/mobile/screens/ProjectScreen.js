@@ -616,7 +616,7 @@ const ProjectScreen = ({ route, navigation }) => {
         // Extract base URL without /api if it exists
         const baseUrl = BASE_URL
           ? BASE_URL.split("/api")[0]
-          : "http://10.0.0.25:5001";
+          : "http://3.98.198.170";
         processedUri = `${baseUrl}${uri.startsWith("/") ? "" : "/"}${uri}`;
         console.log(`Converted relative URL: ${uri} -> ${processedUri}`);
       }

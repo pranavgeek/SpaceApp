@@ -2,18 +2,136 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import userData from "./data.json";
 import { Platform } from "react-native";
 
-// Dynamically choose the BASE_URL based on platform
-export const BASE_URL =
-  Platform.OS === "web"
-    ? "http://localhost:5001/api"
-    : "http://10.0.0.25:5001/api";
+const USE_PRODUCTION = true; // Toggle this to switch between local and production
 
-// export const BASE_URL =
-//     Platform.OS === "web"
-//       ? "http://3.98.198.170/api"
-//       : "http://3.98.198.170/api";
+// Development URLs
+const DEV_BASE_URL = Platform.OS === "web"
+  ? "http://localhost:5001/api"
+  : "http://10.0.0.25:5001/api";
+
+// Production URL
+const PROD_BASE_URL = "http://3.98.198.170/api";
+
+// Choose the appropriate BASE_URL
+export const BASE_URL = USE_PRODUCTION ? PROD_BASE_URL : DEV_BASE_URL;
+
+// Helper function to get the image base URL (without /api)
+export const getImageBaseUrl = () => {
+  return BASE_URL.replace('/api', '');
+};
 
 console.log(`Using API base URL: ${BASE_URL}`);
+
+// Test connection function
+export const testConnection = async () => {
+  try {
+    console.log(`Testing connection to: ${BASE_URL}/products`);
+    const response = await fetch(`${BASE_URL}/products`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error(`Server returned status: ${response.status}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    console.log(`Connection successful! Found ${data.length} products`);
+    return true;
+  } catch (error) {
+    console.error(`Connection test failed:`, error);
+    return false;
+  }
+};
+
+// USERS
+// export const fetchUser = async () => {
+//   try {
+//     console.log(`Fetching users from: ${BASE_URL}/users`);
+//     const response = await fetch(`${BASE_URL}/users`);
+    
+//     if (!response.ok) {
+//       console.error(`Failed to fetch users. Status: ${response.status}`);
+//       throw new Error(`Failed to fetch users: ${response.status}`);
+//     }
+    
+//     const data = await response.json();
+//     console.log(`Successfully fetched ${data.length} users`);
+//     return data;
+//   } catch (error) {
+//     console.error("Error fetching users:", error.message);
+//     console.error("Full error:", error);
+    
+//     // Fallback to local data if available
+//     if (userData && userData.users) {
+//       console.log("Falling back to local user data");
+//       return userData.users;
+//     }
+    
+//     throw error;
+//   }
+// };
+
+// PRODUCTS
+// export const fetchProduct = async () => {
+//   try {
+//     console.log(`Fetching products from: ${BASE_URL}/products`);
+//     const response = await fetch(`${BASE_URL}/products`);
+    
+//     if (!response.ok) {
+//       console.error(`Failed to fetch products. Status: ${response.status}`);
+//       throw new Error(`Failed to fetch products: ${response.status}`);
+//     }
+    
+//     const data = await response.json();
+//     console.log(`Successfully fetched ${data.length} products`);
+//     return data;
+//   } catch (error) {
+//     console.error("Error fetching products:", error.message);
+//     console.error("Full error:", error);
+    
+//     // Fallback to local data if available
+//     if (userData && userData.products) {
+//       console.log("Falling back to local product data");
+//       return userData.products;
+//     }
+    
+//     throw error;
+//   }
+// };
+
+// Add this function to check if we're using HTTP in production
+export const checkProductionConfig = () => {
+  if (USE_PRODUCTION && PROD_BASE_URL.startsWith('http://')) {
+    console.warn(`
+      ⚠️ WARNING: Using HTTP in production!
+      If you're on iOS or Android, you may need to configure your app to allow HTTP connections.
+      
+      For iOS: Add to Info.plist:
+      <key>NSAppTransportSecurity</key>
+      <dict>
+        <key>NSExceptionDomains</key>
+        <dict>
+          <key>3.98.198.170</key>
+          <dict>
+            <key>NSExceptionAllowsInsecureHTTPLoads</key>
+            <true/>
+          </dict>
+        </dict>
+      </dict>
+      
+      For Android: Add to AndroidManifest.xml:
+      android:usesCleartextTraffic="true"
+    `);
+  }
+};
+
+// Call this when the app starts
+checkProductionConfig();
+
 
 //LOGIN
 export const apiLogin = async (email, password) => {

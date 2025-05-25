@@ -11,6 +11,7 @@ import {
 import { WebView } from "react-native-webview";
 import { useAuth } from "../context/AuthContext"; // adjust if path differs
 import { createOrder } from "../backend/db/API"; // your API method
+import { BASE_URL, getImageBaseUrl } from "../backend/db/API"; 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CheckoutScreen = ({ navigation, route }) => {
@@ -22,14 +23,12 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [processingPayment, setProcessingPayment] = useState(false);
 
   // Use different base URLs based on platform
-  const BASE_URL = Platform.OS === "web" 
-  ? "http://localhost:5001"
-  : "http://10.0.0.25:5001";
-
-
   // const BASE_URL = Platform.OS === "web" 
-  // ? "http://3.99.169.179/api"
-  // : "http://3.99.169.179/api";
+  // ? "http://localhost:5001"
+  // : "http://10.0.0.25:5001";
+
+ // Get the base URL without the /api suffix for the checkout HTML page
+ const CHECKOUT_BASE_URL = getImageBaseUrl();
 
 
   const {
@@ -49,7 +48,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     postal_code,
   } = route.params || {};
 
-  const checkoutUrl = `${BASE_URL}/checkout.html?total=${total}&productId=${productId}&quantity=${quantity}&product_name=${encodeURIComponent(product_name || "")}`;
+  const checkoutUrl = `${CHECKOUT_BASE_URL}/checkout.html?total=${total}&productId=${productId}&quantity=${quantity}&product_name=${encodeURIComponent(product_name || "")}`;
 
   const buyer_id = user?.user_id;
 
