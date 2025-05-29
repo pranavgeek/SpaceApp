@@ -109,20 +109,20 @@ function SellerPlansScreen({ navigation }) {
   const SUBSCRIPTION_SKUS = {
     // Pro Plan
     proMonthly: Platform.select({
-      ios: "com.thespaceapp.sellerpro.monthly",
+      ios: "com.thespaceapp.sellerpro.month",
       android: "sellerpro_monthly",
     }),
     proYearly: Platform.select({
-      ios: "com.thespaceapp.sellerpro.yearly",
+      ios: "com.thespaceapp.sellerpro.year",
       android: "sellerpro_yearly",
     }),
     // Enterprise Plan
     enterpriseMonthly: Platform.select({
-      ios: "com.thespaceapp.sellerenterprise.monthly",
+      ios: "com.thespaceapp.sellerenterprise.month",
       android: "sellerenterprise_monthly",
     }),
     enterpriseYearly: Platform.select({
-      ios: "com.thespaceapp.sellerenterprise.yearly",
+      ios: "com.thespaceapp.sellerenterprise.year",
       android: "sellerenterprise_yearly",
     }),
   };
@@ -296,7 +296,7 @@ function SellerPlansScreen({ navigation }) {
           // Use the same pricing from your StoreKit configuration
           availableProducts = [
             {
-              productId: "com.thespaceapp.sellerpro.monthly",
+              productId: "com.thespaceapp.sellerpro.month",
               localizedPrice: "$22.99",
               title: "Seller Pro Monthly",
               description: "50 Collaboration — $29.99/mo. Cancel anytime.",
@@ -304,7 +304,7 @@ function SellerPlansScreen({ navigation }) {
               currency: "USD",
             },
             {
-              productId: "com.thespaceapp.sellerpro.yearly",
+              productId: "com.thespaceapp.sellerpro.year",
               localizedPrice: "$249.99",
               title: "Seller Pro Yearly",
               description: "600 Collaboration — $9.99/mo. Cancel anytime.",
@@ -312,7 +312,7 @@ function SellerPlansScreen({ navigation }) {
               currency: "USD",
             },
             {
-              productId: "com.thespaceapp.sellerenterprise.monthly",
+              productId: "com.thespaceapp.sellerenterprise.month",
               localizedPrice: "$69.99",
               title: "Seller Enterprise Monthly",
               description: "Advanced tools — $99.99/mo. Cancel anytime.",
@@ -320,7 +320,7 @@ function SellerPlansScreen({ navigation }) {
               currency: "USD",
             },
             {
-              productId: "com.thespaceapp.sellerenterprise.yearly",
+              productId: "com.thespaceapp.sellerenterprise.year",
               localizedPrice: "$899.99",
               title: "Seller Enterprise Yearly",
               description: "Advanced tools — $1199.99/mo. Cancel anytime.",
@@ -375,7 +375,7 @@ function SellerPlansScreen({ navigation }) {
             console.log("⚙️ Attempting to finish transaction...");
             // Check if transaction can be finished (has required properties)
             if (purchase.transactionId || purchase.orderId) {
-              await finishTransaction(purchase);
+              await finishTransaction({ purchase, isConsumable: false });
               console.log("✅ Transaction finished successfully");
             } else {
               console.log(
@@ -509,15 +509,15 @@ function SellerPlansScreen({ navigation }) {
                       console.log(
                         "🏠 Navigating to Home with subscriptionSuccess param"
                       );
-                      navigation.reset({
-                        index: 0,
-                        routes: [
-                          {
-                            name: "Home",
-                            params: { subscriptionSuccess: true },
-                          },
-                        ],
-                      });
+                      // navigation.reset({
+                      //   index: 0,
+                      //   routes: [
+                      //     {
+                      //       name: "Home",
+                      //       params: { subscriptionSuccess: true },
+                      //     },
+                      //   ],
+                      // });
                     },
                   },
                 ]
@@ -704,13 +704,7 @@ function SellerPlansScreen({ navigation }) {
               {
                 text: "Done",
                 style: "cancel",
-                onPress: () => {
-                  // Navigate home after confirmation
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: "TabSettings" }],
-                  });
-                }
+                onPress: () => {}
               }
             ]
           );

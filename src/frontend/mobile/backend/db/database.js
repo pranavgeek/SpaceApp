@@ -4,11 +4,11 @@ const { Pool } = require("pg");
 require("dotenv").config();
 const data = require("./data.json");
 
-const USE_CLOUD_DB = true;
+const USE_CLOUD_DB = false;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: true },
+  ssl: { rejectUnauthorized: false },
 });
 
 const loadData = () => {

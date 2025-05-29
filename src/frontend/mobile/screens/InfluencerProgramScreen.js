@@ -40,7 +40,7 @@ export default function InfluencerProgramScreen({ navigation }) {
     },
     {
       title: "Rising Tier",
-      price: "Up to $3000/mo base",
+      price: "",
       bullets: [
         "10,000+ followers",
         "3%+ engagement rate",
@@ -50,7 +50,7 @@ export default function InfluencerProgramScreen({ navigation }) {
     },
     {
       title: "Established Tier",
-      price: "Up to $7500/mo base",
+      price: "",
       bullets: [
         "50,000+ followers",
         "4%+ engagement rate",
@@ -60,7 +60,7 @@ export default function InfluencerProgramScreen({ navigation }) {
     },
     {
       title: "Elite Tier",
-      price: "Up to $20000/mo base",
+      price: "",
       bullets: [
         "250,000+ followers",
         "5%+ engagement rate",
@@ -70,10 +70,10 @@ export default function InfluencerProgramScreen({ navigation }) {
     },
   ];
 
-  // Updated handleSelectTier function that checks for pending signup first
+  // Simplified handleSelectTier function that navigates directly to the form for all tiers
   const handleSelectTier = async (tier) => {
-    // Check for pending signup data first (this means we're in the signup flow)
     try {
+      // Check for pending signup data first (this means we're in the signup flow)
       const pendingSignupData = await AsyncStorage.getItem(
         "pendingInfluencerSignup"
       );
@@ -84,27 +84,8 @@ export default function InfluencerProgramScreen({ navigation }) {
           pendingSignupData
         );
         // This is a new user in the signup flow - proceed directly to the form
-        if (tier === "Starter Tier") {
-          navigation.navigate("Influencer Form", { tier });
-          return;
-        } else {
-          // For paid tiers during signup
-          Alert.alert(
-            "Paid Tier",
-            "This tier requires payment. Please complete payment first.",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Proceed",
-                onPress: () => {
-                  // For now, just navigate to the form
-                  navigation.navigate("Influencer Form", { tier });
-                },
-              },
-            ]
-          );
-          return;
-        }
+        navigation.navigate("Influencer Form", { tier });
+        return;
       }
     } catch (error) {
       console.log("Error checking for pending signup:", error);
@@ -112,7 +93,7 @@ export default function InfluencerProgramScreen({ navigation }) {
 
     // If we get here, we're in the normal flow with an existing user
 
-    // Only buyer accounts can switch to influencer
+    // Only show alert if user is already on this tier
     if (user && user.role === "influencer" && tier === "Starter Tier") {
       Alert.alert(
         "Current Plan",
@@ -122,25 +103,8 @@ export default function InfluencerProgramScreen({ navigation }) {
       return;
     }
 
-    // Existing user flow for buyer selecting a tier
-    if (tier === "Starter Tier") {
-      navigation.navigate("Influencer Form", { tier });
-    } else {
-      // For all paid tiers, show the payment alert
-      Alert.alert(
-        "Paid Tier",
-        "This tier requires payment. Please complete payment first.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Proceed",
-            onPress: () => {
-              navigation.navigate("Influencer Form", { tier });
-            },
-          },
-        ]
-      );
-    }
+    // For all tiers, navigate directly to the form
+    navigation.navigate("Influencer Form", { tier });
   };
 
   return (

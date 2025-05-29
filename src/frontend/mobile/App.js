@@ -20,8 +20,6 @@ import { useAuth, AuthProvider } from "./context/AuthContext";
 import { Host } from "react-native-portalize";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CommonActions } from '@react-navigation/native';
-// import { Amplify } from "aws-amplify";
-import awsConfig from "./config/aws-config";
 import ButtonMain from "./components/ButtonMain";
 import ButtonSettings from "./components/ButtonSettings";
 import HomeStack from "./navigation/HomeStack";
@@ -58,7 +56,6 @@ console.log("CreatePostScreen:", CreatePostScreen);
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Amplify.configure(awsConfig);
 
 // Create an auth stack for login, signup, and influencer flows
 const AuthStack = () => {

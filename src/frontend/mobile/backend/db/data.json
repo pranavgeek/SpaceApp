@@ -32,7 +32,7 @@
       "email": "john@example.com",
       "password": "123456789",
       "account_type": "Buyer",
-      "role": "buyer",
+      "role": "Buyer",
       "is_two_factor_enabled": false,
       "phone_number": "",
       "is_private_account": false,
@@ -120,25 +120,47 @@
           "shipping_province": "Gujarat",
           "shipping_country": "India",
           "shipping_postal_code": "395002"
+        },
+        {
+          "order_id": "ORD-1748305316012-378",
+          "product_id": 101,
+          "product_name": "Iphone 16",
+          "quantity": 1,
+          "order_date": "2025-05-27T00:21:56.012Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 699,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "John",
+          "buyer_last_name": "Doe",
+          "buyer_email": "John@example.com",
+          "buyer_phone": "2789273283",
+          "shipping_address": "Wedgewood",
+          "shipping_city": "Toronto",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N6Y3U"
         }
       ],
       "id": "1",
-      "reset_otp": "966954",
-      "otp_expires_at": 1744921895595,
+      "reset_otp": "320057",
+      "otp_expires_at": 1748361668073,
       "otp_verified": true,
-      "tier": "basic",
+      "tier": "Starter Tier",
       "following": [
         {
-          "user_id": 2,
-          "name": "Sarah Smith",
-          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747670410431-463901661.jpg",
+          "user_id": 5,
+          "name": "Shubh Rai",
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747682441400-421216970.jpg",
           "account_type": "Seller",
-          "follow_date": "2025-05-21T20:25:42.677Z"
+          "follow_date": "2025-05-29T14:48:19.129Z"
         }
       ],
       "followers": [],
       "followers_count": 0,
-      "_preventReload": true
+      "_preventReload": true,
+      "influencer_tier": "Starter Tier"
     },
     {
       "user_id": 2,
@@ -182,7 +204,7 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 1,
+      "followers_count": 0,
       "earnings": 500,
       "received_orders": [
         {
@@ -268,20 +290,34 @@
           "shipping_province": "Gujarat",
           "shipping_country": "India",
           "shipping_postal_code": "395002"
+        },
+        {
+          "order_id": "ORD-1748305316012-378",
+          "product_id": 101,
+          "product_name": "Iphone 16",
+          "quantity": 1,
+          "order_date": "2025-05-27T00:21:56.012Z",
+          "status": "Completed",
+          "tracking_number": "",
+          "amount": 699,
+          "buyer_id": 1,
+          "seller_id": 2,
+          "buyer_first_name": "John",
+          "buyer_last_name": "Doe",
+          "buyer_email": "John@example.com",
+          "buyer_phone": "2789273283",
+          "shipping_address": "Wedgewood",
+          "shipping_city": "Toronto",
+          "shipping_province": "Ontario",
+          "shipping_country": "Canada",
+          "shipping_postal_code": "N6Y3U"
         }
       ],
       "verification_code": "275708",
       "verification_id": "1744934821300",
       "verification_expiry": 1744935121301,
       "temp_phone_number": "5192804167",
-      "followers": [
-        {
-          "user_id": 1,
-          "name": "John Liver",
-          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747859003832-764528314.jpg",
-          "follow_date": "2025-05-21T20:25:42.656Z"
-        }
-      ],
+      "followers": [],
       "_preventReload": true,
       "role": "seller",
       "tier": "pro",
@@ -301,7 +337,7 @@
       "social_media_x": "@mikeinfluencer",
       "social_media_linkedin": "linkedin.com/mikeinfluencer",
       "social_media_website": "mikeinfluencer.com",
-      "profile_image": "http://10.0.0.25:5001/uploads/profile/1747682759031-854245190.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/1748307453360-303413521.jpg",
       "gender": "Male",
       "age": 28,
       "email": "mike@example.com",
@@ -316,15 +352,7 @@
         "hideProducts": false,
         "allowMessagesFrom": "everyone"
       },
-      "campaigns": [
-        {
-          "campaign_id": 2,
-          "product_id": 102,
-          "product": "Smartwatch Test",
-          "price": 199.99,
-          "compaign_total": 399.98
-        }
-      ],
+      "campaigns": [],
       "followers_count": 1,
       "earnings": 500,
       "orders": [],
@@ -362,8 +390,15 @@
       },
       "user_id": 5,
       "id": "5",
-      "followers": [],
-      "followers_count": 0,
+      "followers": [
+        {
+          "user_id": 1,
+          "name": "John Doe",
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747859170244-355089683.jpg",
+          "follow_date": "2025-05-29T14:48:19.099Z"
+        }
+      ],
+      "followers_count": 1,
       "tier": "basic",
       "subscription_cancelled": true,
       "subscription_cancelled_at": "2025-05-21T21:29:11.189Z",
@@ -379,11 +414,11 @@
       "address": "",
       "city": "",
       "country": "",
-      "social_media_instagram": "Dsvdfvdfv",
-      "social_media_x": "",
+      "social_media_instagram": "https://www.instagram.com",
+      "social_media_x": "https://x.com",
       "social_media_linkedin": "",
       "social_media_website": "",
-      "profile_image": "default_profile.jpg",
+      "profile_image": "http://10.0.0.25:5001/uploads/profile/1748459702364-509278179.jpg",
       "gender": "",
       "age": null,
       "is_two_factor_enabled": false,
@@ -400,7 +435,9 @@
       "influencer_tier": "Starter Tier",
       "followers": [],
       "followers_count": 0,
-      "_preventReload": true
+      "_preventReload": true,
+      "id": "6",
+      "social_media_facebook": "https://m.facebook.com"
     },
     {
       "name": "Dhruvi Mai",
@@ -477,6 +514,15 @@
           "review": "Nice product!",
           "date_timestamp": "2025-05-21T00:32:43.951Z",
           "review_id": 6
+        },
+        {
+          "product_id": 101,
+          "user_id": 1,
+          "user_name": "John Doe",
+          "number_stars": 5,
+          "review": "Nice",
+          "date_timestamp": "2025-05-27T00:19:22.262Z",
+          "review_id": 9
         }
       ],
       "download_url": "kspace-technologies.com",
@@ -700,11 +746,54 @@
       "review": "Nice ipad modal",
       "date_timestamp": "2025-05-21T19:39:47.993Z",
       "review_id": 8
+    },
+    {
+      "product_id": 101,
+      "user_id": 1,
+      "user_name": "John Doe",
+      "number_stars": 5,
+      "review": "Nice",
+      "date_timestamp": "2025-05-27T00:19:22.262Z",
+      "review_id": 9
     }
   ],
   "messages": [
     {
-      "message_id": 3,
+      "sender_id": 2,
+      "receiver_id": 1,
+      "timestamp": "2025-05-27T00:24:33.305Z",
+      "content": "📦 Your order has shipped! Track it here: http://10.0.0.25:5001/api/users"
+    },
+    {
+      "message_id": 4,
+      "user_from": "6",
+      "user_to": "2",
+      "sender_id": "6",
+      "receiver_id": "2",
+      "from_name": "Taylor",
+      "to_name": "Sarah Smith",
+      "type_message": "text",
+      "message_content": "Hi, I'm interested in collaborating on your products!",
+      "date_timestamp_sent": "2025-05-28T19:22:24.965Z",
+      "timestamp": "2025-05-28T19:22:24.965Z",
+      "is_read": false
+    },
+    {
+      "message_id": 5,
+      "user_from": "2",
+      "user_to": "6",
+      "sender_id": "2",
+      "receiver_id": "6",
+      "from_name": "Sarah Smith",
+      "to_name": "Taylor",
+      "type_message": "text",
+      "message_content": "I've accepted your collaboration request. Let's work together!",
+      "date_timestamp_sent": "2025-05-28T19:23:46.934Z",
+      "timestamp": "2025-05-28T19:23:46.934Z",
+      "is_read": false
+    },
+    {
+      "message_id": 6,
       "user_from": "3",
       "user_to": "2",
       "sender_id": "3",
@@ -713,50 +802,22 @@
       "to_name": "Sarah Smith",
       "type_message": "text",
       "message_content": "Hi, I'm interested in collaborating on your products!",
-      "date_timestamp_sent": "2025-05-19T19:33:39.124Z",
-      "timestamp": "2025-05-19T19:33:39.124Z",
+      "date_timestamp_sent": "2025-05-28T19:42:30.311Z",
+      "timestamp": "2025-05-28T19:42:30.311Z",
       "is_read": false
     },
     {
-      "message_id": 4,
+      "message_id": 5,
       "user_from": "2",
-      "user_to": "Mike Influencer",
+      "user_to": "3",
       "sender_id": "2",
-      "receiver_id": "Mike Influencer",
+      "receiver_id": "3",
       "from_name": "Sarah Smith",
       "to_name": "Mike Influencer",
       "type_message": "text",
       "message_content": "I've accepted your collaboration request. Let's work together!",
-      "date_timestamp_sent": "2025-05-19T19:33:53.506Z",
-      "timestamp": "2025-05-19T19:33:53.506Z",
-      "is_read": false
-    },
-    {
-      "message_id": 3,
-      "user_from": "3",
-      "user_to": "5",
-      "sender_id": "3",
-      "receiver_id": "5",
-      "from_name": "Mike Influencer",
-      "to_name": "Shubh Rai",
-      "type_message": "text",
-      "message_content": "Hi, I'm interested in collaborating on your products!",
-      "date_timestamp_sent": "2025-05-21T22:43:35.838Z",
-      "timestamp": "2025-05-21T22:43:35.838Z",
-      "is_read": false
-    },
-    {
-      "message_id": 4,
-      "user_from": "5",
-      "user_to": "3",
-      "sender_id": "5",
-      "receiver_id": "3",
-      "from_name": "Shubh Rai",
-      "to_name": "Mike Influencer",
-      "type_message": "text",
-      "message_content": "I've accepted your collaboration request. Let's work together!",
-      "date_timestamp_sent": "2025-05-21T22:44:11.505Z",
-      "timestamp": "2025-05-21T22:44:11.505Z",
+      "date_timestamp_sent": "2025-05-28T19:42:54.761Z",
+      "timestamp": "2025-05-28T19:42:54.761Z",
       "is_read": false
     }
   ],
@@ -1184,6 +1245,64 @@
       "message": "Your campaign request with Mike Influencer for \"Airpods Max\" has been approved.",
       "date_timestamp": "2025-05-21T22:44:50.887Z",
       "notification_id": 69
+    },
+    {
+      "user_id": 1,
+      "message": "Your tracking link for order #ORD-1748305316012-378 is now available. Sent by Sarah Smith",
+      "date_timestamp": "2025-05-27T00:24:33.312Z",
+      "link": "http://10.0.0.25:5001/api/users",
+      "order_id": "ORD-1748305316012-378",
+      "notification_id": 70
+    },
+    {
+      "user_id": 1,
+      "message": "Congratulations! Your application to become an influencer has been approved. Welcome to the Starter Tier program.",
+      "date_timestamp": "2025-05-27T00:32:34.338Z",
+      "notification_id": 71
+    },
+    {
+      "user_id": "Mike Influencer",
+      "message": "Your campaign for \"Iphone 16\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-05-27T00:51:07.380Z",
+      "notification_id": 72
+    },
+    {
+      "user_id": "2",
+      "message": "Your campaign request with Mike Influencer for \"Iphone 16\" has been approved.",
+      "date_timestamp": "2025-05-27T00:51:07.386Z",
+      "notification_id": 73
+    },
+    {
+      "user_id": "6",
+      "message": "Your campaign for \"MX Keys S\" has been approved. Check your Active Campaigns tab.",
+      "date_timestamp": "2025-05-28T19:58:55.885Z",
+      "notification_id": 74
+    },
+    {
+      "user_id": "2",
+      "message": "Your campaign request with Taylor for \"MX Keys S\" has been approved.",
+      "date_timestamp": "2025-05-28T19:58:55.995Z",
+      "notification_id": 75
+    },
+    {
+      "user_id": "3",
+      "message": "🎉 Great news! Your campaign for \"Logitech G435 LIGHTSPEED\" with Sarah Smith has been approved by admin. Campaign runs for 2 days with 5% commission. Check your Active Campaigns tab to get started!",
+      "date_timestamp": "2025-05-28T20:32:39.272Z",
+      "type": "campaign_approved",
+      "campaign_id": "1748463960058",
+      "related_user_id": "2",
+      "metadata": "{\"campaignId\":\"1748463960058\",\"productName\":\"Logitech G435 LIGHTSPEED\",\"commission\":5,\"duration\":2,\"startDate\":\"2025-05-28T20:32:39.202Z\",\"endDate\":\"2025-05-30T20:32:39.202Z\"}",
+      "notification_id": 76
+    },
+    {
+      "user_id": "2",
+      "message": "✅ Your campaign request with Mike Influencer for \"Logitech G435 LIGHTSPEED\" has been approved! The campaign is now active for 2 days. You can track progress in your seller dashboard.",
+      "date_timestamp": "2025-05-28T20:32:39.272Z",
+      "type": "campaign_approved",
+      "campaign_id": "1748463960058",
+      "related_user_id": "3",
+      "metadata": "{\"campaignId\":\"1748463960058\",\"productName\":\"Logitech G435 LIGHTSPEED\",\"commission\":5,\"duration\":2,\"startDate\":\"2025-05-28T20:32:39.202Z\",\"endDate\":\"2025-05-30T20:32:39.202Z\"}",
+      "notification_id": 77
     }
   ],
   "admin_data": [
@@ -1243,6 +1362,43 @@
       "details": "{\"campaignRequestId\":\"1747867479814\",\"productName\":\"Airpods Max\",\"influencerName\":\"Mike Influencer\",\"sellerName\":\"Shubh Rai\",\"campaignDuration\":5,\"commission\":10}",
       "admin_id": 6,
       "updated_at": "2025-05-21T22:44:50.862Z"
+    },
+    {
+      "user_id": 1,
+      "action": "Request to become an influencer",
+      "details": "{\"fullName\":\"John Doe\",\"email\":\"john@example.com\",\"phone\":\"5182796178\",\"socialMediaHandles\":\"Instagram: john doe\",\"followers\":\"Instagram: 10K\",\"whyCollaborate\":\"I would love to promote tech products.\",\"priorExperience\":\"2 years\",\"preferredContact\":\"phone\",\"selectedTier\":\"Starter Tier\",\"submittedAt\":\"2025-05-27T00:31:37.418Z\"}",
+      "status": "approved",
+      "created_at": "2025-05-27T00:31:37.419Z",
+      "date_timestamp": "2025-05-27T00:31:37.424Z",
+      "admin_id": 7,
+      "updated_at": "2025-05-27T00:32:34.322Z"
+    },
+    {
+      "action": "Campaign Approval Request",
+      "user_id": "2",
+      "status": "approved",
+      "date_timestamp": "2025-05-27T00:50:25.439Z",
+      "details": "{\"campaignRequestId\":\"1748307025409\",\"productName\":\"Iphone 16\",\"influencerName\":\"Mike Influencer\",\"sellerName\":\"Sarah Smith\",\"campaignDuration\":3,\"commission\":5}",
+      "admin_id": 8,
+      "updated_at": "2025-05-27T00:51:07.362Z"
+    },
+    {
+      "action": "Campaign Approval Request",
+      "user_id": "2",
+      "status": "approved",
+      "date_timestamp": "2025-05-28T19:55:18.609Z",
+      "details": "{\"campaignRequestId\":\"1748462118402\",\"productName\":\"MX Keys S\",\"influencerName\":\"Taylor\",\"sellerName\":\"Sarah Smith\",\"campaignDuration\":1,\"commission\":10}",
+      "admin_id": 9,
+      "updated_at": "2025-05-28T19:58:55.764Z"
+    },
+    {
+      "action": "Campaign Approval Request",
+      "user_id": "2",
+      "status": "approved",
+      "date_timestamp": "2025-05-28T20:26:00.322Z",
+      "details": "{\"campaignRequestId\":\"1748463960058\",\"productName\":\"Logitech G435 LIGHTSPEED\",\"influencerName\":\"Mike Influencer\",\"sellerName\":\"Sarah Smith\",\"campaignDuration\":2,\"commission\":5}",
+      "admin_id": 10,
+      "updated_at": "2025-05-28T20:32:39.214Z"
     }
   ],
   "orders": [
@@ -1310,86 +1466,101 @@
       "shipping_province": "Gujarat",
       "shipping_country": "India",
       "shipping_postal_code": "395002"
+    },
+    {
+      "order_id": "ORD-1748305316012-378",
+      "product_id": 101,
+      "product_name": "Iphone 16",
+      "quantity": 1,
+      "order_date": "2025-05-27T00:21:56.012Z",
+      "status": "Completed",
+      "tracking_number": "http://10.0.0.25:5001/api/users",
+      "amount": 699,
+      "buyer_id": 1,
+      "seller_id": 2,
+      "buyer_first_name": "John",
+      "buyer_last_name": "Doe",
+      "buyer_email": "John@example.com",
+      "buyer_phone": "2789273283",
+      "shipping_address": "Wedgewood",
+      "shipping_city": "Toronto",
+      "shipping_province": "Ontario",
+      "shipping_country": "Canada",
+      "shipping_postal_code": "N6Y3U",
+      "tracking_approval_status": "approved"
     }
   ],
   "campaign_requests": [
     {
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
+      "requestId": "1748462118402",
+      "influencerId": "6",
+      "influencerName": "Taylor",
       "sellerId": "2",
       "sellerName": "Sarah Smith",
-      "productId": "4",
-      "productName": "MacBook",
-      "productImage": "file:///Users/pranavgotawala/Library/Developer/CoreSimulator/Devices/7B20A0EE-CE63-4101-B02D-AE6083646189/data/Containers/Data/Application/3BB13C8D-98E3-415E-BF94-A4E9C7A1D4E2/Library/Caches/ImagePicker/532A4BF5-D49E-49D0-B129-1281A4E9ED9F.jpg",
-      "productPrice": 2500,
+      "productId": "5",
+      "productName": "MX Keys S",
+      "productImage": "http://10.0.0.25:5001/uploads/products/mx-keys-s-top-view-black-us.webp",
+      "productPrice": 300,
       "commission": 10,
-      "campaignDetails": "Request for Mike Influencer to promote MacBook",
-      "campaignDuration": 14,
+      "campaignDetails": "Request for Taylor to promote MX Keys S",
+      "campaignDuration": 1,
       "status": "Accepted",
-      "requestId": "1745865108269",
-      "timestamp": "2025-04-28T18:31:48.269Z",
-      "statusUpdatedAt": "2025-04-28T21:07:19.566Z"
+      "timestamp": "2025-05-28T19:55:18.402Z",
+      "statusUpdatedAt": "2025-05-28T19:58:55.796Z"
     },
     {
-      "requestId": "1745972038800",
-      "influencerId": "8",
-      "influencerName": "Derrick Afful",
+      "requestId": "1748463960058",
+      "influencerId": "3",
+      "influencerName": "Mike Influencer",
       "sellerId": "2",
       "sellerName": "Sarah Smith",
       "productId": "102",
-      "productName": "Wireless Headphones",
-      "productImage": "headphone.jpg",
+      "productName": "Logitech G435 LIGHTSPEED",
+      "productImage": "http://10.0.0.25:5001/uploads/products/15732775.jpg",
       "productPrice": 120,
-      "commission": 10,
-      "campaignDetails": "Request for Derrick Afful to promote Wireless Headphones",
-      "campaignDuration": 50,
-      "status": "Accepted",
-      "timestamp": "2025-04-30T00:13:58.800Z",
-      "statusUpdatedAt": "2025-04-30T00:14:40.486Z"
-    },
-    {
-      "requestId": "1747867479814",
-      "influencerId": "3",
-      "influencerName": "Mike Influencer",
-      "sellerId": "5",
-      "sellerName": "Shubh Rai",
-      "productId": "104",
-      "productName": "Airpods Max",
-      "productImage": "http://10.0.0.25:5001/uploads/products/1747865491890-565815508.jpg",
-      "productPrice": 650,
-      "commission": 10,
-      "campaignDetails": "Request for Mike Influencer to promote Airpods Max",
-      "campaignDuration": 5,
-      "status": "Accepted",
-      "timestamp": "2025-05-21T22:44:39.814Z",
-      "statusUpdatedAt": "2025-05-21T22:44:50.873Z"
+      "commission": 5,
+      "campaignDetails": "Request for Mike Influencer to promote Logitech G435 LIGHTSPEED",
+      "campaignDuration": 2,
+      "status": {
+        "status": "Accepted",
+        "approvedAt": "2025-05-28T20:32:39.258Z",
+        "approvedBy": "99",
+        "campaignStartDate": "2025-05-28T20:32:39.202Z",
+        "campaignEndDate": "2025-05-30T20:32:39.202Z",
+        "sellerName": "Sarah Smith",
+        "influencerName": "Mike Influencer",
+        "sellerEmail": "sarah@example.com",
+        "influencerEmail": "mike@example.com"
+      },
+      "timestamp": "2025-05-28T20:26:00.058Z",
+      "statusUpdatedAt": "2025-05-28T20:32:39.230Z"
     }
   ],
   "subscriptions": [],
   "collaboration_requests": [
     {
-      "requestId": "1747285838847",
-      "sellerId": "5",
-      "sellerName": "Shubh Rai",
+      "requestId": "1748460144934",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
       "influencerId": "6",
       "influencerName": "Taylor",
       "product": "Collaboration Request",
       "status": "Accepted",
-      "timestamp": "2025-05-15T05:10:38.847Z",
-      "request_id": "req-1747285838867",
-      "statusUpdatedAt": "2025-05-15T05:13:59.658Z"
+      "timestamp": "2025-05-28T19:22:24.934Z",
+      "request_id": "req-1748460144951",
+      "statusUpdatedAt": "2025-05-28T19:23:46.830Z"
     },
     {
-      "requestId": "1747867415787",
-      "sellerId": "5",
-      "sellerName": "Shubh Rai",
+      "requestId": "1748461350285",
+      "sellerId": "2",
+      "sellerName": "Sarah Smith",
       "influencerId": "3",
       "influencerName": "Mike Influencer",
       "product": "Collaboration Request",
       "status": "Accepted",
-      "timestamp": "2025-05-21T22:43:35.787Z",
-      "request_id": "req-1747867415742",
-      "statusUpdatedAt": "2025-05-21T22:44:11.393Z"
+      "timestamp": "2025-05-28T19:42:30.285Z",
+      "request_id": "req-1748461350301",
+      "statusUpdatedAt": "2025-05-28T19:42:54.627Z"
     }
   ],
   "subscription_cancellations": [

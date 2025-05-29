@@ -99,7 +99,7 @@
               "locale" : "en_CA"
             }
           ],
-          "productID" : "com.thespaceapp.sellerenterprise.monthly",
+          "productID" : "com.thespaceapp.sellerenterprise.month",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Seller Enterprise Monthly",
           "subscriptionGroupID" : "21676599",
@@ -127,7 +127,7 @@
               "locale" : "en_CA"
             }
           ],
-          "productID" : "com.thespaceapp.sellerenterprise.yearly",
+          "productID" : "com.thespaceapp.sellerenterprise.year",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Seller Enterprise Yearly",
           "subscriptionGroupID" : "21676599",
@@ -164,7 +164,7 @@
               "locale" : "en_CA"
             }
           ],
-          "productID" : "com.thespaceapp.sellerpro.monthly",
+          "productID" : "com.thespaceapp.sellerpro.month",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Seller Pro Monthly",
           "subscriptionGroupID" : "21676484",
@@ -192,7 +192,7 @@
               "locale" : "en_CA"
             }
           ],
-          "productID" : "com.thespaceapp.sellerpro.yearly",
+          "productID" : "com.thespaceapp.sellerpro.year",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Seller Pro Yearly",
           "subscriptionGroupID" : "21676484",

@@ -17,7 +17,7 @@ import {
   ScrollView
 } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { CommonActions } from '@react-navigation/native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../theme/ThemeContext";
@@ -33,15 +33,7 @@ const InfluencerFormScreen = ({ route, navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignupFlow, setIsSignupFlow] = useState(false);
 
-  // Animation for header hide-on-scroll
-  // const scrollY = useRef(new Animated.Value(0)).current;
-  // const headerTranslateY = scrollY.interpolate({
-  //   inputRange: [0, 50],
-  //   outputRange: [0, -50],
-  //   extrapolate: "clamp",
-  // });
   const insets = useSafeAreaInsets();
-
 
   // Show custom header only in signup flow, hide default nav header then
   useEffect(() => {
@@ -85,8 +77,11 @@ const InfluencerFormScreen = ({ route, navigation }) => {
     fullName: "",
     email: "",
     phone: "",
-    socialMediaHandles: "",
-    followers: "",
+    instagramHandle: "",
+    twitterHandle: "",
+    facebookHandle: "",
+    otherSocialMedia: "",
+    totalFollowers: "",
     whyCollaborate: "",
     priorExperience: "",
     preferredContact: "email",
@@ -102,10 +97,16 @@ const InfluencerFormScreen = ({ route, navigation }) => {
     if (formData.email && !formData.email.includes("@"))
       tempErrors.email = "Valid email is required";
     if (!formData.phone) tempErrors.phone = "Phone Number is required";
-    if (!formData.socialMediaHandles)
-      tempErrors.socialMediaHandles = "Social Media Handles are required";
-    if (!formData.followers)
-      tempErrors.followers = "Follower count is required";
+    
+    // Require at least one social media handle
+    if (!formData.instagramHandle && !formData.twitterHandle && !formData.facebookHandle && !formData.otherSocialMedia)
+      tempErrors.socialMedia = "At least one social media handle is required";
+    
+    if (!formData.totalFollowers)
+      tempErrors.totalFollowers = "Total follower count is required";
+    else if (isNaN(formData.totalFollowers))
+      tempErrors.totalFollowers = "Please enter a valid number";
+      
     if (!formData.whyCollaborate)
       tempErrors.whyCollaborate = "Please tell us why you want to collaborate";
     if (!formData.agreeTerms)
@@ -121,10 +122,35 @@ const InfluencerFormScreen = ({ route, navigation }) => {
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
     }
+    // Clear socialMedia error if any social media field is filled
+    if ((field === 'instagramHandle' || field === 'twitterHandle' || field === 'facebookHandle' || field === 'otherSocialMedia') && errors.socialMedia) {
+      setErrors((prev) => ({ ...prev, socialMedia: null }));
+    }
+  };
+
+  // Format social media handles for submission
+  const formatSocialMediaHandles = () => {
+    let handles = [];
+    
+    if (formData.instagramHandle) 
+      handles.push(`Instagram: ${formData.instagramHandle}`);
+    
+    if (formData.twitterHandle) 
+      handles.push(`X/Twitter: ${formData.twitterHandle}`);
+    
+    if (formData.facebookHandle) 
+      handles.push(`Facebook: ${formData.facebookHandle}`);
+    
+    if (formData.otherSocialMedia) 
+      handles.push(formData.otherSocialMedia);
+    
+    return handles.join('\n');
   };
 
   // Submit admin request helper
   const submitInfluencerRequest = async (userId) => {
+    const socialMediaHandles = formatSocialMediaHandles();
+    
     const adminActionData = {
       user_id: userId,
       action: `Request to become an influencer`,
@@ -132,8 +158,8 @@ const InfluencerFormScreen = ({ route, navigation }) => {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
-        socialMediaHandles: formData.socialMediaHandles,
-        followers: formData.followers,
+        socialMediaHandles: socialMediaHandles,
+        followers: formData.totalFollowers,
         whyCollaborate: formData.whyCollaborate,
         priorExperience: formData.priorExperience || "None",
         preferredContact: formData.preferredContact,
@@ -167,9 +193,9 @@ const InfluencerFormScreen = ({ route, navigation }) => {
           address: "",
           city: "",
           country: "",
-          social_media_instagram: formData.socialMediaHandles,
-          social_media_x: "",
-          social_media_linkedin: "",
+          social_media_instagram: formData.instagramHandle,
+          social_media_x: formData.twitterHandle,
+          social_media_facebook: formData.facebookHandle,
           social_media_website: "",
           profile_image: "default_profile.jpg",
           gender: "",
@@ -284,11 +310,6 @@ const InfluencerFormScreen = ({ route, navigation }) => {
             styles.contentContainer, 
             { paddingTop: dynamicPadding }
           ]}
-          // scrollEventThrottle={16}
-          // onScroll={Animated.event(
-          //   [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          //   { useNativeDriver: true }
-          // )}
         >
           <View
             style={[styles.formContainer, { backgroundColor: colors.card }]}
@@ -376,63 +397,122 @@ const InfluencerFormScreen = ({ route, navigation }) => {
               )}
             </View>
 
-            {/* Social Media Handles */}
+            {/* Social Media Handles - Improved Layout */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.text }]}>
-                Social Media Handles *
+                Social Media Accounts *
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: errors.socialMediaHandles
-                      ? "#ff4d4f"
-                      : colors.border,
-                    backgroundColor: colors.inputBackground || "#f9fafb",
-                    color: colors.text,
-                    height: 80,
-                    textAlignVertical: "top",
-                  },
-                ]}
-                placeholderTextColor={colors.placeholder || "#a0aec0"}
-                placeholder="Instagram: @username\nTikTok: @username\nYouTube: channel_name"
-                multiline
-                value={formData.socialMediaHandles}
-                onChangeText={(val) =>
-                  updateFormField("socialMediaHandles", val)
-                }
-              />
-              {!!errors.socialMediaHandles && (
-                <Text style={styles.errorText}>
-                  {errors.socialMediaHandles}
-                </Text>
+              {!!errors.socialMedia && (
+                <Text style={styles.errorText}>{errors.socialMedia}</Text>
               )}
+              
+              {/* Instagram Handle */}
+              <View style={styles.socialInputContainer}>
+                <View style={styles.socialIconContainer}>
+                  <Ionicons name="logo-instagram" size={20} color="#C13584" />
+                </View>
+                <TextInput
+                  style={[
+                    styles.socialInput,
+                    {
+                      borderColor: errors.socialMedia ? "#ff4d4f" : colors.border,
+                      backgroundColor: colors.inputBackground || "#f9fafb",
+                      color: colors.text,
+                    },
+                  ]}
+                  placeholderTextColor={colors.placeholder || "#a0aec0"}
+                  placeholder="Instagram handle or URL"
+                  value={formData.instagramHandle}
+                  onChangeText={(val) => updateFormField("instagramHandle", val)}
+                />
+              </View>
+              
+              {/* Twitter/X Handle */}
+              <View style={styles.socialInputContainer}>
+                <View style={styles.socialIconContainer}>
+                  <FontAwesome5 name="times" size={18} color="#000000" />
+                </View>
+                <TextInput
+                  style={[
+                    styles.socialInput,
+                    {
+                      borderColor: errors.socialMedia ? "#ff4d4f" : colors.border,
+                      backgroundColor: colors.inputBackground || "#f9fafb",
+                      color: colors.text,
+                    },
+                  ]}
+                  placeholderTextColor={colors.placeholder || "#a0aec0"}
+                  placeholder="X/Twitter handle or URL"
+                  value={formData.twitterHandle}
+                  onChangeText={(val) => updateFormField("twitterHandle", val)}
+                />
+              </View>
+              
+              {/* Facebook Handle */}
+              <View style={styles.socialInputContainer}>
+                <View style={styles.socialIconContainer}>
+                  <Ionicons name="logo-facebook" size={20} color="#4267B2" />
+                </View>
+                <TextInput
+                  style={[
+                    styles.socialInput,
+                    {
+                      borderColor: errors.socialMedia ? "#ff4d4f" : colors.border,
+                      backgroundColor: colors.inputBackground || "#f9fafb",
+                      color: colors.text,
+                    },
+                  ]}
+                  placeholderTextColor={colors.placeholder || "#a0aec0"}
+                  placeholder="Facebook handle or URL"
+                  value={formData.facebookHandle}
+                  onChangeText={(val) => updateFormField("facebookHandle", val)}
+                />
+              </View>
+              
+              {/* Other Social Media */}
+              <View style={styles.socialInputContainer}>
+                <View style={styles.socialIconContainer}>
+                  <Ionicons name="share-social" size={20} color={colors.primary} />
+                </View>
+                <TextInput
+                  style={[
+                    styles.socialInput,
+                    {
+                      borderColor: errors.socialMedia ? "#ff4d4f" : colors.border,
+                      backgroundColor: colors.inputBackground || "#f9fafb",
+                      color: colors.text,
+                    },
+                  ]}
+                  placeholderTextColor={colors.placeholder || "#a0aec0"}
+                  placeholder="Other social media (TikTok, YouTube, etc.)"
+                  value={formData.otherSocialMedia}
+                  onChangeText={(val) => updateFormField("otherSocialMedia", val)}
+                />
+              </View>
             </View>
 
-            {/* Followers */}
+            {/* Total Followers */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.text }]}>
-                Approximate Followers per Platform *
+                Total Followers Across All Platforms *
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   {
-                    borderColor: errors.followers ? "#ff4d4f" : colors.border,
+                    borderColor: errors.totalFollowers ? "#ff4d4f" : colors.border,
                     backgroundColor: colors.inputBackground || "#f9fafb",
                     color: colors.text,
-                    height: 80,
-                    textAlignVertical: "top",
                   },
                 ]}
                 placeholderTextColor={colors.placeholder || "#a0aec0"}
-                placeholder="Instagram: 10K\nTikTok: 15K\nYouTube: 5K"
-                multiline
-                value={formData.followers}
-                onChangeText={(val) => updateFormField("followers", val)}
+                placeholder="50000"
+                keyboardType="numeric"
+                value={formData.totalFollowers}
+                onChangeText={(val) => updateFormField("totalFollowers", val)}
               />
-              {!!errors.followers && (
-                <Text style={styles.errorText}>{errors.followers}</Text>
+              {!!errors.totalFollowers && (
+                <Text style={styles.errorText}>{errors.totalFollowers}</Text>
               )}
             </View>
 
@@ -720,6 +800,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   errorText: { color: "#ff4d4f", fontSize: 14, marginTop: 4 },
+  // New styles for social media inputs
+  socialInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  socialIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  socialInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
   contactMethodsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",

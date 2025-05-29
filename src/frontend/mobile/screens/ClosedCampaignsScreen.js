@@ -39,32 +39,82 @@ const ClosedCampaignsScreen = ({ navigation }) => {
     );
   }
 
+  // Helper function to extract status from campaign object (same as ActiveCampaignsScreen)
+  const getCampaignStatus = (campaign) => {
+    if (!campaign.status) return "Unknown";
+    
+    // Handle both string and object status formats
+    if (typeof campaign.status === 'string') {
+      return campaign.status;
+    } else if (typeof campaign.status === 'object' && campaign.status.status) {
+      return campaign.status.status;
+    }
+    
+    return "Unknown";
+  };
+
+  // Helper function to get campaign dates (same as ActiveCampaignsScreen)
+  const getCampaignDates = (campaign) => {
+    let startDate, endDate;
+    
+    // Check if status is an object with campaign dates
+    if (typeof campaign.status === 'object' && campaign.status.campaignStartDate) {
+      startDate = new Date(campaign.status.campaignStartDate);
+      endDate = new Date(campaign.status.campaignEndDate);
+    } else if (campaign.approvalData && campaign.approvalData.campaignStartDate) {
+      // Check approvalData field
+      startDate = new Date(campaign.approvalData.campaignStartDate);
+      endDate = new Date(campaign.approvalData.campaignEndDate);
+    } else {
+      // Fallback to timestamp-based calculation
+      startDate = new Date(campaign.statusUpdatedAt || campaign.timestamp);
+      endDate = new Date(startDate.getTime() + (campaign.campaignDuration * 24 * 60 * 60 * 1000));
+    }
+    
+    return { startDate, endDate };
+  };
+
   const loadCampaigns = useCallback(async () => {
     try {
       setLoading(true);
+      console.log(`Loading closed campaigns for influencer: ${user.user_id}`);
       
-      // For influencer users, load their campaign requests
-      const campaignRequests = await fetchInfluencerCampaignRequests(user.id);
+      // Use consistent user ID (user.user_id instead of user.id)
+      const campaignRequests = await fetchInfluencerCampaignRequests(user.user_id);
+      console.log(`Fetched ${campaignRequests.length} campaign requests for closed campaigns`);
       
       // Filter for campaigns that have ended
       const closedCampaigns = campaignRequests.filter(campaign => {
+        const status = getCampaignStatus(campaign);
+        
         // Only consider accepted campaigns
-        if (campaign.status !== "Accepted") {
+        if (status !== "Accepted") {
+          console.log(`Skipping campaign ${campaign.requestId} - status: ${status}`);
           return false;
         }
         
-        // Check if campaign has ended based on duration
-        if (!campaign.statusUpdatedAt) {
-          return false;
-        }
-        
-        const startDate = new Date(campaign.statusUpdatedAt);
-        const endDate = new Date(startDate.getTime() + (campaign.campaignDuration * 24 * 60 * 60 * 1000));
+        // Get campaign dates
+        const { startDate, endDate } = getCampaignDates(campaign);
         const currentDate = new Date();
         
-        return currentDate > endDate;
+        // Check if campaign has ended
+        const isExpired = currentDate > endDate;
+        
+        if (isExpired) {
+          console.log(`✅ Found expired campaign: ${campaign.productName} (${campaign.requestId}) - ended ${endDate.toLocaleDateString()}`);
+        }
+        
+        return isExpired;
       });
       
+      // Sort by end date (most recent first)
+      closedCampaigns.sort((a, b) => {
+        const { endDate: endDateA } = getCampaignDates(a);
+        const { endDate: endDateB } = getCampaignDates(b);
+        return endDateB.getTime() - endDateA.getTime();
+      });
+      
+      console.log(`Found ${closedCampaigns.length} closed campaigns`);
       setCampaigns(closedCampaigns);
     } catch (error) {
       console.error("Error loading closed campaigns:", error);
@@ -89,13 +139,25 @@ const ClosedCampaignsScreen = ({ navigation }) => {
   };
 
   const handleViewCampaign = (campaign) => {
-    // Navigate to campaign details when implemented
-    // For now, just show an alert with campaign details
-    Alert.alert(
-      "Campaign Details",
-      `Product: ${campaign.productName}\nSeller: ${campaign.sellerName}\nDuration: ${campaign.campaignDuration} days\nCommission: ${campaign.commission}%\nStatus: Completed`,
-      [{ text: "OK" }]
-    );
+    const status = getCampaignStatus(campaign);
+    const { startDate, endDate } = getCampaignDates(campaign);
+    const daysCompleted = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Enhanced campaign details for closed campaigns
+    let campaignDetails = `Product: ${campaign.productName}\nSeller: ${campaign.sellerName}\nDuration: ${campaign.campaignDuration} days\nCommission: ${campaign.commission}%\nStatus: Completed`;
+    
+    // Add campaign period
+    campaignDetails += `\nStart Date: ${startDate.toLocaleDateString()}\nEnd Date: ${endDate.toLocaleDateString()}`;
+    campaignDetails += `\nDays Completed: ${daysCompleted}`;
+    
+    // Add seller email if available
+    if (typeof campaign.status === 'object' && campaign.status.sellerEmail) {
+      campaignDetails += `\nSeller Email: ${campaign.status.sellerEmail}`;
+    } else if (campaign.approvalData && campaign.approvalData.sellerEmail) {
+      campaignDetails += `\nSeller Email: ${campaign.approvalData.sellerEmail}`;
+    }
+    
+    Alert.alert("Completed Campaign Details", campaignDetails, [{ text: "OK" }]);
   };
 
   const formatDate = (dateString) => {
@@ -105,9 +167,12 @@ const ClosedCampaignsScreen = ({ navigation }) => {
   };
 
   const renderCampaignItem = ({ item }) => {
-    // Calculate campaign end date
-    const startDate = new Date(item.statusUpdatedAt);
-    const endDate = new Date(startDate.getTime() + (item.campaignDuration * 24 * 60 * 60 * 1000));
+    const { startDate, endDate } = getCampaignDates(item);
+    const campaignDuration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Calculate how long ago it ended
+    const currentDate = new Date();
+    const daysAgoEnded = Math.ceil((currentDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
     
     return (
       <TouchableOpacity 
@@ -116,10 +181,15 @@ const ClosedCampaignsScreen = ({ navigation }) => {
       >
         <View style={styles.campaignHeader}>
           <View style={styles.campaignStatusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: "#6b7280" }]} />
-            <Text style={styles.campaignStatus}>Completed</Text>
+            <View style={[styles.statusDot, { backgroundColor: "#10b981" }]} />
+            <Text style={[styles.campaignStatus, { color: "#10b981" }]}>Completed</Text>
           </View>
-          <Text style={styles.endDate}>Ended: {formatDate(endDate)}</Text>
+          <View style={styles.dateContainer}>
+            <Text style={styles.endDate}>Ended: {formatDate(endDate)}</Text>
+            <Text style={styles.daysAgo}>
+              {daysAgoEnded === 1 ? '1 day ago' : `${daysAgoEnded} days ago`}
+            </Text>
+          </View>
         </View>
         
         <View style={styles.campaignContent}>
@@ -138,12 +208,19 @@ const ClosedCampaignsScreen = ({ navigation }) => {
             <Text style={styles.seller}>Seller: {item.sellerName}</Text>
             <Text style={styles.commission}>Commission: {item.commission}%</Text>
             <Text style={styles.campaignDuration}>
-              Duration: {item.campaignDuration} days
+              Completed: {campaignDuration} days
+            </Text>
+            <Text style={styles.campaignPeriod}>
+              {formatDate(startDate)} - {formatDate(endDate)}
             </Text>
           </View>
         </View>
         
         <View style={styles.campaignFooter}>
+          <View style={styles.completionBadge}>
+            <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+            <Text style={styles.completionText}>Campaign Completed</Text>
+          </View>
           <TouchableOpacity style={styles.viewDetailsButton} onPress={() => handleViewCampaign(item)}>
             <Text style={styles.viewDetailsText}>View Details</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.primary} />
@@ -163,6 +240,12 @@ const ClosedCampaignsScreen = ({ navigation }) => {
       <Text style={styles.emptyText}>
         You don't have any completed campaigns yet. Campaigns will appear here after their duration ends.
       </Text>
+      <TouchableOpacity 
+        style={styles.refreshButton}
+        onPress={onRefresh}
+      >
+        <Text style={styles.refreshButtonText}>Refresh</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -176,7 +259,7 @@ const ClosedCampaignsScreen = ({ navigation }) => {
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading campaigns...</Text>
+          <Text style={styles.loadingText}>Loading completed campaigns...</Text>
         </View>
       ) : (
         <FlatList
@@ -254,6 +337,17 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
     color: colors.subtitle,
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 20,
+  },
+  refreshButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   campaignCard: {
     backgroundColor: colors.card,
@@ -265,6 +359,8 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     overflow: 'hidden',
+    borderLeftWidth: 4,
+    borderLeftColor: "#10b981", // Green border for completed campaigns
   },
   campaignHeader: {
     flexDirection: 'row',
@@ -287,12 +383,19 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
   campaignStatus: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+  },
+  dateContainer: {
+    alignItems: 'flex-end',
   },
   endDate: {
     fontSize: 14,
     fontWeight: '600',
+    color: colors.text,
+  },
+  daysAgo: {
+    fontSize: 12,
     color: colors.subtitle,
+    marginTop: 2,
   },
   campaignContent: {
     flexDirection: 'row',
@@ -340,17 +443,39 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
   campaignDuration: {
     fontSize: 14,
     color: colors.subtitle,
+    marginBottom: 4,
+  },
+  campaignPeriod: {
+    fontSize: 12,
+    color: "#10b981",
+    fontWeight: '500',
   },
   campaignFooter: {
     borderTopWidth: 1,
     borderTopColor: isDarkMode ? '#333' : '#f0f0f0',
     paddingVertical: 12,
     paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  completionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDarkMode ? 'rgba(16,185,129,0.1)' : '#f0fdf4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  completionText: {
+    marginLeft: 4,
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '600',
   },
   viewDetailsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
   },
   viewDetailsText: {
     fontSize: 14,

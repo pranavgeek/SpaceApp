@@ -64,7 +64,21 @@ export const AuthProvider = ({ children }) => {
       const selectedRole = await AsyncStorage.getItem("userRole") || "buyer";
       console.log(`Attempting to login as: ${selectedRole}`);
       
+      // Check if this is a recently reset password login
+      const recentlyResetEmail = await AsyncStorage.getItem("recentlyResetEmail");
+      const recentlyResetPassword = await AsyncStorage.getItem("recentlyResetPassword");
+      
+      // IMPORTANT: If we have recently reset credentials, use them
+      if (recentlyResetEmail === email && recentlyResetPassword) {
+        console.log("Detected login with recently reset password");
+        console.log(`Using stored password (length: ${recentlyResetPassword.length})`);
+        password = recentlyResetPassword;
+        
+        // Only clear these after successful login to allow retries
+      }
+      
       // Fetch user data from the API
+      console.log(`Calling apiLogin with email: ${email}`);
       const userData = await apiLogin(email, password);
       
       // Check if the user exists
@@ -72,30 +86,29 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Invalid credentials");
       }
       
+      console.log("Login successful, processing user data");
+      
       // Get the user's actual role from their account data
       const userRole = userData.account_type?.toLowerCase() || userData.role?.toLowerCase() || "buyer";
       console.log(`User's actual role: ${userRole}`);
-      
-      // Verify that the selected role matches the user's actual role
-      if (selectedRole !== userRole) {
-        throw new Error(`This account is registered as a ${userRole}. Please use the ${userRole} login option.`);
-      }
       
       // Create the updated user object with the correct role
       const updatedUser = {
         ...userData,
         role: userRole,
-        account_type: userRole.charAt(0).toUpperCase() + userRole.slice(1), // Ensure account_type is set and capitalized
-        id: userData.user_id.toString(),
+        account_type: userRole.charAt(0).toUpperCase() + userRole.slice(1),
+        // Handle different ID formats
+        id: userData.user_id ? userData.user_id.toString() : 
+            userData.id ? userData.id.toString() : "0",
+        user_id: userData.user_id ? userData.user_id.toString() : 
+                 userData.id ? userData.id.toString() : "0",
       };
       
-      // For seller accounts, make sure we're tracking if they were originally a buyer or not
-      if (userRole === 'seller') {
-        // Check if this user was originally a buyer
-        const isOriginallyBuyer = await AsyncStorage.getItem("isOriginallyBuyer");
-        if (isOriginallyBuyer === "true") {
-          updatedUser.isOriginallyBuyer = true;
-        }
+      // Only now clear the reset credentials since login was successful
+      if (recentlyResetEmail === email && recentlyResetPassword) {
+        await AsyncStorage.removeItem("recentlyResetEmail");
+        await AsyncStorage.removeItem("recentlyResetPassword");
+        console.log("Cleared temporary reset credentials");
       }
       
       // Update state and storage
@@ -106,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       
       // Check if this is a buyer who should see the suggested accounts
       if (userRole === 'buyer') {
-        const hasSeenSuggestions = await AsyncStorage.getItem(`seen_suggestions_${updatedUser.user_id}`);
+        const hasSeenSuggestions = await AsyncStorage.getItem(`seen_suggestions_${updatedUser.user_id || updatedUser.id}`);
         setIsFirstLogin(!hasSeenSuggestions);
         console.log(`First login status for buyer: ${!hasSeenSuggestions}`);
       } else {

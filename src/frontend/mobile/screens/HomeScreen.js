@@ -112,7 +112,7 @@ export default function HomeScreen({ navigation }) {
 
   const HEADER_MAX_HEIGHT = 110; // Full header height (logo + search)
   const HEADER_MIN_HEIGHT = 65; // Just search bar height
-  const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+  const HEADER_SCROLL_DISTANCE = (HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT) * 7;
   const STATUSBAR_HEIGHT =
     Platform.OS === "ios" ? 20 : 0;
 
@@ -127,14 +127,14 @@ export default function HomeScreen({ navigation }) {
   });
   
   const headerOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2],
+    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.5],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
   const searchBarTranslateY = scrollY.interpolate({
     inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -HEADER_SCROLL_DISTANCE * 0.15],
     extrapolate: 'clamp',
   });
 
@@ -1166,7 +1166,7 @@ const getDynamicStyles = (colors) =>
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 16,
-      paddingBottom: 10,
+      paddingBottom: 18,
       paddingVertical: 20,
       backgroundColor: colors.background,
       justifyContent: "space-between",

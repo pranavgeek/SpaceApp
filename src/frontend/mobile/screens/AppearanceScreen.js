@@ -41,7 +41,7 @@ const AppearanceModeScreen = ({navigation}) => {
             </View>
           }>
         <View>
-          <Text style={styles.text}>
+          <Text style={styles.textTertiary}>
             Modify the appearance mode of the app by toggling the switch above.
           </Text>
         </View>

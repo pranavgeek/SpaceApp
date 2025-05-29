@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import userData from "./data.json";
 import { Platform } from "react-native";
 
-const USE_PRODUCTION = true; // Toggle this to switch between local and production
+const USE_PRODUCTION = false; // Toggle this to switch between local and production
 
 // Development URLs
 const DEV_BASE_URL = Platform.OS === "web"
@@ -130,27 +130,60 @@ export const checkProductionConfig = () => {
 };
 
 // Call this when the app starts
-checkProductionConfig();
+// checkProductionConfig();
 
 
 //LOGIN
 export const apiLogin = async (email, password) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      // Simulate network delay
-      // Fetch all users from the mock data
-      const user = userData.users.find(
-        (u) => u.email === email && u.password === password
-      );
-
-      if (user) {
-        console.log("User found:", user.name, "Role:", user.account_type);
-        resolve(user); // Return the found user
+  // Debug the incoming credentials
+  console.log(`Login attempt with email: ${email} and password length: ${password.length}`);
+  
+  // First try actual API login if we're using production
+  if (USE_PRODUCTION) {
+    try {
+      console.log(`Attempting API login for: ${email} to ${BASE_URL}/auth/login`);
+      const response = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      if (response.ok) {
+        const user = await response.json();
+        console.log("API login successful:", user.name, "Role:", user.account_type);
+        return user;
       } else {
-        console.log("Login failed: Invalid credentials");
-        reject(new Error("Invalid credentials"));
+        console.log(`API login failed with status: ${response.status}`);
       }
-    }, 1000);
+    } catch (apiError) {
+      console.warn("API login attempt failed:", apiError.message);
+    }
+  }
+  
+  // Fall back to mock data - log all users for debugging
+  console.log("Falling back to mock data login");
+  console.log("Available mock users:", userData.users.map(u => ({ email: u.email, password: u.password.slice(0,3) + "..." })));
+  
+  return new Promise((resolve, reject) => {
+    // Find the user in mock data
+    const user = userData.users.find(u => u.email === email && u.password === password);
+    
+    if (user) {
+      console.log("Mock login successful for:", user.name);
+      resolve(user);
+    } else {
+      // Extra debug info for troubleshooting
+      const userWithEmail = userData.users.find(u => u.email === email);
+      if (userWithEmail) {
+        console.log(`User found with email ${email} but password did not match`);
+        console.log(`Expected password: ${userWithEmail.password}`);
+        console.log(`Provided password: ${password}`);
+      } else {
+        console.log(`No user found with email: ${email}`);
+      }
+      
+      reject(new Error("Invalid credentials"));
+    }
   });
 };
 
@@ -175,13 +208,73 @@ export const verifyOtp = async (email, otp) => {
 };
 
 export const resetPassword = async (email, new_password) => {
-  const res = await fetch(`${BASE_URL}/auth/reset-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, new_password }),
-  });
-  if (!res.ok) throw new Error("Failed to reset password");
-  return res.json();
+  console.log(`Attempting to reset password for ${email}`);
+  
+  try {
+    // 1. Try to update the password on the server (keep this part)
+    const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ 
+        email, 
+        new_password,
+        reset_token: await AsyncStorage.getItem("resetToken")
+      }),
+    });
+    
+    // Process server response (keep this part)
+    const responseText = await res.text();
+    console.log(`Password reset response: ${responseText}`);
+    
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      responseData = { message: responseText };
+    }
+    
+    if (!res.ok) {
+      console.error(`Password reset failed with status ${res.status}: ${responseText}`);
+      // Continue anyway - we'll still update the mock data
+      console.warn("Server update failed, will still update local data");
+    } else {
+      console.log("Server password reset successful");
+    }
+    
+    // 2. CRITICALLY IMPORTANT: Update the mock data directly
+    let mockDataUpdated = false;
+    
+    // Find the user in userData and update password
+    for (let i = 0; i < userData.users.length; i++) {
+      if (userData.users[i].email === email) {
+        console.log(`Found user in mock data: ${userData.users[i].name}`);
+        // Store old password for debugging
+        const oldPassword = userData.users[i].password;
+        // Update password
+        userData.users[i].password = new_password;
+        mockDataUpdated = true;
+        console.log(`Updated mock data password from '${oldPassword}' to '${new_password}'`);
+        break;
+      }
+    }
+    
+    if (!mockDataUpdated) {
+      console.warn(`⚠️ User with email ${email} not found in mock data`);
+    }
+    
+    // 3. Also save the updated credentials to AsyncStorage for login
+    await AsyncStorage.setItem("recentlyResetEmail", email);
+    await AsyncStorage.setItem("recentlyResetPassword", new_password);
+    console.log("Saved reset credentials to AsyncStorage");
+    
+    return { success: true, message: "Password reset successful" };
+  } catch (error) {
+    console.error("Error in resetPassword function:", error);
+    throw error;
+  }
 };
 
 // ========================================================================
@@ -2229,44 +2322,97 @@ export const createCampaignRequest = async (campaignRequest) => {
 };
 
 // Update campaign request status
-export const updateCampaignRequestStatus = async (requestId, status) => {
+export const updateCampaignRequestStatus = async (requestId, statusData) => {
   try {
-    // Try to update in backend first
-    const response = await fetch(`${BASE_URL}/campaign-requests/${requestId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ status }),
-    });
+    console.log(`Updating campaign ${requestId} with status data:`, statusData);
+    
+    // Determine if we're receiving a string or object
+    let statusValue;
+    let updateData = {};
+    
+    if (typeof statusData === 'string') {
+      // Simple status update
+      statusValue = statusData;
+      updateData = {
+        status: statusValue,
+        statusUpdatedAt: new Date().toISOString()
+      };
+    } else if (typeof statusData === 'object' && statusData !== null) {
+      // Enhanced status update with additional data
+      if (statusData.status) {
+        statusValue = statusData.status;
+      } else if (typeof statusData === 'object' && statusData.status) {
+        statusValue = statusData.status.status; // Handle nested status
+      }
+      
+      updateData = {
+        status: statusValue, // Keep status as simple string
+        statusUpdatedAt: new Date().toISOString(),
+        ...statusData // Include additional metadata
+      };
+      
+      // Remove nested status object if it exists
+      if (updateData.status && typeof updateData.status === 'object') {
+        updateData.status = updateData.status.status || 'Pending';
+      }
+    }
+    
+    console.log(`Final update data for campaign ${requestId}:`, updateData);
+    
+    // Try to update on the backend first
+    try {
+      const response = await fetch(`${BASE_URL}/campaign-requests/${requestId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Failed to update campaign request: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Failed to update campaign request: ${response.status}`);
+      }
+
+      const backendResult = await response.json();
+      console.log("Backend update successful:", backendResult);
+      return backendResult;
+    } catch (apiError) {
+      console.warn(`Backend API error: ${apiError.message}. Updating local storage only.`);
     }
 
-    return await response.json();
-  } catch (error) {
-    console.error("Error updating campaign request:", error);
-
-    // Fall back to local storage if backend fails
+    // Update local storage as fallback
     try {
-      const requests = await getLocalCampaignRequests();
-      const updatedRequests = requests.map((req) =>
-        req.requestId === requestId
-          ? {
-              ...req,
-              status,
-              statusUpdatedAt: new Date().toISOString(),
-            }
-          : req
+      const stored = await AsyncStorage.getItem("campaignRequests");
+      const requests = stored ? JSON.parse(stored) : [];
+      
+      const requestIndex = requests.findIndex(
+        (req) => String(req.requestId) === String(requestId)
       );
 
-      await saveLocalCampaignRequests(updatedRequests);
-      return updatedRequests.find((req) => req.requestId === requestId);
+      if (requestIndex !== -1) {
+        // Update the request with new data
+        requests[requestIndex] = {
+          ...requests[requestIndex],
+          ...updateData
+        };
+        
+        // Ensure status is always a string
+        requests[requestIndex].status = statusValue;
+        
+        await AsyncStorage.setItem("campaignRequests", JSON.stringify(requests));
+        console.log(`Local storage updated for campaign ${requestId}`);
+        
+        return requests[requestIndex];
+      } else {
+        throw new Error("Campaign request not found in local storage");
+      }
     } catch (storageError) {
-      console.error("Error updating in local storage:", storageError);
+      console.error("Error updating local storage:", storageError);
       throw storageError;
     }
+  } catch (error) {
+    console.error("Error in updateCampaignRequestStatus:", error);
+    throw error;
   }
 };
 

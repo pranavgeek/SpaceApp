@@ -313,83 +313,214 @@ export default function AdminDashboardScreen() {
     try {
       setProcessingAction(true);
       console.log(`✅ Approving campaign request ${requestId}`);
-
-      // 1. Update the admin action status
+  
+      // Find the campaign request details
+      const campaign = campaignRequests.find((c) => c.requestId === requestId);
+      if (!campaign) {
+        throw new Error("Campaign request not found");
+      }
+  
+      // Get user details for enhanced tracking
+      const seller = users.find((u) => String(u.user_id) === String(campaign.sellerId));
+      const influencer = users.find((u) => String(u.user_id) === String(campaign.influencerId));
+  
+      // Calculate campaign end date
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + (campaign.campaignDuration * 24 * 60 * 60 * 1000));
+  
+      console.log(`📊 Campaign Details:
+        - Seller: ${seller?.name || 'Unknown'} (ID: ${campaign.sellerId})
+        - Influencer: ${influencer?.name || 'Unknown'} (ID: ${campaign.influencerId})
+        - Product: ${campaign.productName}
+        - Duration: ${campaign.campaignDuration} days
+        - Start: ${startDate.toLocaleDateString()}
+        - End: ${endDate.toLocaleDateString()}
+        - Commission: ${campaign.commission}%`);
+  
+      // 1. Update the admin action status if exists
       if (adminId) {
         await updateAdminStatus(adminId, "approved");
+        console.log("✓ Admin action status updated");
       }
-
-      // 2. Update the campaign request status
-      await updateCampaignRequestStatus(requestId, "Accepted");
-
-      // 3. Create notifications for both seller and influencer
-      const campaign = campaignRequests.find((c) => c.requestId === requestId);
+  
+      // 2. Update the campaign request status with additional tracking info
+      const updatedCampaignData = {
+        status: "Accepted",
+        approvedAt: new Date().toISOString(),
+        approvedBy: user.user_id, // Admin who approved
+        campaignStartDate: startDate.toISOString(),
+        campaignEndDate: endDate.toISOString(),
+        sellerName: seller?.name || campaign.sellerName,
+        influencerName: influencer?.name || campaign.influencerName,
+        sellerEmail: seller?.email || null,
+        influencerEmail: influencer?.email || null,
+      };
+  
+      await updateCampaignRequestStatus(requestId, updatedCampaignData);
+      console.log("✓ Campaign request status updated with tracking info");
+  
+      // 3. Create detailed notifications for both parties
       if (campaign) {
-        // Notify influencer
-        await createNotification({
+        // Enhanced notification for influencer
+        const influencerNotification = {
           user_id: campaign.influencerId,
-          message: `Your campaign for "${campaign.productName}" has been approved. Check your Active Campaigns tab.`,
+          message: `🎉 Great news! Your campaign for "${campaign.productName}" with ${seller?.name || 'the seller'} has been approved by admin. Campaign runs for ${campaign.campaignDuration} days with ${campaign.commission}% commission. Check your Active Campaigns tab to get started!`,
           date_timestamp: new Date().toISOString(),
-        });
-
-        // Notify seller
-        await createNotification({
+          type: "campaign_approved",
+          campaign_id: requestId,
+          related_user_id: campaign.sellerId,
+          metadata: JSON.stringify({
+            campaignId: requestId,
+            productName: campaign.productName,
+            commission: campaign.commission,
+            duration: campaign.campaignDuration,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          })
+        };
+  
+        // Enhanced notification for seller
+        const sellerNotification = {
           user_id: campaign.sellerId,
-          message: `Your campaign request with ${campaign.influencerName} for "${campaign.productName}" has been approved.`,
+          message: `✅ Your campaign request with ${influencer?.name || 'the influencer'} for "${campaign.productName}" has been approved! The campaign is now active for ${campaign.campaignDuration} days. You can track progress in your seller dashboard.`,
           date_timestamp: new Date().toISOString(),
-        });
+          type: "campaign_approved",
+          campaign_id: requestId,
+          related_user_id: campaign.influencerId,
+          metadata: JSON.stringify({
+            campaignId: requestId,
+            productName: campaign.productName,
+            commission: campaign.commission,
+            duration: campaign.campaignDuration,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          })
+        };
+  
+        await createNotification(influencerNotification);
+        await createNotification(sellerNotification);
+        console.log("✓ Enhanced notifications sent to both parties");
       }
-
-      // 4. Refresh data
+  
+      // 4. Log the approval for admin tracking
+      console.log(`📝 CAMPAIGN APPROVED - Admin Tracking Record:
+        Campaign ID: ${requestId}
+        Approved by Admin: ${user.name} (ID: ${user.user_id})
+        Approval Time: ${new Date().toLocaleString()}
+        Seller: ${seller?.name || 'Unknown'} (ID: ${campaign.sellerId}) - ${seller?.email || 'No email'}
+        Influencer: ${influencer?.name || 'Unknown'} (ID: ${campaign.influencerId}) - ${influencer?.email || 'No email'}
+        Product: ${campaign.productName} ($${campaign.productPrice || 'N/A'})
+        Campaign Duration: ${campaign.campaignDuration} days
+        Commission Rate: ${campaign.commission}%
+        Campaign Period: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}
+        Expected End: ${endDate.toLocaleDateString()}`);
+  
+      // 5. Refresh data
       await loadCampaignRequests();
-
-      Alert.alert("Success", "Campaign has been approved successfully.");
+      await loadAdminDashboard();
+  
+      Alert.alert(
+        "Campaign Approved! ✅", 
+        `Campaign between ${seller?.name || 'Seller'} and ${influencer?.name || 'Influencer'} for "${campaign.productName}" has been successfully approved.\n\nCampaign will run for ${campaign.campaignDuration} days with ${campaign.commission}% commission.`,
+        [{ text: "OK", style: "default" }]
+      );
+  
     } catch (error) {
-      console.error("Error approving campaign:", error);
+      console.error("❌ Error approving campaign:", error);
       Alert.alert(
         "Error",
-        "Failed to approve campaign request. Please try again."
+        `Failed to approve campaign request: ${error.message}`
       );
     } finally {
       setProcessingAction(false);
     }
   };
-
+  
   const handleCampaignRejection = async (requestId) => {
     try {
       setProcessingAction(true);
       console.log(`❌ Rejecting campaign request ${requestId}`);
-
-      // 1. Update the campaign request status
-      await updateCampaignRequestStatus(requestId, "Declined");
-
-      // 2. Create notifications for both seller and influencer
+  
+      // Find the campaign request details
       const campaign = campaignRequests.find((c) => c.requestId === requestId);
-      if (campaign) {
-        // Notify influencer
-        await createNotification({
-          user_id: campaign.influencerId,
-          message: `Campaign request for "${campaign.productName}" has been declined by admin.`,
-          date_timestamp: new Date().toISOString(),
-        });
-
-        // Notify seller
-        await createNotification({
-          user_id: campaign.sellerId,
-          message: `Your campaign request with ${campaign.influencerName} for "${campaign.productName}" was not approved.`,
-          date_timestamp: new Date().toISOString(),
-        });
+      if (!campaign) {
+        throw new Error("Campaign request not found");
       }
-
-      // 3. Refresh data
+  
+      // Get user details for enhanced tracking
+      const seller = users.find((u) => String(u.user_id) === String(campaign.sellerId));
+      const influencer = users.find((u) => String(u.user_id) === String(campaign.influencerId));
+  
+      console.log(`📊 Rejecting Campaign:
+        - Seller: ${seller?.name || 'Unknown'} (ID: ${campaign.sellerId})
+        - Influencer: ${influencer?.name || 'Unknown'} (ID: ${campaign.influencerId})
+        - Product: ${campaign.productName}
+        - Reason: Admin decision`);
+  
+      // 1. Update the campaign request status with rejection details
+      const rejectionData = {
+        status: "Declined",
+        rejectedAt: new Date().toISOString(),
+        rejectedBy: user.user_id, // Admin who rejected
+        rejectionReason: "Admin review - did not meet campaign guidelines",
+      };
+  
+      await updateCampaignRequestStatus(requestId, rejectionData);
+      console.log("✓ Campaign request marked as declined");
+  
+      // 2. Create detailed notifications for both parties
+      if (campaign) {
+        // Notification for influencer
+        const influencerNotification = {
+          user_id: campaign.influencerId,
+          message: `❌ Unfortunately, your campaign request for "${campaign.productName}" has been declined by admin after review. You can contact support for more information or try submitting a new campaign proposal.`,
+          date_timestamp: new Date().toISOString(),
+          type: "campaign_declined",
+          campaign_id: requestId,
+          related_user_id: campaign.sellerId,
+        };
+  
+        // Notification for seller
+        const sellerNotification = {
+          user_id: campaign.sellerId,
+          message: `❌ Your campaign request with ${influencer?.name || 'the influencer'} for "${campaign.productName}" was not approved during admin review. Contact support if you need clarification or consider adjusting your campaign proposal.`,
+          date_timestamp: new Date().toISOString(),
+          type: "campaign_declined",
+          campaign_id: requestId,
+          related_user_id: campaign.influencerId,
+        };
+  
+        await createNotification(influencerNotification);
+        await createNotification(sellerNotification);
+        console.log("✓ Rejection notifications sent to both parties");
+      }
+  
+      // 3. Log the rejection for admin tracking
+      console.log(`📝 CAMPAIGN REJECTED - Admin Tracking Record:
+        Campaign ID: ${requestId}
+        Rejected by Admin: ${user.name} (ID: ${user.user_id})
+        Rejection Time: ${new Date().toLocaleString()}
+        Seller: ${seller?.name || 'Unknown'} (ID: ${campaign.sellerId})
+        Influencer: ${influencer?.name || 'Unknown'} (ID: ${campaign.influencerId})
+        Product: ${campaign.productName}
+        Original Duration: ${campaign.campaignDuration} days
+        Original Commission: ${campaign.commission}%`);
+  
+      // 4. Refresh data
       await loadCampaignRequests();
-
-      Alert.alert("Success", "Campaign has been declined.");
+      await loadAdminDashboard();
+  
+      Alert.alert(
+        "Campaign Declined ❌", 
+        `Campaign request for "${campaign.productName}" has been declined. Both the seller and influencer have been notified.`,
+        [{ text: "OK", style: "default" }]
+      );
+  
     } catch (error) {
-      console.error("Error rejecting campaign:", error);
+      console.error("❌ Error rejecting campaign:", error);
       Alert.alert(
         "Error",
-        "Failed to reject campaign request. Please try again."
+        `Failed to reject campaign request: ${error.message}`
       );
     } finally {
       setProcessingAction(false);
@@ -1416,22 +1547,213 @@ export default function AdminDashboardScreen() {
       </View>
     );
   };
+  
+  const renderActiveCampaignsOverview = () => {
+    // Filter for active/approved campaigns only - handle both string and object status formats
+    const activeCampaigns = campaignRequests.filter(req => {
+      // Handle both string status and nested object status
+      const status = typeof req.status === 'string' ? req.status : req.status?.status;
+      return status === "Accepted" || status === "Approved";
+    });
+  
+    // Sort by most recent first - handle both status formats
+    const sortedActiveCampaigns = [...activeCampaigns].sort(
+      (a, b) => {
+        const aDate = typeof a.status === 'object' && a.status.approvedAt 
+          ? a.status.approvedAt 
+          : a.statusUpdatedAt || a.timestamp;
+        const bDate = typeof b.status === 'object' && b.status.approvedAt 
+          ? b.status.approvedAt 
+          : b.statusUpdatedAt || b.timestamp;
+        return new Date(bDate) - new Date(aDate);
+      }
+    );
+  
+    return (
+      <View style={styles.activeCampaignsContainer}>
+        <View style={styles.activeCampaignsHeader}>
+          <Text style={styles.activeCampaignsTitle}>Active Campaigns</Text>
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{activeCampaigns.length}</Text>
+          </View>
+        </View>
+  
+        {activeCampaigns.length === 0 ? (
+          <View style={styles.emptyActiveCampaigns}>
+            <Ionicons name="megaphone-outline" size={40} color="#9ca3af" />
+            <Text style={styles.emptyActiveCampaignsText}>
+              No active campaigns at the moment
+            </Text>
+          </View>
+        ) : (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.activeCampaignsScroll}
+          >
+            {sortedActiveCampaigns.map((campaign) => {
+              // Find the seller and influencer details
+              const seller = users.find(
+                (u) => String(u.user_id) === String(campaign.sellerId)
+              );
+              const influencer = users.find(
+                (u) => String(u.user_id) === String(campaign.influencerId)
+              );
+  
+              // Calculate campaign dates - handle both status formats
+              const approvedAt = typeof campaign.status === 'object' && campaign.status.approvedAt 
+                ? campaign.status.approvedAt 
+                : campaign.statusUpdatedAt || campaign.timestamp;
+              const startDate = new Date(approvedAt);
+              const endDate = new Date(
+                startDate.getTime() + (campaign.campaignDuration * 24 * 60 * 60 * 1000)
+              );
+              
+              // Calculate days remaining
+              const now = new Date();
+              const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+              const isExpiringSoon = daysRemaining <= 7 && daysRemaining > 0;
+              const isExpired = daysRemaining <= 0;
+  
+              return (
+                <View key={campaign.requestId} style={styles.activeCampaignCard}>
+                  {/* Campaign Status Badge */}
+                  <View style={[
+                    styles.campaignStatusBadge,
+                    isExpired ? { backgroundColor: "#fee2e2" } :
+                    isExpiringSoon ? { backgroundColor: "#fef3c7" } :
+                    { backgroundColor: "#dcfce7" }
+                  ]}>
+                    <Text style={[
+                      styles.campaignStatusText,
+                      isExpired ? { color: "#ef4444" } :
+                      isExpiringSoon ? { color: "#d97706" } :
+                      { color: "#16a34a" }
+                    ]}>
+                      {isExpired ? "Expired" : 
+                       isExpiringSoon ? `${daysRemaining} days left` : 
+                       "Active"}
+                    </Text>
+                  </View>
+  
+                  {/* Product Information */}
+                  <Text style={styles.campaignProductName} numberOfLines={2}>
+                    {campaign.productName}
+                  </Text>
+                  
+                  {campaign.productPrice && (
+                    <Text style={styles.campaignProductPrice}>
+                      ${campaign.productPrice.toFixed(2)}
+                    </Text>
+                  )}
+  
+                  {/* User Information */}
+                  <View style={styles.campaignUsersSection}>
+                    <View style={styles.campaignUserItem}>
+                      <View style={[styles.userMiniIcon, { backgroundColor: "#e0f2fe" }]}>
+                        <Text style={[styles.userMiniInitial, { color: "#0284c7" }]}>
+                          {seller?.name?.charAt(0).toUpperCase() || "S"}
+                        </Text>
+                      </View>
+                      <View style={styles.campaignUserInfo}>
+                        <Text style={styles.campaignUserRole}>Seller</Text>
+                        <Text style={styles.campaignUserName} numberOfLines={1}>
+                          {seller?.name || "Unknown"}
+                        </Text>
+                        <Text style={styles.campaignUserId}>ID: {campaign.sellerId}</Text>
+                      </View>
+                    </View>
+  
+                    <View style={styles.campaignArrow}>
+                      <Ionicons name="arrow-down" size={16} color="#6b7280" />
+                    </View>
+  
+                    <View style={styles.campaignUserItem}>
+                      <View style={[styles.userMiniIcon, { backgroundColor: "#fef3c7" }]}>
+                        <Text style={[styles.userMiniInitial, { color: "#d97706" }]}>
+                          {influencer?.name?.charAt(0).toUpperCase() || "I"}
+                        </Text>
+                      </View>
+                      <View style={styles.campaignUserInfo}>
+                        <Text style={styles.campaignUserRole}>Influencer</Text>
+                        <Text style={styles.campaignUserName} numberOfLines={1}>
+                          {influencer?.name || "Unknown"}
+                        </Text>
+                        <Text style={styles.campaignUserId}>ID: {campaign.influencerId}</Text>
+                      </View>
+                    </View>
+                  </View>
+  
+                  {/* Campaign Details */}
+                  <View style={styles.campaignDetailsRow}>
+                    <View style={styles.campaignDetailItem}>
+                      <Ionicons name="trending-up-outline" size={14} color="#6b7280" />
+                      <Text style={styles.campaignDetailText}>{campaign.commission}%</Text>
+                    </View>
+                    
+                    <View style={styles.campaignDetailItem}>
+                      <Ionicons name="time-outline" size={14} color="#6b7280" />
+                      <Text style={styles.campaignDetailText}>{campaign.campaignDuration}d</Text>
+                    </View>
+                  </View>
+  
+                  {/* Expiration Information */}
+                  <View style={styles.campaignExpirationSection}>
+                    <Text style={styles.campaignExpirationLabel}>Expires:</Text>
+                    <Text style={[
+                      styles.campaignExpirationDate,
+                      isExpired ? { color: "#ef4444" } :
+                      isExpiringSoon ? { color: "#d97706" } :
+                      { color: "#6b7280" }
+                    ]}>
+                      {endDate.toLocaleDateString()}
+                    </Text>
+                  </View>
+  
+                  {/* Contact Information - use nested status data if available */}
+                  <View style={styles.campaignContactSection}>
+                    <Text style={styles.campaignContactTitle}>Contact Info:</Text>
+                    {(typeof campaign.status === 'object' && campaign.status.sellerEmail) || seller?.email ? (
+                      <Text style={styles.campaignContactInfo} numberOfLines={1}>
+                        S: {campaign.status?.sellerEmail || seller?.email}
+                      </Text>
+                    ) : null}
+                    {(typeof campaign.status === 'object' && campaign.status.influencerEmail) || influencer?.email ? (
+                      <Text style={styles.campaignContactInfo} numberOfLines={1}>
+                        I: {campaign.status?.influencerEmail || influencer?.email}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
+    );
+  };
 
   const renderCampaignRequests = () => {
     // Filter for pending campaign requests
     const pendingCampaigns = campaignRequests.filter(
       (req) => req.status === "Pending"
     );
-
+  
+    // Sort by most recent first
+    const sortedCampaigns = [...pendingCampaigns].sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+    );
+  
     return (
       <View style={styles.sectionContainer}>
+        {renderActiveCampaignsOverview()}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Campaign Approval Requests</Text>
           <View style={styles.badgeContainer}>
             <Text style={styles.badgeText}>{pendingCampaigns.length}</Text>
           </View>
         </View>
-
+  
         {pendingCampaigns.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="megaphone" size={50} color="#8b5cf6" />
@@ -1440,104 +1762,214 @@ export default function AdminDashboardScreen() {
             </Text>
           </View>
         ) : (
-          pendingCampaigns.map((request) => {
+          sortedCampaigns.map((request) => {
             // Find the admin data related to this campaign request
             const adminAction = adminData.find(
               (action) =>
                 action.details &&
-                JSON.parse(action.details).campaignRequestId ===
-                  request.requestId
+                JSON.parse(action.details).campaignRequestId === request.requestId
             );
-
-            // Find the seller and influencer
+  
+            // Find the seller and influencer with detailed info
             const seller = users.find(
-              (u) => u.user_id === parseInt(request.sellerId)
+              (u) => String(u.user_id) === String(request.sellerId)
             );
             const influencer = users.find(
-              (u) => u.user_id === parseInt(request.influencerId)
+              (u) => String(u.user_id) === String(request.influencerId)
             );
-
+  
+            // Calculate campaign expiration date
+            const startDate = new Date(request.timestamp);
+            const expirationDate = new Date(startDate.getTime() + (request.campaignDuration * 24 * 60 * 60 * 1000));
+            const isExpiringSoon = expirationDate.getTime() - Date.now() < (7 * 24 * 60 * 60 * 1000); // Within 7 days
+            const isExpired = expirationDate.getTime() < Date.now();
+  
+            // Days until expiration
+            const daysUntilExpiration = Math.ceil((expirationDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+  
             return (
               <View key={request.requestId} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.userInfo}>
-                    <View
-                      style={[
-                        styles.userIconContainer,
-                        { backgroundColor: "#e0f2fe" },
-                      ]}
-                    >
-                      <Text style={styles.userInitial}>
-                        {seller?.name?.charAt(0).toUpperCase() || "S"}
-                      </Text>
+                {/* Enhanced Header with User IDs */}
+                <View style={styles.campaignCardHeader}>
+                  <View style={styles.campaignParticipants}>
+                    {/* Seller Info */}
+                    <View style={styles.participantInfo}>
+                      <View style={[styles.userIconContainer, { backgroundColor: "#e0f2fe" }]}>
+                        <Text style={[styles.userInitial, { color: "#0284c7" }]}>
+                          {seller?.name?.charAt(0).toUpperCase() || "S"}
+                        </Text>
+                      </View>
+                      <View style={styles.participantDetails}>
+                        <Text style={styles.participantRole}>Seller</Text>
+                        <Text style={styles.participantName}>
+                          {seller?.name || "Unknown Seller"}
+                        </Text>
+                        <Text style={styles.participantId}>ID: {request.sellerId}</Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text style={styles.userName}>
-                        {seller?.name || "Unknown Seller"}
-                      </Text>
-                      <Text style={styles.userAction}>
-                        Campaign Request for{" "}
-                        {influencer?.name || "Unknown Influencer"}
-                      </Text>
+  
+                    {/* Arrow */}
+                    <View style={styles.arrowContainer}>
+                      <Ionicons name="arrow-forward" size={20} color="#6b7280" />
+                    </View>
+  
+                    {/* Influencer Info */}
+                    <View style={styles.participantInfo}>
+                      <View style={[styles.userIconContainer, { backgroundColor: "#fef3c7" }]}>
+                        <Text style={[styles.userInitial, { color: "#d97706" }]}>
+                          {influencer?.name?.charAt(0).toUpperCase() || "I"}
+                        </Text>
+                      </View>
+                      <View style={styles.participantDetails}>
+                        <Text style={styles.participantRole}>Influencer</Text>
+                        <Text style={styles.participantName}>
+                          {influencer?.name || "Unknown Influencer"}
+                        </Text>
+                        <Text style={styles.participantId}>ID: {request.influencerId}</Text>
+                      </View>
                     </View>
                   </View>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>{request.status}</Text>
+  
+                  {/* Status Badge */}
+                  <View style={[
+                    styles.statusBadge,
+                    isExpired ? { backgroundColor: "#fee2e2" } :
+                    isExpiringSoon ? { backgroundColor: "#fef3c7" } :
+                    { backgroundColor: "#e0f2fe" }
+                  ]}>
+                    <Text style={[
+                      styles.statusText,
+                      isExpired ? { color: "#ef4444" } :
+                      isExpiringSoon ? { color: "#d97706" } :
+                      { color: "#0284c7" }
+                    ]}>
+                      {request.status}
+                    </Text>
                   </View>
                 </View>
-
-                <View style={styles.campaignDetails}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Product:</Text>
-                    <Text style={styles.detailValue}>
-                      {request.productName}
+  
+                {/* Campaign Details */}
+                <View style={styles.campaignDetailsSection}>
+                  <View style={styles.campaignMainInfo}>
+                    <Text style={styles.productTitle}>{request.productName}</Text>
+                    <Text style={styles.productPrice}>
+                      ${request.productPrice ? request.productPrice.toFixed(2) : 'N/A'}
                     </Text>
                   </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Duration:</Text>
-                    <Text style={styles.detailValue}>
-                      {request.campaignDuration} days
-                    </Text>
+  
+                  <View style={styles.campaignMetrics}>
+                    <View style={styles.metricItem}>
+                      <Ionicons name="time-outline" size={16} color="#6b7280" />
+                      <Text style={styles.metricLabel}>Duration</Text>
+                      <Text style={styles.metricValue}>{request.campaignDuration} days</Text>
+                    </View>
+  
+                    <View style={styles.metricItem}>
+                      <Ionicons name="trending-up-outline" size={16} color="#6b7280" />
+                      <Text style={styles.metricLabel}>Commission</Text>
+                      <Text style={styles.metricValue}>{request.commission}%</Text>
+                    </View>
+  
+                    <View style={styles.metricItem}>
+                      <Ionicons name="calendar-outline" size={16} color="#6b7280" />
+                      <Text style={styles.metricLabel}>Submitted</Text>
+                      <Text style={styles.metricValue}>
+                        {new Date(request.timestamp).toLocaleDateString()}
+                      </Text>
+                    </View>
                   </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Commission:</Text>
-                    <Text style={styles.detailValue}>
-                      {request.commission}%
-                    </Text>
+  
+                  {/* Campaign Timeline */}
+                  <View style={styles.campaignTimeline}>
+                    <View style={styles.timelineHeader}>
+                      <Text style={styles.timelineTitle}>Campaign Timeline</Text>
+                      <View style={[
+                        styles.expirationBadge,
+                        isExpired ? { backgroundColor: "#fee2e2" } :
+                        isExpiringSoon ? { backgroundColor: "#fef3c7" } :
+                        { backgroundColor: "#dcfce7" }
+                      ]}>
+                        <Text style={[
+                          styles.expirationText,
+                          isExpired ? { color: "#ef4444" } :
+                          isExpiringSoon ? { color: "#d97706" } :
+                          { color: "#16a34a" }
+                        ]}>
+                          {isExpired ? "Expired" :
+                           isExpiringSoon ? `${daysUntilExpiration} days left` :
+                           `${daysUntilExpiration} days remaining`}
+                        </Text>
+                      </View>
+                    </View>
+  
+                    <View style={styles.timelineDetails}>
+                      <View style={styles.timelineItem}>
+                        <Text style={styles.timelineLabel}>Start Date:</Text>
+                        <Text style={styles.timelineValue}>
+                          {startDate.toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={styles.timelineItem}>
+                        <Text style={styles.timelineLabel}>End Date:</Text>
+                        <Text style={styles.timelineValue}>
+                          {expirationDate.toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Submitted:</Text>
-                    <Text style={styles.detailValue}>
-                      {new Date(request.timestamp).toLocaleString()}
-                    </Text>
+  
+                  {/* Additional Campaign Details */}
+                  {request.campaignDetails && (
+                    <View style={styles.campaignDescription}>
+                      <Text style={styles.descriptionLabel}>Campaign Details:</Text>
+                      <Text style={styles.descriptionText}>
+                        {request.campaignDetails}
+                      </Text>
+                    </View>
+                  )}
+  
+                  {/* User Contact Information */}
+                  <View style={styles.contactInfo}>
+                    <Text style={styles.contactTitle}>Contact Information</Text>
+                    <View style={styles.contactRow}>
+                      <View style={styles.contactItem}>
+                        <Text style={styles.contactLabel}>Seller Email:</Text>
+                        <Text style={styles.contactValue}>
+                          {seller?.email || "Not available"}
+                        </Text>
+                      </View>
+                      <View style={styles.contactItem}>
+                        <Text style={styles.contactLabel}>Influencer Email:</Text>
+                        <Text style={styles.contactValue}>
+                          {influencer?.email || "Not available"}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
-
+  
                 <View style={styles.divider} />
-
+  
+                {/* Action Buttons */}
                 <View style={styles.cardFooter}>
                   <TouchableOpacity
                     style={styles.rejectButton}
                     onPress={() => handleCampaignRejection(request.requestId)}
                     disabled={processingAction}
                   >
+                    <Ionicons name="close-outline" size={16} color="#ef4444" />
                     <Text style={styles.rejectButtonText}>
                       {processingAction ? "Processing..." : "Reject"}
                     </Text>
                   </TouchableOpacity>
+                  
                   <TouchableOpacity
                     style={[
                       styles.approveButton,
                       processingAction && styles.disabledButton,
                     ]}
                     onPress={() =>
-                      handleCampaignApproval(
-                        request.requestId,
-                        adminAction?.admin_id
-                      )
+                      handleCampaignApproval(request.requestId, adminAction?.admin_id)
                     }
                     disabled={processingAction}
                   >
@@ -1549,14 +1981,14 @@ export default function AdminDashboardScreen() {
                       />
                     ) : (
                       <Ionicons
-                        name="checkmark"
-                        size={18}
+                        name="checkmark-outline"
+                        size={16}
                         color="#fff"
                         style={{ marginRight: 4 }}
                       />
                     )}
                     <Text style={styles.approveButtonText}>
-                      {processingAction ? "Processing..." : "Approve"}
+                      {processingAction ? "Processing..." : "Approve Campaign"}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -2184,5 +2616,393 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#fff",
+  },
+  activeCampaignsContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2.22,
+    elevation: 2,
+  },
+  
+  activeCampaignsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  
+  activeCampaignsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  
+  emptyActiveCampaigns: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  
+  emptyActiveCampaignsText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  
+  activeCampaignsScroll: {
+    paddingRight: 16,
+  },
+  
+  activeCampaignCard: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 16,
+    marginRight: 16,
+    width: 280,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    position: "relative",
+  },
+  
+  campaignStatusBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  
+  campaignStatusText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  
+  campaignProductName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    marginTop: 8,
+    marginBottom: 4,
+    paddingRight: 60, // Make room for status badge
+  },
+  
+  campaignProductPrice: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#059669",
+    marginBottom: 16,
+  },
+  
+  campaignUsersSection: {
+    marginBottom: 16,
+  },
+  
+  campaignUserItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  
+  campaignArrow: {
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  
+  userMiniIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  
+  userMiniInitial: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  
+  campaignUserInfo: {
+    flex: 1,
+  },
+  
+  campaignUserRole: {
+    fontSize: 11,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  
+  campaignUserName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111827",
+    marginVertical: 1,
+  },
+  
+  campaignUserId: {
+    fontSize: 10,
+    color: "#9ca3af",
+    fontFamily: "monospace",
+  },
+  
+  campaignDetailsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  
+  campaignDetailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  
+  campaignDetailText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#374151",
+    marginLeft: 4,
+  },
+  
+  campaignExpirationSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  
+  campaignExpirationLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  
+  campaignExpirationDate: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  
+  campaignContactSection: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  
+  campaignContactTitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 4,
+  },
+  
+  campaignContactInfo: {
+    fontSize: 10,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+
+  campaignCardHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  campaignParticipants: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  participantInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  participantDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  participantRole: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  participantName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  participantId: {
+    fontSize: 11,
+    color: "#9ca3af",
+    fontFamily: "monospace",
+  },
+  arrowContainer: {
+    paddingHorizontal: 12,
+  },
+  
+  // Campaign Details Section
+  campaignDetailsSection: {
+    padding: 16,
+  },
+  campaignMainInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  productTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    flex: 1,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#059669",
+  },
+  
+  // Campaign Metrics
+  campaignMetrics: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 8,
+  },
+  metricItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  metricValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  
+  // Campaign Timeline
+  campaignTimeline: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#3b82f6",
+  },
+  timelineHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  timelineTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  expirationBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  expirationText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  timelineDetails: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  timelineItem: {
+    flex: 1,
+  },
+  timelineLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  timelineValue: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#374151",
+  },
+  
+  // Campaign Description
+  campaignDescription: {
+    marginBottom: 16,
+  },
+  descriptionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 6,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: "#6b7280",
+    lineHeight: 20,
+    backgroundColor: "#f9fafb",
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  
+  // Contact Information
+  contactInfo: {
+    backgroundColor: "#fefefe",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  contactTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  contactRow: {
+    flexDirection: "column",
+    gap: 6,
+  },
+  contactItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  contactLabel: {
+    fontSize: 13,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  contactValue: {
+    fontSize: 13,
+    color: "#374151",
+    fontWeight: "400",
+    flex: 1,
+    textAlign: "right",
   },
 });

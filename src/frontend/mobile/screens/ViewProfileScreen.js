@@ -14,8 +14,9 @@ import {
   Platform,
   Alert,
   FlatList,
+  Linking,
 } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -91,10 +92,11 @@ export default function ViewProfileScreen({ navigation, route }) {
             coverImage: userData.cover_image?.startsWith("http")
               ? userData.cover_image
               : "https://images.unsplash.com/photo-1557682250-33bd709cbe85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+            // Update the social media structure to match what's saved in the profile
             socialMedia: {
-              website: userData.social_media_website || "",
+              instagram: userData.social_media_instagram || "",
               twitter: userData.social_media_x || "",
-              linkedin: userData.social_media_linkedin || "",
+              facebook: userData.social_media_facebook || "",
             },
             stats: {
               followers: userData.followers_count || 0,
@@ -174,6 +176,68 @@ export default function ViewProfileScreen({ navigation, route }) {
       console.error("Error toggling follow:", error);
       Alert.alert("Error", "Failed to update follow status");
       setLoading(false);
+    }
+  };
+
+  // Open social media links
+  const openSocialMediaLink = async (type) => {
+    if (!profile) return;
+  
+    let url;
+    
+    switch (type) {
+      case 'instagram':
+        if (profile.socialMedia.instagram) {
+          // Handle Instagram link
+          if (profile.socialMedia.instagram.startsWith('http')) {
+            url = profile.socialMedia.instagram;
+          } else {
+            // Remove @ if present
+            const username = profile.socialMedia.instagram.replace('@', '');
+            url = `https://instagram.com/${username}`;
+          }
+        }
+        break;
+        
+      case 'twitter':
+        if (profile.socialMedia.twitter) {
+          // Handle Twitter/X link
+          if (profile.socialMedia.twitter.startsWith('http')) {
+            url = profile.socialMedia.twitter;
+          } else {
+            // Remove @ if present
+            const username = profile.socialMedia.twitter.replace('@', '');
+            url = `https://twitter.com/${username}`;
+          }
+        }
+        break;
+        
+      case 'facebook':
+        if (profile.socialMedia.facebook) {
+          // Handle Facebook link
+          if (profile.socialMedia.facebook.startsWith('http')) {
+            url = profile.socialMedia.facebook;
+          } else {
+            url = `https://facebook.com/${profile.socialMedia.facebook}`;
+          }
+        }
+        break;
+    }
+    
+    if (url) {
+      try {
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+        } else {
+          Alert.alert("Error", `Cannot open URL: ${url}`);
+        }
+      } catch (error) {
+        console.error("Error opening URL:", error);
+        Alert.alert("Error", "Unable to open the link");
+      }
+    } else {
+      Alert.alert("No Link", `No ${type} link provided`);
     }
   };
 
@@ -427,30 +491,44 @@ export default function ViewProfileScreen({ navigation, route }) {
 
   // Render social media links if available
   const renderSocialLinks = () => {
+    // Only show social media for influencers
+    if (profile.accountType?.toLowerCase() !== "influencer") {
+      return null;
+    }
+  
     const hasSocialLinks =
-      profile.socialMedia?.website ||
+      profile.socialMedia?.instagram ||
       profile.socialMedia?.twitter ||
-      profile.socialMedia?.linkedin;
-
+      profile.socialMedia?.facebook;
+  
     if (!hasSocialLinks) return null;
-
+  
     return (
       <View style={styles.socialLinksContainer}>
-        {profile.socialMedia.website && (
-          <TouchableOpacity style={styles.socialButton}>
-            <Ionicons name="globe-outline" size={20} color={colors.primary} />
+        {profile.socialMedia.instagram && (
+          <TouchableOpacity 
+            style={styles.socialButton}
+            onPress={() => openSocialMediaLink('instagram')}
+          >
+            <Ionicons name="logo-instagram" size={20} color="#C13584" />
           </TouchableOpacity>
         )}
-
+  
         {profile.socialMedia.twitter && (
-          <TouchableOpacity style={styles.socialButton}>
-            <Ionicons name="logo-twitter" size={20} color={colors.primary} />
+          <TouchableOpacity 
+            style={styles.socialButton}
+            onPress={() => openSocialMediaLink('twitter')}
+          >
+            <FontAwesome5 name="times" size={16} color="#000000" />
           </TouchableOpacity>
         )}
-
-        {profile.socialMedia.linkedin && (
-          <TouchableOpacity style={styles.socialButton}>
-            <Ionicons name="logo-linkedin" size={20} color={colors.primary} />
+  
+        {profile.socialMedia.facebook && (
+          <TouchableOpacity 
+            style={styles.socialButton}
+            onPress={() => openSocialMediaLink('facebook')}
+          >
+            <Ionicons name="logo-facebook" size={20} color="#4267B2" />
           </TouchableOpacity>
         )}
       </View>
@@ -475,21 +553,6 @@ export default function ViewProfileScreen({ navigation, route }) {
               colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
               style={styles.gradient}
             />
-
-            {/* Back button */}
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-
-            {/* Header Actions */}
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.shareButton}>
-                <Ionicons name="share-social-outline" size={22} color="white" />
-              </TouchableOpacity>
-            </View>
 
             <View style={styles.headerContent}>
               <View style={styles.profileImageContainer}>

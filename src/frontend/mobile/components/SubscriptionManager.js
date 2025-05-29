@@ -21,20 +21,20 @@ import * as API from '../backend/db/API';
 const SUBSCRIPTION_SKUS = {
   // Pro Plan
   proMonthly: Platform.select({
-    ios: 'com.thespaceapp.sellerpro.monthly', 
+    ios: 'com.thespaceapp.sellerpro.month', 
     android: 'sellerpro_monthly'
   }),
   proYearly: Platform.select({ 
-    ios: 'com.thespaceapp.sellerpro.yearly', 
+    ios: 'com.thespaceapp.sellerpro.year', 
     android: 'sellerpro_yearly'
   }),
   // Enterprise Plan
   enterpriseMonthly: Platform.select({
-    ios: 'com.thespaceapp.sellerenterprise.monthly', 
+    ios: 'com.thespaceapp.sellerenterprise.month', 
     android: 'sellerenterprise_monthly'
   }),
   enterpriseYearly: Platform.select({ 
-    ios: 'com.thespaceapp.sellerenterprise.yearly', 
+    ios: 'com.thespaceapp.sellerenterprise.year', 
     android: 'sellerenterprise_yearly'
   }),
 };

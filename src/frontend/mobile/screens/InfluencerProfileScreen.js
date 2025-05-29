@@ -11,6 +11,8 @@ import {
   SafeAreaView,
   StatusBar,
   ImageBackground,
+  Linking,
+  Alert,
 } from "react-native";
 import ButtonSettings from "../components/ButtonSettings";
 import ButtonMain from "../components/ButtonMain";
@@ -22,7 +24,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
-import { fetchUsers, BASE_URL } from "../backend/db/API";
+import {
+  fetchUsers,
+  BASE_URL,
+  fetchInfluencerCampaignRequests,
+} from "../backend/db/API";
 import ShareModal from "../components/ShareModal";
 
 export default function InfluencerProfileScreen({ navigation }) {
@@ -49,57 +55,94 @@ export default function InfluencerProfileScreen({ navigation }) {
     }
   };
 
+  const getCampaignStatus = (campaign) => {
+    if (!campaign.status) return "Unknown";
+
+    // Handle both string and object status formats
+    if (typeof campaign.status === "string") {
+      return campaign.status;
+    } else if (typeof campaign.status === "object" && campaign.status.status) {
+      return campaign.status.status;
+    }
+
+    return "Unknown";
+  };
+
   const refreshUserData = async () => {
     try {
       // First try to get fresh user data from AsyncStorage
       const storedUserData = await AsyncStorage.getItem("user");
+      let userData = null;
+
       if (storedUserData) {
-        const userData = JSON.parse(storedUserData);
-
-        // Update the seller state with this data
-        setInfluencer({
-          name: userData.name || "User",
-          city: userData.city || "N/A",
-          country: userData.country || "N/A",
-          accountType: userData.account_type || "N/A",
-          profilePhoto: userData.profile_image || null,
-          campaigns: Array.isArray(userData.campaigns)
-            ? userData.campaigns
-            : [],
-          followers: userData.followers_count || 0,
-          earnings: userData.earnings || 0,
-        });
-
+        userData = JSON.parse(storedUserData);
         console.log(
           "Refreshed user data from AsyncStorage:",
           userData.profile_image
         );
       }
 
-      // Optionally, also try to fetch from API for even fresher data
-      const users = await fetchUsers();
-      const refreshedUser = users.find(
-        (u) => String(u.user_id) === String(user.user_id)
-      );
-
-      if (refreshedUser) {
-        setInfluencer({
-          name: refreshedUser.name || "User",
-          city: refreshedUser.city || "N/A",
-          country: refreshedUser.country || "N/A",
-          accountType: refreshedUser.account_type || "N/A",
-          profilePhoto: refreshedUser.profile_image || null,
-          campaigns: Array.isArray(refreshedUser.campaigns)
-            ? refreshedUser.campaigns
-            : [],
-          followers: refreshedUser.followers_count || 0,
-          earnings: refreshedUser.earnings || 0,
-        });
-
-        console.log(
-          "Refreshed user data from API:",
-          refreshedUser.profile_image
+      // Also try to fetch from API for even fresher data
+      try {
+        const users = await fetchUsers();
+        const refreshedUser = users.find(
+          (u) => String(u.user_id) === String(user.user_id)
         );
+
+        if (refreshedUser) {
+          userData = refreshedUser;
+          console.log(
+            "Refreshed user data from API:",
+            refreshedUser.profile_image
+          );
+        }
+      } catch (apiError) {
+        console.warn("API fetch failed, using cached data:", apiError);
+      }
+
+      // Fetch campaign data specifically for influencers
+      let campaignCount = 0;
+      let activeCampaigns = [];
+
+      if (user.account_type === "Influencer") {
+        try {
+          const campaignRequests = await fetchInfluencerCampaignRequests(
+            user.user_id
+          );
+
+          // Count active campaigns (approved by admin)
+          activeCampaigns = campaignRequests.filter((campaign) => {
+            const status = getCampaignStatus(campaign);
+            return status === "Accepted";
+          });
+
+          campaignCount = activeCampaigns.length;
+          console.log(
+            `Found ${campaignCount} active campaigns for influencer ${user.user_id}`
+          );
+        } catch (campaignError) {
+          console.error("Error fetching influencer campaigns:", campaignError);
+        }
+      }
+
+      // Update the influencer state with fresh data
+      if (userData) {
+        setInfluencer({
+          name: userData.name || "User",
+          city: userData.city || "N/A",
+          country: userData.country || "N/A",
+          accountType: userData.account_type || "N/A",
+          profilePhoto: userData.profile_image || null,
+          campaigns: activeCampaigns, // Use actual campaign data
+          campaignCount: campaignCount, // Separate count for display
+          followers: userData.followers_count || 0,
+          earnings: userData.earnings || 0,
+          social: {
+            twitter: userData.social_media_x || "",
+            facebook: userData.social_media_facebook || "",
+            instagram: userData.social_media_instagram || "",
+          },
+        });
       }
     } catch (error) {
       console.error("Error refreshing user data:", error);
@@ -118,8 +161,14 @@ export default function InfluencerProfileScreen({ navigation }) {
     accountType: user?.account_type || "N/A",
     profilePhoto: user?.profile_image || null,
     campaigns: Array.isArray(user?.campaigns) ? user.campaigns : [],
+    campaignCount: 0, // Add this field
     followers: user?.followers_count || 0,
     earnings: user?.earnings || 0,
+    social: {
+      twitter: user?.social_media_x || "",
+      facebook: user?.social_media_facebook || "",
+      instagram: user?.social_media_instagram || "",
+    },
   });
 
   useFocusEffect(
@@ -129,10 +178,74 @@ export default function InfluencerProfileScreen({ navigation }) {
     }, [])
   );
 
-  // Action Handlers (adjust navigation routes as needed)
+  // Action Handlers
   const handleActiveCampaigns = () => navigation.navigate("ActiveCampaigns");
   const handlePendingCampaigns = () => navigation.navigate("PendingCampaigns");
   const handleClosedCampaigns = () => navigation.navigate("ClosedCampaigns");
+
+  // Handle social media links
+  const handleSocialMediaPress = (type) => {
+    let url;
+
+    switch (type) {
+      case "twitter":
+        if (influencer.social.twitter) {
+          // Ensure the URL has https:// prefix
+          url = influencer.social.twitter.startsWith("http")
+            ? influencer.social.twitter
+            : `https://twitter.com/${influencer.social.twitter.replace("@", "")}`;
+          openUrl(url);
+        } else {
+          Alert.alert(
+            "No Twitter Account",
+            "No Twitter account has been linked to this profile."
+          );
+        }
+        break;
+
+      case "facebook":
+        if (influencer.social.facebook) {
+          url = influencer.social.facebook.startsWith("http")
+            ? influencer.social.facebook
+            : `https://facebook.com/${influencer.social.facebook}`;
+          openUrl(url);
+        } else {
+          Alert.alert(
+            "No Facebook Account",
+            "No Facebook account has been linked to this profile."
+          );
+        }
+        break;
+
+      case "instagram":
+        if (influencer.social.instagram) {
+          url = influencer.social.instagram.startsWith("http")
+            ? influencer.social.instagram
+            : `https://instagram.com/${influencer.social.instagram.replace("@", "")}`;
+          openUrl(url);
+        } else {
+          Alert.alert(
+            "No Instagram Account",
+            "No Instagram account has been linked to this profile."
+          );
+        }
+        break;
+    }
+  };
+
+  const openUrl = async (url) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", `Cannot open URL: ${url}`);
+      }
+    } catch (error) {
+      console.error("Error opening URL:", error);
+      Alert.alert("Error", "An error occurred while trying to open the link.");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -215,21 +328,64 @@ export default function InfluencerProfileScreen({ navigation }) {
 
             {/* Social Media Icons */}
             <View style={styles.socialMediaContainer}>
-              <TouchableOpacity style={styles.socialIcon}>
-                <Ionicons name="logo-twitter" size={20} color="#1DA1F2" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialIcon}>
-                <Ionicons name="logo-instagram" size={20} color="#C13584" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialIcon}>
+              <TouchableOpacity
+                style={[
+                  styles.socialIcon,
+                  influencer.social.twitter ? {} : styles.socialIconDisabled,
+                ]}
+                onPress={() => handleSocialMediaPress("twitter")}
+              >
                 <Ionicons
-                  name="logo-tiktok"
+                  name="logo-twitter"
                   size={20}
-                  color={isDarkMode ? "#FFFFFF" : "#000000"}
+                  color={
+                    influencer.social.twitter
+                      ? "#1DA1F2"
+                      : isDarkMode
+                        ? "#404040"
+                        : "#D0D0D0"
+                  }
                 />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.socialIcon}>
-                <Ionicons name="logo-linkedin" size={20} color="#0077B5" />
+
+              <TouchableOpacity
+                style={[
+                  styles.socialIcon,
+                  influencer.social.instagram ? {} : styles.socialIconDisabled,
+                ]}
+                onPress={() => handleSocialMediaPress("instagram")}
+              >
+                <Ionicons
+                  name="logo-instagram"
+                  size={20}
+                  color={
+                    influencer.social.instagram
+                      ? "#C13584"
+                      : isDarkMode
+                        ? "#404040"
+                        : "#D0D0D0"
+                  }
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.socialIcon,
+                  influencer.social.facebook ? {} : styles.socialIconDisabled,
+                ]}
+                onPress={() => handleSocialMediaPress("facebook")}
+              >
+                <Ionicons
+                  name="logo-facebook"
+                  size={20}
+                  color={
+                    influencer.social.facebook
+                      ? "#4267B2"
+                      : isDarkMode
+                        ? "#404040"
+                        : "#D0D0D0"
+                  }
+                />
               </TouchableOpacity>
             </View>
 
@@ -242,7 +398,9 @@ export default function InfluencerProfileScreen({ navigation }) {
                   color={colors.subtitle}
                 />
                 <Text style={styles.infoText}>
-                  {location || "No location set"}
+                  {location || (influencer.city && influencer.country)
+                    ? `${influencer.city}, ${influencer.country}`
+                    : "No location set"}
                 </Text>
               </View>
 
@@ -265,7 +423,7 @@ export default function InfluencerProfileScreen({ navigation }) {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
-                {influencer.campaigns.length}
+                {influencer.campaignCount || influencer.campaigns.length}
               </Text>
               <Text style={styles.statLabel}>Campaigns</Text>
             </View>
@@ -505,6 +663,10 @@ function getDynamicStyles(colors, isDarkMode) {
       marginRight: 10,
       alignItems: "center",
       justifyContent: "center",
+    },
+    socialIconDisabled: {
+      backgroundColor: isDarkMode ? "rgba(255,255,255,0.05)" : "#f8f8f8",
+      opacity: 0.6,
     },
     locationContainer: {
       marginTop: 8,

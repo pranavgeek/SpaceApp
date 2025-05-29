@@ -200,21 +200,6 @@ export default function UserProfileScreen({ navigation, route }) {
               style={styles.gradient}
             />
 
-            {/* Back button */}
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-
-            {/* Header Actions */}
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.shareButton}>
-                <Ionicons name="share-social-outline" size={22} color="white" />
-              </TouchableOpacity>
-            </View>
-
             <View style={styles.headerContent}>
               <View style={styles.profileImageContainer}>
                 <Image

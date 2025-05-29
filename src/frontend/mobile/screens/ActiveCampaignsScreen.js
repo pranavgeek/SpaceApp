@@ -39,18 +39,59 @@ const ActiveCampaignsScreen = ({ navigation }) => {
     );
   }
 
+  // Helper function to extract status from campaign object
+  const getCampaignStatus = (campaign) => {
+    if (!campaign.status) return "Unknown";
+    
+    // Handle both string and object status formats
+    if (typeof campaign.status === 'string') {
+      return campaign.status;
+    } else if (typeof campaign.status === 'object' && campaign.status.status) {
+      return campaign.status.status;
+    }
+    
+    return "Unknown";
+  };
+
+  // Helper function to get campaign dates
+  const getCampaignDates = (campaign) => {
+    let startDate, endDate;
+    
+    // Check if status is an object with campaign dates
+    if (typeof campaign.status === 'object' && campaign.status.campaignStartDate) {
+      startDate = new Date(campaign.status.campaignStartDate);
+      endDate = new Date(campaign.status.campaignEndDate);
+    } else {
+      // Fallback to timestamp-based calculation
+      startDate = new Date(campaign.statusUpdatedAt || campaign.timestamp);
+      endDate = new Date(startDate.getTime() + (campaign.campaignDuration * 24 * 60 * 60 * 1000));
+    }
+    
+    return { startDate, endDate };
+  };
+
   const loadCampaigns = useCallback(async () => {
     try {
       setLoading(true);
+      console.log(`Loading campaigns for influencer: ${user.user_id}`);
       
       // For influencer users, load their campaign requests
-      const campaignRequests = await fetchInfluencerCampaignRequests(user.id);
+      const campaignRequests = await fetchInfluencerCampaignRequests(user.user_id);
+      console.log(`Fetched ${campaignRequests.length} campaign requests:`, campaignRequests);
       
-      // Filter for accepted campaigns (approved by admin)
-      const activeCampaigns = campaignRequests.filter(
-        campaign => campaign.status === "Accepted"
-      );
+      // Filter for accepted campaigns (approved by admin) with better status handling
+      const activeCampaigns = campaignRequests.filter(campaign => {
+        const status = getCampaignStatus(campaign);
+        const isAccepted = status === "Accepted";
+        
+        if (isAccepted) {
+          console.log(`✅ Active campaign found: ${campaign.productName} (${campaign.requestId})`);
+        }
+        
+        return isAccepted;
+      });
       
+      console.log(`Found ${activeCampaigns.length} active campaigns for influencer`);
       setCampaigns(activeCampaigns);
     } catch (error) {
       console.error("Error loading active campaigns:", error);
@@ -75,19 +116,36 @@ const ActiveCampaignsScreen = ({ navigation }) => {
   };
 
   const handleViewCampaign = (campaign) => {
-    // Navigate to campaign details when implemented
-    // For now, just show an alert with campaign details
-    Alert.alert(
-      "Campaign Details",
-      `Product: ${campaign.productName}\nSeller: ${campaign.sellerName}\nDuration: ${campaign.campaignDuration} days\nCommission: ${campaign.commission}%`,
-      [{ text: "OK" }]
-    );
+    const status = getCampaignStatus(campaign);
+    const { startDate, endDate } = getCampaignDates(campaign);
+    
+    // Enhanced campaign details display
+    let campaignDetails = `Product: ${campaign.productName}\nSeller: ${campaign.sellerName}\nDuration: ${campaign.campaignDuration} days\nCommission: ${campaign.commission}%\nStatus: ${status}`;
+    
+    // Add dates if available
+    if (startDate && endDate) {
+      campaignDetails += `\nStart Date: ${startDate.toLocaleDateString()}\nEnd Date: ${endDate.toLocaleDateString()}`;
+    }
+    
+    // Add seller email if available
+    if (typeof campaign.status === 'object' && campaign.status.sellerEmail) {
+      campaignDetails += `\nSeller Email: ${campaign.status.sellerEmail}`;
+    }
+    
+    Alert.alert("Campaign Details", campaignDetails, [{ text: "OK" }]);
   };
 
   const renderCampaignItem = ({ item }) => {
-    const daysLeft = item.statusUpdatedAt 
-      ? Math.max(0, Math.ceil((new Date(item.statusUpdatedAt).getTime() + (item.campaignDuration * 24 * 60 * 60 * 1000) - new Date().getTime()) / (1000 * 60 * 60 * 24)))
-      : item.campaignDuration;
+    const { startDate, endDate } = getCampaignDates(item);
+    const status = getCampaignStatus(item);
+    
+    // Calculate days left more accurately
+    const today = new Date();
+    const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+    
+    // Determine if campaign is expired
+    const isExpired = daysLeft <= 0;
+    const isExpiringSoon = daysLeft <= 3 && daysLeft > 0;
     
     return (
       <TouchableOpacity 
@@ -96,10 +154,30 @@ const ActiveCampaignsScreen = ({ navigation }) => {
       >
         <View style={styles.campaignHeader}>
           <View style={styles.campaignStatusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: "#10b981" }]} />
-            <Text style={styles.campaignStatus}>Active</Text>
+            <View style={[
+              styles.statusDot, 
+              { 
+                backgroundColor: isExpired ? "#ef4444" : 
+                                isExpiringSoon ? "#f59e0b" : "#10b981" 
+              }
+            ]} />
+            <Text style={[
+              styles.campaignStatus,
+              { 
+                color: isExpired ? "#ef4444" : 
+                       isExpiringSoon ? "#f59e0b" : "#10b981" 
+              }
+            ]}>
+              {isExpired ? "Expired" : "Active"}
+            </Text>
           </View>
-          <Text style={styles.daysLeft}>{daysLeft} days left</Text>
+          <Text style={[
+            styles.daysLeft,
+            { color: isExpired ? "#ef4444" : 
+                     isExpiringSoon ? "#f59e0b" : colors.subtitle }
+          ]}>
+            {isExpired ? "Expired" : `${daysLeft} days left`}
+          </Text>
         </View>
         
         <View style={styles.campaignContent}>
@@ -118,7 +196,11 @@ const ActiveCampaignsScreen = ({ navigation }) => {
             <Text style={styles.seller}>Seller: {item.sellerName}</Text>
             <Text style={styles.commission}>Commission: {item.commission}%</Text>
             <Text style={styles.campaignDuration}>
-              Campaign Duration: {item.campaignDuration} days
+              Duration: {item.campaignDuration} days
+            </Text>
+            {/* Show campaign period */}
+            <Text style={styles.campaignPeriod}>
+              {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
             </Text>
           </View>
         </View>
@@ -143,6 +225,12 @@ const ActiveCampaignsScreen = ({ navigation }) => {
       <Text style={styles.emptyText}>
         You don't have any active campaigns yet. Campaigns that have been approved by admin will appear here.
       </Text>
+      <TouchableOpacity 
+        style={styles.refreshButton}
+        onPress={onRefresh}
+      >
+        <Text style={styles.refreshButtonText}>Refresh</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -234,6 +322,17 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
     color: colors.subtitle,
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 20,
+  },
+  refreshButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   campaignCard: {
     backgroundColor: colors.card,
@@ -267,12 +366,10 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
   campaignStatus: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10b981',
   },
   daysLeft: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.subtitle,
   },
   campaignContent: {
     flexDirection: 'row',
@@ -320,6 +417,12 @@ const getDynamicStyles = (colors, isDarkMode) => StyleSheet.create({
   campaignDuration: {
     fontSize: 14,
     color: colors.subtitle,
+    marginBottom: 4,
+  },
+  campaignPeriod: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
   },
   campaignFooter: {
     borderTopWidth: 1,

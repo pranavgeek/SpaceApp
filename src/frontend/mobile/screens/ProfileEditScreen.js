@@ -19,6 +19,7 @@ import { updateUser } from "../backend/db/API.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FileService from "../backend/FileService.js";
 import * as ImagePicker from "expo-image-picker";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function ProfileEditScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -26,8 +27,8 @@ export default function ProfileEditScreen({ navigation }) {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [twitter, setTwitter] = useState("");
-  const [linkedIn, setLinkedIn] = useState("");
-  const [website, setWebsite] = useState("");
+  const [facebook, setFacebook] = useState("");
+  const [instagram, setInstagram] = useState("");
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
 
@@ -38,35 +39,69 @@ export default function ProfileEditScreen({ navigation }) {
   });
 
   const [uploading, setUploading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(Date.now()); // Used to force image refresh
 
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
   const { user, updateUserSilently } = useAuth();
 
-  useEffect(() => {
-    console.log("Current user data:", JSON.stringify(user, null, 2));
+  // Check if user is an influencer
+  const isInfluencer = user?.account_type === "Influencer" || user?.role === "influencer";
+
+  // Function to load user data - called both on initial load and when screen comes into focus
+  const loadUserData = () => {
+    console.log("Loading user data:", JSON.stringify(user, null, 2));
 
     if (user) {
       setName(user.name || "");
       setDescription(user.about_us || "");
       setCity(user.city || "");
       setCountry(user.country || "");
+      
+      // Make sure to set social media values
       setTwitter(user.social_media_x || "");
-      setLinkedIn(user.social_media_linkedin || "");
-      setWebsite(user.social_media_website || "");
+      setFacebook(user.social_media_facebook || "");
+      setInstagram(user.social_media_instagram || "");
+      
       setGender(user.gender || "");
       setAge(user.age !== undefined ? String(user.age) : "");
 
       // Set the profile image from user data
       if (user.profile_image) {
+        // Add timestamp to force refresh
+        const imageUrl = user.profile_image.includes('?') 
+          ? `${user.profile_image}&t=${Date.now()}`
+          : `${user.profile_image}?t=${Date.now()}`;
+          
+        console.log("Setting profile image with cache-busting:", imageUrl);
+        
         // Just save it as the server URI, we'll display it locally
         setImageUris({
           localUri: null,
-          serverUri: user.profile_image,
+          serverUri: imageUrl,
         });
+        
+        // Refresh the key to force re-render
+        setRefreshKey(Date.now());
       }
     }
+  };
+
+  // Initial load effect
+  useEffect(() => {
+    loadUserData();
   }, [user]);
+
+  // Use focus effect to reload data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("Profile Edit Screen came into focus, reloading data");
+      loadUserData();
+      return () => {
+        // Cleanup function when screen loses focus
+      };
+    }, [user])
+  );
 
   const handleImageUpload = async () => {
     Alert.alert("Update Profile Picture", "Choose your image source", [
@@ -125,11 +160,17 @@ export default function ProfileEditScreen({ navigation }) {
             uploadResult.fullUrl
           );
 
+          // Add cache-busting timestamp
+          const imageUrlWithTimestamp = `${uploadResult.fullUrl}?t=${Date.now()}`;
+
           // Save both URIs
           setImageUris({
             localUri: localUri, // For display in the app
-            serverUri: uploadResult.fullUrl, // For saving to backend
+            serverUri: imageUrlWithTimestamp, // For saving to backend with cache busting
           });
+          
+          // Refresh the key to force re-render
+          setRefreshKey(Date.now());
         } else {
           // Just use local URI if upload fails
           setImageUris({
@@ -196,12 +237,22 @@ export default function ProfileEditScreen({ navigation }) {
             uploadResult.fullUrl
           );
 
+          // Add cache-busting timestamp
+          const imageUrlWithTimestamp = `${uploadResult.fullUrl}?t=${Date.now()}`;
+
           // Save both URIs
           setImageUris({
             localUri: localUri, // For display in the app
-            serverUri: uploadResult.fullUrl, // For saving to backend
+            serverUri: imageUrlWithTimestamp, // For saving to backend with cache busting
           });
-          console.log("Updated imageUris:", { localUri, serverUri: uploadResult.fullUrl });
+          
+          console.log("Updated imageUris:", { 
+            localUri, 
+            serverUri: imageUrlWithTimestamp 
+          });
+          
+          // Refresh the key to force re-render
+          setRefreshKey(Date.now());
         } else {
           // Just use local URI if upload fails
           setImageUris({
@@ -228,27 +279,61 @@ export default function ProfileEditScreen({ navigation }) {
 
   const handleSave = async () => {
     try {
+      // Extract the base URL without the cache-busting parameter
+      let profileImageUrl = imageUris.serverUri || imageUris.localUri || user.profile_image;
+      if (profileImageUrl && profileImageUrl.includes('?')) {
+        profileImageUrl = profileImageUrl.split('?')[0];
+      }
+      
       const updatedUser = {
         ...user,
         name,
         about_us: description,
         city,
         country,
-        social_media_x: twitter,
-        social_media_linkedin: linkedIn,
-        social_media_website: website,
         gender,
         age: parseInt(age, 10),
-        profile_image: imageUris.serverUri || imageUris.localUri || user.profile_image,
+        profile_image: profileImageUrl,
       };
+
+      // Add social media fields only for influencers
+      if (isInfluencer) {
+        updatedUser.social_media_x = twitter;
+        updatedUser.social_media_facebook = facebook;
+        updatedUser.social_media_instagram = instagram;
+      }
   
       console.log("Saving profile image URL:", updatedUser.profile_image);
+      console.log("Is influencer:", isInfluencer);
+      console.log("Social media data:", {
+        twitter: updatedUser.social_media_x,
+        facebook: updatedUser.social_media_facebook,
+        instagram: updatedUser.social_media_instagram
+      });
   
       // Update the user in the backend
       const response = await updateUser(user.user_id, updatedUser);
       
       // Update the user in AsyncStorage silently
       await updateUserSilently(response);
+      
+      // Update the local state with the latest response data
+      // This ensures that our local state is in sync with what's saved in AsyncStorage
+      if (response) {
+        setTwitter(response.social_media_x || "");
+        setFacebook(response.social_media_facebook || "");
+        setInstagram(response.social_media_instagram || "");
+        
+        // Update profile image with cache busting
+        if (response.profile_image) {
+          const imageUrl = `${response.profile_image}?t=${Date.now()}`;
+          setImageUris({
+            localUri: null,
+            serverUri: imageUrl,
+          });
+          setRefreshKey(Date.now());
+        }
+      }
       
       // Alert success
       alert("✅ Profile updated successfully!");
@@ -269,10 +354,14 @@ export default function ProfileEditScreen({ navigation }) {
       console.log("Using local URI:", imageUris.localUri);
     } else if (imageUris.serverUri) {
       source = { uri: imageUris.serverUri };
-      console.log("Using server URI:", imageUris.serverUri);
+      console.log("Using server URI with key:", imageUris.serverUri, refreshKey);
     } else if (user?.profile_image) {
-      source = { uri: user.profile_image };
-      console.log("Using existing profile image:", user.profile_image);
+      // Add cache-busting timestamp
+      const imageUrl = user.profile_image.includes('?') 
+        ? user.profile_image 
+        : `${user.profile_image}?t=${refreshKey}`;
+      source = { uri: imageUrl };
+      console.log("Using existing profile image with key:", imageUrl, refreshKey);
     } else {
       source = {
         uri: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80",
@@ -291,6 +380,7 @@ export default function ProfileEditScreen({ navigation }) {
             source={getImageSource()}
             style={styles.profilePicture}
             resizeMode="cover"
+            key={refreshKey} // Add key to force re-render when image changes
             onError={(e) =>
               console.error("Error loading image:", e.nativeEvent.error)
             }
@@ -343,6 +433,46 @@ export default function ProfileEditScreen({ navigation }) {
           keyboardType="numeric"
         />
       </BaseContainer>
+
+      {/* Social Media Section - Only for Influencers */}
+      {isInfluencer && (
+        <BaseContainer title={"Social Media"}>
+          <View style={styles.socialMediaHeader}>
+            <Ionicons name="share-social" size={20} color={colors.primary} />
+            <Text style={styles.socialMediaSubtitle}>
+              Connect your social media accounts to boost your influence
+            </Text>
+          </View>
+          
+          <InputSetting
+            placeholder="@username"
+            label="Twitter"
+            value={twitter}
+            onChangeText={setTwitter}
+            leftIcon={
+              <Ionicons name="logo-twitter" size={20} color="#1DA1F2" />
+            }
+          />
+          <InputSetting
+            placeholder="facebook.com/username"
+            label="Facebook"
+            value={facebook}
+            onChangeText={setFacebook}
+            leftIcon={
+              <Ionicons name="logo-facebook" size={20} color="#4267B2" />
+            }
+          />
+          <InputSetting
+            placeholder="@username"
+            label="Instagram"
+            value={instagram}
+            onChangeText={setInstagram}
+            leftIcon={
+              <Ionicons name="logo-instagram" size={20} color="#C13584" />
+            }
+          />
+        </BaseContainer>
+      )}
 
       {/* Save Button */}
       <View style={styles.inputContainer}>
@@ -404,6 +534,18 @@ const getDynamicStyles = (colors) =>
     },
     socialMediaContainer: {
       marginBottom: 20,
+    },
+    socialMediaHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 15,
+      paddingHorizontal: 5,
+    },
+    socialMediaSubtitle: {
+      marginLeft: 10,
+      fontSize: 14,
+      color: colors.subtitle,
+      fontStyle: "italic",
     },
     sectionTitle: {
       fontSize: 18,
