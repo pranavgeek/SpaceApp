@@ -150,11 +150,11 @@
       "tier": "Starter Tier",
       "following": [
         {
-          "user_id": 5,
-          "name": "Shubh Rai",
-          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747682441400-421216970.jpg",
+          "user_id": 2,
+          "name": "Sarah Smith",
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747670410431-463901661.jpg",
           "account_type": "Seller",
-          "follow_date": "2025-05-29T14:48:19.129Z"
+          "follow_date": "2025-05-30T02:17:51.726Z"
         }
       ],
       "followers": [],
@@ -204,7 +204,7 @@
           "compaign_total": 399.98
         }
       ],
-      "followers_count": 0,
+      "followers_count": 1,
       "earnings": 500,
       "received_orders": [
         {
@@ -317,7 +317,14 @@
       "verification_id": "1744934821300",
       "verification_expiry": 1744935121301,
       "temp_phone_number": "5192804167",
-      "followers": [],
+      "followers": [
+        {
+          "user_id": 1,
+          "name": "John Doe",
+          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747859170244-355089683.jpg",
+          "follow_date": "2025-05-30T02:17:51.706Z"
+        }
+      ],
       "_preventReload": true,
       "role": "seller",
       "tier": "pro",
@@ -390,15 +397,8 @@
       },
       "user_id": 5,
       "id": "5",
-      "followers": [
-        {
-          "user_id": 1,
-          "name": "John Doe",
-          "profile_image": "http://10.0.0.25:5001/uploads/profile/1747859170244-355089683.jpg",
-          "follow_date": "2025-05-29T14:48:19.099Z"
-        }
-      ],
-      "followers_count": 1,
+      "followers": [],
+      "followers_count": 0,
       "tier": "basic",
       "subscription_cancelled": true,
       "subscription_cancelled_at": "2025-05-21T21:29:11.189Z",
@@ -410,7 +410,7 @@
       "password": "taylor@1234",
       "account_type": "Influencer",
       "role": "influencer",
-      "about_us": "Fdvdfvdfv",
+      "about_us": "Tech Enthusiast",
       "address": "",
       "city": "",
       "country": "",

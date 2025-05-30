@@ -19,57 +19,136 @@ const ProductScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const styles = getDynamicStyles(colors);
 
+  // Helper function to check if a product is verified
+  const isProductVerified = (product) => {
+    return product.verified === true || 
+           product.verified === 1 || 
+           product.verified === "true" ||
+           product.verified === "1";
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const allProducts = await fetchProducts();
+        console.log(`🔄 Loading products for seller ID: ${sellerId} (type: ${typeof sellerId})`);
         
-        // Filter products by seller ID
-        const sellerProducts = allProducts.filter(
-          product => product.user_seller === sellerId
-        );
+        const allProducts = await fetchProducts();
+        console.log(`📦 Total fetched products: ${allProducts.length}`);
+        
+        // Debug: Show all products and their sellers
+        console.log('🔍 All products and their sellers:');
+        allProducts.forEach(product => {
+          console.log(`   - ${product.product_name}: seller=${product.user_seller} (type: ${typeof product.user_seller}), verified=${product.verified}`);
+        });
+        
+        // Filter products by seller ID with multiple comparison methods
+        const sellerProducts = allProducts.filter(product => {
+          const productSellerId = product.user_seller;
+          
+          // Try multiple comparison methods to handle different data types
+          const exactMatch = productSellerId === sellerId;
+          const stringMatch = String(productSellerId) === String(sellerId);
+          const numberMatch = Number(productSellerId) === Number(sellerId);
+          
+          const isSellerMatch = exactMatch || stringMatch || numberMatch;
+          
+          if (isSellerMatch) {
+            console.log(`✅ Found seller product: ${product.product_name} (verified: ${product.verified})`);
+            console.log(`   Match type: exact=${exactMatch}, string=${stringMatch}, number=${numberMatch}`);
+          }
+          
+          return isSellerMatch;
+        });
+        
+        console.log(`🎯 Filtered seller products count: ${sellerProducts.length}`);
+        
+        // If no products found, show detailed comparison info
+        if (sellerProducts.length === 0) {
+          console.warn(`⚠️ No products found for seller ${sellerId}. Detailed comparison:`);
+          allProducts.forEach(product => {
+            const productSellerId = product.user_seller;
+            console.log(`   Product: ${product.product_name}`);
+            console.log(`     - Product seller: ${productSellerId} (${typeof productSellerId})`);
+            console.log(`     - Looking for: ${sellerId} (${typeof sellerId})`);
+            console.log(`     - String comparison: "${String(productSellerId)}" === "${String(sellerId)}" -> ${String(productSellerId) === String(sellerId)}`);
+            console.log(`     - Number comparison: ${Number(productSellerId)} === ${Number(sellerId)} -> ${Number(productSellerId) === Number(sellerId)}`);
+          });
+        }
         
         setProducts(sellerProducts);
         
-        // Get verified products count
-        const count = await getVerifiedProductsCount(sellerId);
-        setVerifiedCount(count);
+        // Count verified products with robust logic
+        const verifiedProducts = sellerProducts.filter(product => {
+          const isVerified = isProductVerified(product);
+          if (isVerified) {
+            console.log(`✓ Verified product: ${product.product_name}`);
+          } else {
+            console.log(`❌ Unverified product: ${product.product_name} (verified value: ${product.verified})`);
+          }
+          return isVerified;
+        });
+        
+        setVerifiedCount(verifiedProducts.length);
+        
+        // Enhanced debug logging
+        console.log(`📊 Seller ${sellerId} summary:`);
+        console.log(`   - Total products: ${sellerProducts.length}`);
+        console.log(`   - Verified products: ${verifiedProducts.length}`);
+        console.log(`   - Unverified products: ${sellerProducts.length - verifiedProducts.length}`);
+        
+        // Show verification status of all products for debugging
+        if (sellerProducts.length > 0) {
+          console.log('📋 Product verification details:');
+          sellerProducts.forEach(product => {
+            console.log(`   - ${product.product_name}: verified=${product.verified} (${typeof product.verified}) -> ${isProductVerified(product)}`);
+          });
+        }
+        
       } catch (error) {
-        console.error('Error loading seller products:', error);
+        console.error('❌ Error loading seller products:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    if (sellerId) {
+      loadData();
+    } else {
+      console.error('❌ No sellerId provided to ProductScreen');
+      setLoading(false);
+    }
   }, [sellerId]);
 
   const handleProductPress = (product) => {
     navigation.navigate('ProductDetails', { productId: product.product_id });
   };
 
-  const renderProductItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[styles.productCard, item.verified ? styles.verifiedCard : null]} 
-      onPress={() => handleProductPress(item)}
-    >
-      <View style={styles.productHeader}>
-        <Text style={styles.productName}>{item.product_name}</Text>
-        {item.verified && (
-          <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-            <Text style={styles.verifiedText}>Verified</Text>
-          </View>
-        )}
-      </View>
-      
-      <View style={styles.productDetails}>
-        <Text style={styles.productPrice}>${item.cost}</Text>
-        <Text style={styles.productCategory}>{item.category || 'Uncategorized'}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderProductItem = ({ item }) => {
+    const verified = isProductVerified(item);
+    
+    return (
+      <TouchableOpacity 
+        style={[styles.productCard, verified ? styles.verifiedCard : null]} 
+        onPress={() => handleProductPress(item)}
+      >
+        <View style={styles.productHeader}>
+          <Text style={styles.productName}>{item.product_name}</Text>
+          {verified && (
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+              <Text style={styles.verifiedText}>Verified</Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.productDetails}>
+          <Text style={styles.productPrice}>${item.cost}</Text>
+          <Text style={styles.productCategory}>{item.category || 'Uncategorized'}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -81,6 +160,7 @@ const ProductScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
+      {/* Stats Container */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
           <Text style={styles.statNumber}>{products.length}</Text>
@@ -99,7 +179,7 @@ const ProductScreen = ({ navigation, route }) => {
         keyExtractor={(item) => item.product_id.toString()}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No products found</Text>
+          <Text style={styles.emptyText}>No products found for this seller</Text>
         }
       />
     </View>
@@ -199,6 +279,27 @@ const getDynamicStyles = (colors) => StyleSheet.create({
     marginTop: 50,
     fontSize: 16,
     color: colors.subtitle,
+  },
+  debugSection: {
+    backgroundColor: colors.cardBackground,
+    margin: 10,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF6B6B',
+    borderStyle: 'dashed',
+  },
+  debugHeader: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FF6B6B',
+    marginBottom: 5,
+  },
+  debugText: {
+    fontSize: 10,
+    color: colors.subtitle,
+    marginTop: 5,
+    fontStyle: 'italic',
   },
 });
 
